@@ -1,18 +1,26 @@
-export function handler(req: Request): Response {
-  const url = new URL(req.url);
+import { Application, oakCors } from "./Dependencies/dependencias.ts";
+import { authRouter } from "./Router/authRouter.ts";
 
-  if (url.pathname === "/api") {
-    return Response.json({
-      message: "Hello, world!",
-      time: new Date().toISOString(),
-    });
-  }
-  //hola
-  return new Response("<h1>Welcome to Deno!</h1>", {
-    headers: { "content-type": "text/html" },
-  });
-}
+const app = new Application();
 
-if (import.meta.main) {
-  Deno.serve(handler);
-}
+// CORS
+app.use(
+  oakCors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
+);
+
+// Rutas
+const routers = [authRouter];
+
+routers.forEach((router) => {
+  app.use(router.routes());
+  app.use(router.allowedMethods());
+});
+
+const PORT = Number(Deno.env.get("PORT") || 8005);
+
+console.log(` Servidor corriendo en http://localhost:${PORT}`);
+await app.listen({ port: PORT });

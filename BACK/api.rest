@@ -1,0 +1,22 @@
+@baseUrl = http://localhost:8005
+
+
+### Registrar cliente
+POST {{baseUrl}}/api/register
+Content-Type: application/json
+
+{
+	"nombre": "Deivyd",
+	"apellido": "Portillo",
+	"email": "deivyd@gmail.com",
+	"password": "123456"
+}
+
+### Iniciar sesión
+POST {{baseUrl}}/api/login
+Content-Type: application/json
+
+{
+	"email": "deivyd@gmail.com",
+	"password": "123456"
+}
