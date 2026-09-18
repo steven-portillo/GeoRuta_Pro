@@ -7,7 +7,7 @@ export function handler(req: Request): Response {
       time: new Date().toISOString(),
     });
   }
-
+  //hola
   return new Response("<h1>Welcome to Deno!</h1>", {
     headers: { "content-type": "text/html" },
   });
