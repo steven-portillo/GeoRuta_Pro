@@ -138,23 +138,6 @@ CREATE TABLE `inventario` (
 -- --------------------------------------------------------
 
 --
--- Estructura de tabla para la tabla `logs_auditoria`
---
-
-CREATE TABLE `logs_auditoria` (
-  `id_log` int(11) NOT NULL,
-  `id_usuario` int(11) NOT NULL,
-  `accion` varchar(50) NOT NULL,
-  `tabla_afectada` varchar(50) NOT NULL,
-  `id_registro_afectado` int(11) DEFAULT NULL,
-  `descripcion` varchar(0) DEFAULT NULL,
-  `ip_address` varchar(45) DEFAULT NULL,
-  `fecha_hora` datetime NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
-
---
 -- Estructura de tabla para la tabla `movimientos_inventario`
 --
 
@@ -168,22 +151,6 @@ CREATE TABLE `movimientos_inventario` (
   `stock_nuevo` int(11) NOT NULL,
   `motivo` varchar(255) DEFAULT NULL,
   `fecha` datetime NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `notificaciones`
---
-
-CREATE TABLE `notificaciones` (
-  `id_notificacion` int(11) NOT NULL,
-  `id_usuario` int(11) NOT NULL,
-  `id_pedido` int(11) DEFAULT NULL,
-  `tipo` varchar(50) NOT NULL,
-  `mensaje` text NOT NULL,
-  `leida` tinyint(1) NOT NULL DEFAULT 0,
-  `fecha_hora` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
