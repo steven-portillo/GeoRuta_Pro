@@ -1,0 +1,395 @@
+---
+import "./auth.css";
+import "../public/Forms.css";
+---
+
+<!--
+    PANEL IZQUIERDO
+-->
+<div class="login-page-wrapper">
+  <div class="login-visual">
+    <div class="login-visual-inner">
+      <div class="lv-brand">
+        <div class="lv-brand-icon">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"
+            ></path>
+          </svg>
+        </div>
+        <span class="lv-brand-name">GeoRuta</span>
+      </div>
+
+      <div class="lv-tagline">
+        Empieza hoy<br />tu gestión<br /><span>inteligente</span>
+      </div>
+
+      <ul class="lv-features">
+        <li>
+          <div class="lv-feat-icon">
+            <svg viewBox="0 0 24 24"
+              ><path
+                d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+              ></path></svg
+            >
+          </div>
+          Rastreo GPS en tiempo real
+        </li>
+        <li>
+          <div class="lv-feat-icon">
+            <svg viewBox="0 0 24 24"
+              ><path
+                d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45C5.16 12.37 5 12.82 5 13.3 5 15.1 6.9 18 9 18h12v-2H9.42a.25.25 0 01-.25-.25l.03-.12.9-1.63H19c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1 1 0 0023.44 6H5.21l-.94-2H1z"
+              ></path></svg
+            >
+          </div>
+          Gestión completa de pedidos
+        </li>
+        <li>
+          <div class="lv-feat-icon">
+            <svg viewBox="0 0 24 24"
+              ><path
+                d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"
+              ></path></svg
+            >
+          </div>
+          Control de inventario automático
+        </li>
+        <li>
+          <div class="lv-feat-icon">
+            <svg viewBox="0 0 24 24"
+              ><path
+                d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"
+              ></path></svg
+            >
+          </div>
+          Acceso seguro por rol
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!--
+  PANEL DERECHO
+  -->
+  <div class="login-form-side">
+    <div class="login-card-container">
+      <div class="login-card">
+        <a href="/auth/login" class="login-back">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path
+              d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"
+            ></path>
+          </svg>
+          Ya tengo cuenta
+        </a>
+
+        <div class="login-head">
+          <h1>Crear cuenta</h1>
+          <p>Completa tus datos para empezar a usar GeoRuta</p>
+        </div>
+
+        <div
+          id="formAlert"
+          class="alert-custom alert-custom-danger d-none"
+          role="alert"
+        >
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <span id="formAlertMessage"
+            >Por favor corrige los errores antes de continuar.</span
+          >
+        </div>
+
+        <form id="registroForm" class="login-form" novalidate>
+          <div class="row g-2 mb-3">
+            <div class="col">
+              <label for="nombresInput" class="form-label-custom"
+                >Nombres</label
+              >
+              <div class="input-field-wrapper">
+                <i class="bi bi-person field-icon"></i>
+                <input
+                  type="text"
+                  id="nombresInput"
+                  class="form-control-custom"
+                  placeholder="Tu nombre"
+                  autocomplete="given-name"
+                />
+              </div>
+              <div class="error-feedback" id="nombresError"></div>
+            </div>
+            <div class="col">
+              <label for="apellidosInput" class="form-label-custom"
+                >Apellidos</label
+              >
+              <div class="input-field-wrapper">
+                <i class="bi bi-person field-icon"></i>
+                <input
+                  type="text"
+                  id="apellidosInput"
+                  class="form-control-custom"
+                  placeholder="Tu apellido"
+                  autocomplete="family-name"
+                />
+              </div>
+              <div class="error-feedback" id="apellidosError"></div>
+            </div>
+          </div>
+
+          <div class="input-group-custom mb-3">
+            <label for="emailInput" class="form-label-custom"
+              >Correo electrónico</label
+            >
+            <div class="input-field-wrapper">
+              <i class="bi bi-envelope field-icon"></i>
+              <input
+                type="text"
+                id="emailInput"
+                class="form-control-custom"
+                placeholder="tu@correo.com"
+                autocomplete="email"
+              />
+            </div>
+            <div class="error-feedback" id="emailError"></div>
+          </div>
+
+          <div class="input-group-custom mb-3">
+            <label for="passwordInput" class="form-label-custom"
+              >Contraseña</label
+            >
+            <div class="input-field-wrapper">
+              <i class="bi bi-key field-icon"></i>
+              <input
+                type="password"
+                id="passwordInput"
+                class="form-control-custom"
+                placeholder="Mínimo 8 caracteres"
+                autocomplete="new-password"
+              />
+              <button
+                type="button"
+                class="toggle-password-btn"
+                id="togglePassword"
+                aria-label="Mostrar u ocultar contraseña"
+              >
+                <i class="bi bi-eye" id="togglePasswordIcon"></i>
+              </button>
+            </div>
+            <div class="error-feedback" id="passwordError"></div>
+          </div>
+
+          <div class="input-group-custom mb-3">
+            <label for="confirmarInput" class="form-label-custom"
+              >Confirmar contraseña</label
+            >
+            <div class="input-field-wrapper">
+              <i class="bi bi-key field-icon"></i>
+              <input
+                type="password"
+                id="confirmarInput"
+                class="form-control-custom"
+                placeholder="Repite tu contraseña"
+                autocomplete="new-password"
+              />
+              <button
+                type="button"
+                class="toggle-password-btn"
+                id="togglePasswordConfirm"
+                aria-label="Mostrar u ocultar contraseña"
+              >
+                <i class="bi bi-eye" id="togglePasswordConfirmIcon"></i>
+              </button>
+            </div>
+            <div class="error-feedback" id="confirmarError"></div>
+          </div>
+
+          <button type="submit" class="btn-submit-gradient" id="submitBtn">
+            <span class="btn-text">Crear mi cuenta</span>
+            <i class="bi bi-arrow-right btn-icon"></i>
+            <div
+              class="btn-spinner spinner-border spinner-border-sm text-light d-none"
+              role="status"
+            >
+              <span class="visually-hidden">Cargando...</span>
+            </div>
+          </button>
+
+          <div class="text-center">
+            <p class="register-prompt mb-0">
+              ¿Eres una empresa distribuidora?
+              <a href="/auth/signin-empresa" class="forgot-link">Registrar empresa</a>
+            </p>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  import { email } from "astro:schema";
+import {
+    validarSoloLetras,
+    validarFormatoEmail,
+    validarPassword,
+    validarPasswordComparar,
+    attachFieldValidation,
+  } from "../../utils/validaciones";
+
+  // --- Elementos ---
+  const togglePasswordBtn = document.getElementById("togglePassword");
+  const togglePasswordIcon = document.getElementById("togglePasswordIcon");
+  const passwordInput = document.getElementById("passwordInput") as HTMLInputElement | null;
+
+  const togglePasswordConfirmBtn = document.getElementById("togglePasswordConfirm");
+  const togglePasswordConfirmIcon = document.getElementById("togglePasswordConfirmIcon");
+  const confirmarInput = document.getElementById("confirmarInput") as HTMLInputElement | null;
+
+  const nombresInput = document.getElementById("nombresInput") as HTMLInputElement | null;
+  const nombresError = document.getElementById("nombresError");
+
+  const apellidosInput = document.getElementById("apellidosInput") as HTMLInputElement | null;
+  const apellidosError = document.getElementById("apellidosError");
+
+  const emailInput = document.getElementById("emailInput") as HTMLInputElement | null;
+  const emailError = document.getElementById("emailError");
+
+  const passwordError = document.getElementById("passwordError");
+  const confirmarError = document.getElementById("confirmarError");
+
+  const formAlert = document.getElementById("formAlert");
+  const formAlertMessage = document.getElementById("formAlertMessage");
+  const registroForm = document.getElementById("registroForm") as HTMLFormElement | null;
+  const submitBtn = document.getElementById("submitBtn") as HTMLButtonElement | null;
+
+  // --- Toggle mostrar/ocultar contraseña (x2, un set por campo) ---
+  if (togglePasswordBtn && passwordInput && togglePasswordIcon) {
+    togglePasswordBtn.addEventListener("click", () => {
+      const isPassword = passwordInput.type === "password";
+      passwordInput.type = isPassword ? "text" : "password";
+      togglePasswordIcon.classList.toggle("bi-eye", !isPassword);
+      togglePasswordIcon.classList.toggle("bi-eye-slash", isPassword);
+    });
+  }
+  if (togglePasswordConfirmBtn && confirmarInput && togglePasswordConfirmIcon) {
+    togglePasswordConfirmBtn.addEventListener("click", () => {
+      const isPassword = confirmarInput.type === "password";
+      confirmarInput.type = isPassword ? "text" : "password";
+      togglePasswordConfirmIcon.classList.toggle("bi-eye", !isPassword);
+      togglePasswordConfirmIcon.classList.toggle("bi-eye-slash", isPassword);
+    });
+  }
+
+  // --- Validaciones ---
+  const validarNombres = attachFieldValidation(nombresInput, nombresError, (v) =>
+    validarSoloLetras(v, "El nombre")
+  );
+  const validarApellidos = attachFieldValidation(apellidosInput, apellidosError, (v) =>
+    validarSoloLetras(v, "El apellido")
+  );
+  const validarEmail = attachFieldValidation(emailInput, emailError, validarFormatoEmail);
+  const validarPasswordCampo = attachFieldValidation(passwordInput, passwordError, (v) =>
+    validarPassword(v)
+  );
+  const validarConfirmar = attachFieldValidation(confirmarInput, confirmarError, (v) =>
+    validarPasswordComparar(v, passwordInput?.value ?? "")
+  );
+
+  // Si el usuario corrige la contraseña original después de ya haber
+  // escrito la confirmación, se revalida la confirmación en cadena
+  passwordInput?.addEventListener("input", () => {
+    if (confirmarInput?.value) validarConfirmar?.();
+  });
+
+  // --- Envío ---
+  if (registroForm && submitBtn && formAlert && formAlertMessage) {
+    registroForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const nombresOk = validarNombres?.();
+      const apellidosOk = validarApellidos?.();
+      const emailOk = validarEmail?.();
+      const passwordOk = validarPasswordCampo?.();
+      const confirmarOk = validarConfirmar?.();
+
+      if (
+        !nombresOk?.isValid ||
+        !apellidosOk?.isValid ||
+        !emailOk?.isValid ||
+        !passwordOk?.isValid ||
+        !confirmarOk?.isValid
+      ) {
+        formAlertMessage.textContent =
+          "Por favor completa todos los campos requeridos correctamente.";
+        formAlert.className = "alert-custom alert-custom-danger d-flex";
+
+        if (!nombresOk?.isValid) nombresInput?.focus();
+        else if (!apellidosOk?.isValid) apellidosInput?.focus();
+        else if (!emailOk?.isValid) emailInput?.focus();
+        else if (!passwordOk?.isValid) passwordInput?.focus();
+        else if (!confirmarOk?.isValid) confirmarInput?.focus();
+
+        return;
+      }
+
+      formAlert.classList.add("d-none");
+
+      const btnText = submitBtn.querySelector(".btn-text");
+      const btnIcon = submitBtn.querySelector(".btn-icon");
+      const btnSpinner = submitBtn.querySelector(".btn-spinner");
+
+      if (btnText && btnIcon && btnSpinner) {
+        btnText.textContent = "Creando cuenta...";
+        btnIcon.classList.add("d-none");
+        btnSpinner.classList.remove("d-none");
+        submitBtn.disabled = true;
+        const payload = {
+          nombre:  nombresInput!.value.trim(),
+          apellido: apellidosInput!.value.trim(),
+          email: emailInput!.value.trim(),
+          password: passwordInput!.value,
+        }
+        try {
+          const response = await fetch('/api/auth/registro', {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+              body: JSON.stringify(payload)
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            btnText.textContent = "¡Cuenta creada!";
+            btnSpinner.classList.add("d-none");
+            btnIcon.className = "bi bi-check-lg btn-icon";
+            btnIcon.classList.remove("d-none");
+
+            formAlertMessage.textContent =
+              data.message || "Cuenta creada correctamente. Redirigiendo al inicio de sesión...";
+            formAlert.className = "alert-custom alert-custom-success d-flex";
+
+            setTimeout(() => {
+              window.location.href = "/auth/login";
+            }, 1500);
+          } else {
+            throw new Error(data.message || "Error en el registro");
+          }
+        } catch (error) {
+          console.error("Error al realizar la petición:", error);
+
+          btnText.textContent = "Crear mi cuenta";
+          btnSpinner.classList.add("d-none");
+          btnIcon.className = "bi bi-arrow-right btn-icon";
+          btnIcon.classList.remove("d-none");
+          submitBtn.disabled = false;
+
+          formAlertMessage.textContent =
+            error instanceof Error ? error.message : "Error al conectar con el servidor";
+          formAlert.className = "alert-custom alert-custom-danger d-flex";
+        }
+      }
+    });
+  }
+</script>

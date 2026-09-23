@@ -1,0 +1,569 @@
+---
+import "./auth.css";
+import "../public/Forms.css";
+---
+
+<!--
+    PANEL IZQUIERDO
+-->
+<div class="login-page-wrapper">
+  <div class="login-visual">
+    <div class="login-visual-inner">
+      <div class="lv-brand">
+        <div class="lv-brand-icon">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"
+            ></path>
+          </svg>
+        </div>
+        <span class="lv-brand-name">GeoRuta</span>
+      </div>
+
+      <div class="lv-tagline">
+        Registra<br />tu empresa<br /><span>distribuidora</span>
+      </div>
+
+      <ul class="lv-features">
+        <li>
+          <div class="lv-feat-icon">
+            <svg viewBox="0 0 24 24"
+              ><path
+                d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+              ></path></svg
+            >
+          </div>
+          Rastreo GPS en tiempo real
+        </li>
+        <li>
+          <div class="lv-feat-icon">
+            <svg viewBox="0 0 24 24"
+              ><path
+                d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45C5.16 12.37 5 12.82 5 13.3 5 15.1 6.9 18 9 18h12v-2H9.42a.25.25 0 01-.25-.25l.03-.12.9-1.63H19c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1 1 0 0023.44 6H5.21l-.94-2H1z"
+              ></path></svg
+            >
+          </div>
+          Gestión completa de pedidos
+        </li>
+        <li>
+          <div class="lv-feat-icon">
+            <svg viewBox="0 0 24 24"
+              ><path
+                d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"
+              ></path></svg
+            >
+          </div>
+          Control de inventario automático
+        </li>
+        <li>
+          <div class="lv-feat-icon">
+            <svg viewBox="0 0 24 24"
+              ><path
+                d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"
+              ></path></svg
+            >
+          </div>
+          Acceso seguro por rol
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!--
+  PANEL DERECHO
+  -->
+  <div class="login-form-side">
+    <div class="login-card-container wide">
+      <div class="login-card">
+        <a href="/auth/login" class="login-back">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path
+              d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"
+            ></path>
+          </svg>
+          Ya tengo cuenta
+        </a>
+
+        <div class="login-head">
+          <h1>Registrar empresa</h1>
+          <p>Tu solicitud será revisada y activada por el administrador.</p>
+        </div>
+
+        <div
+          id="formAlert"
+          class="alert-custom alert-custom-danger d-none"
+          role="alert"
+        >
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <span id="formAlertMessage"
+            >Por favor corrige los errores antes de continuar.</span
+          >
+        </div>
+
+        <form id="registroEmpresaForm" class="login-form" novalidate>
+          <!-- ─── DATOS DE LA EMPRESA ─── -->
+          <p class="form-section-title">Datos de la empresa</p>
+
+          <div class="input-group-custom mb-3">
+            <label for="nombreEmpresaInput" class="form-label-custom"
+              >Nombre de la empresa</label
+            >
+            <div class="input-field-wrapper">
+              <i class="bi bi-building field-icon"></i>
+              <input
+                type="text"
+                id="nombreEmpresaInput"
+                class="form-control-custom"
+                placeholder="Ej: Distribuidora Los Andes"
+              />
+            </div>
+            <div class="error-feedback" id="nombreEmpresaError"></div>
+          </div>
+
+          <div class="input-group-custom mb-3">
+            <label for="descripcionEmpresaInput" class="form-label-custom"
+              >Descripción <span class="lf-optional">(opcional)</span></label
+            >
+            <div class="input-field-wrapper textarea-wrapper">
+              <i class="bi bi-card-text field-icon"></i>
+              <textarea
+                id="descripcionEmpresaInput"
+                class="form-control-custom textarea-custom"
+                rows="3"
+                placeholder="Describe brevemente tu empresa"></textarea>
+            </div>
+          </div>
+
+          <div class="input-group-custom mb-3">
+            <label for="logoEmpresaInput" class="form-label-custom"
+              >Logo <span class="lf-optional">(opcional)</span></label
+            >
+            <div class="file-row">
+              <img
+                id="logoPreview"
+                class="file-preview"
+                alt="Vista previa del logo"
+                style="display: none;"
+              />
+              <input
+                type="file"
+                id="logoEmpresaInput"
+                class="form-control-custom no-icon"
+                accept="image/jpeg,image/png,image/webp"
+              />
+            </div>
+            <div class="error-feedback" id="logoEmpresaError"></div>
+          </div>
+
+          <!-- ─── DATOS DEL ADMINISTRADOR ─── -->
+          <p class="form-section-title mt">Datos del administrador</p>
+          <p class="form-section-sub">Esta persona manejará la empresa en la plataforma.</p>
+
+          <div class="row g-2 mb-3">
+            <div class="col">
+              <label for="nombreAdminInput" class="form-label-custom"
+                >Nombre</label
+              >
+              <div class="input-field-wrapper">
+                <i class="bi bi-person field-icon"></i>
+                <input
+                  type="text"
+                  id="nombreAdminInput"
+                  class="form-control-custom"
+                  placeholder="Nombre del administrador"
+                  autocomplete="given-name"
+                />
+              </div>
+              <div class="error-feedback" id="nombreAdminError"></div>
+            </div>
+            <div class="col">
+              <label for="apellidoAdminInput" class="form-label-custom"
+                >Apellido</label
+              >
+              <div class="input-field-wrapper">
+                <i class="bi bi-person field-icon"></i>
+                <input
+                  type="text"
+                  id="apellidoAdminInput"
+                  class="form-control-custom"
+                  placeholder="Apellido del administrador"
+                  autocomplete="family-name"
+                />
+              </div>
+              <div class="error-feedback" id="apellidoAdminError"></div>
+            </div>
+          </div>
+
+          <div class="input-group-custom mb-3">
+            <label for="emailAdminInput" class="form-label-custom"
+              >Correo electrónico</label
+            >
+            <div class="input-field-wrapper">
+              <i class="bi bi-envelope field-icon"></i>
+              <input
+                type="text"
+                id="emailAdminInput"
+                class="form-control-custom"
+                placeholder="admin@empresa.com"
+                autocomplete="email"
+              />
+            </div>
+            <div class="error-feedback" id="emailAdminError"></div>
+          </div>
+
+          <div class="input-group-custom mb-3">
+            <label for="passwordAdminInput" class="form-label-custom"
+              >Contraseña</label
+            >
+            <div class="input-field-wrapper">
+              <i class="bi bi-key field-icon"></i>
+              <input
+                type="password"
+                id="passwordAdminInput"
+                class="form-control-custom"
+                placeholder="Mínimo 8 caracteres"
+                autocomplete="new-password"
+              />
+              <button
+                type="button"
+                class="toggle-password-btn"
+                id="togglePasswordAdmin"
+                aria-label="Mostrar u ocultar contraseña"
+              >
+                <i class="bi bi-eye" id="togglePasswordAdminIcon"></i>
+              </button>
+            </div>
+            <div class="error-feedback" id="passwordAdminError"></div>
+          </div>
+
+          <div class="input-group-custom mb-3">
+            <label for="confirmarAdminInput" class="form-label-custom"
+              >Confirmar contraseña</label
+            >
+            <div class="input-field-wrapper">
+              <i class="bi bi-key field-icon"></i>
+              <input
+                type="password"
+                id="confirmarAdminInput"
+                class="form-control-custom"
+                placeholder="Repite la contraseña"
+                autocomplete="new-password"
+              />
+              <button
+                type="button"
+                class="toggle-password-btn"
+                id="togglePasswordAdminConfirm"
+                aria-label="Mostrar u ocultar contraseña"
+              >
+                <i class="bi bi-eye" id="togglePasswordAdminConfirmIcon"></i>
+              </button>
+            </div>
+            <div class="error-feedback" id="confirmarAdminError"></div>
+          </div>
+
+          <button type="submit" class="btn-submit-gradient" id="submitBtn">
+            <span class="btn-text">Enviar solicitud</span>
+            <i class="bi bi-arrow-right btn-icon"></i>
+            <div
+              class="btn-spinner spinner-border spinner-border-sm text-light d-none"
+              role="status"
+            >
+              <span class="visually-hidden">Cargando...</span>
+            </div>
+          </button>
+
+          <div class="text-center">
+            <p class="register-prompt mb-0">
+              ¿Prefieres una cuenta normal?
+              <a href="/auth/signin" class="forgot-link">Crear cuenta</a>
+            </p>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Card más ancha que la del login/registro normal — este formulario
+     tiene bastantes más campos (empresa + administrador) */
+  .login-card-container.wide {
+    max-width: 620px;
+  }
+
+  .form-section-title {
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--secondary-900);
+    margin-bottom: 0.75rem;
+  }
+  .form-section-title.mt {
+    margin-top: 1.5rem;
+  }
+  .form-section-sub {
+    font-size: 0.85rem;
+    color: var(--secondary-600);
+    margin-top: -0.5rem;
+    margin-bottom: 1rem;
+  }
+  .lf-optional {
+    font-weight: 400;
+    color: var(--secondary-600);
+  }
+
+  /* Estas dos NO están en Global.css/Forms.css todavía (a diferencia de
+     WebTecSENA, donde sí existían) — quedan aquí, locales al componente,
+     hasta que decidas si las subes a Forms.css para reutilizarlas en
+     cualquier otro <textarea> del proyecto. */
+  .form-control-custom.textarea-custom {
+    resize: vertical;
+    overflow-y: auto;
+    line-height: 1.5;
+    padding-top: 0.75rem;
+  }
+  .input-field-wrapper.textarea-wrapper {
+    align-items: flex-start;
+  }
+  .input-field-wrapper.textarea-wrapper .field-icon {
+    top: 0.85rem;
+  }
+
+  /* Preview del logo — versión mínima local (esto vive en 
+     Modal.css como .modal-file-preview, pero esta vista de auth no
+     importa modal.css, así que se resuelve aquí mismo) */
+  .file-row {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+  }
+  .file-row .form-control-custom {
+    flex: 1;
+    min-width: 0;
+  }
+  .file-preview {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    object-fit: cover;
+    border: 1px solid var(--secondary-200);
+    flex-shrink: 0;
+    background: var(--secondary-50);
+  }
+</style>
+
+<script>
+  import {
+    validarSoloLetras,
+    validarFormatoEmail,
+    validarPassword,
+    validarPasswordComparar,
+    validarImagenFile,
+    attachFieldValidation,
+    attachFileValidation,
+  } from "../../utils/validaciones";
+
+  // Descripción de empresa y nombre de empresa son texto libre — no
+  // aplica "solo letras" (mismo patrón usado en WebTecSENA para campos
+  // como nombre de servicio/tipo de dispositivo).
+  function validarRequerido(val: string, label: string) {
+    const value = val.trim();
+    return value
+      ? { isValid: true, message: "" }
+      : { isValid: false, message: `${label} es obligatorio.` };
+  }
+
+  // --- Elementos: empresa ---
+  const nombreEmpresaInput = document.getElementById("nombreEmpresaInput") as HTMLInputElement | null;
+  const nombreEmpresaError = document.getElementById("nombreEmpresaError");
+
+  const descripcionEmpresaInput = document.getElementById("descripcionEmpresaInput") as HTMLTextAreaElement | null;
+
+  const logoEmpresaInput = document.getElementById("logoEmpresaInput") as HTMLInputElement | null;
+  const logoEmpresaError = document.getElementById("logoEmpresaError");
+  const logoPreview = document.getElementById("logoPreview") as HTMLImageElement | null;
+
+  // --- Elementos: administrador ---
+  const nombreAdminInput = document.getElementById("nombreAdminInput") as HTMLInputElement | null;
+  const nombreAdminError = document.getElementById("nombreAdminError");
+
+  const apellidoAdminInput = document.getElementById("apellidoAdminInput") as HTMLInputElement | null;
+  const apellidoAdminError = document.getElementById("apellidoAdminError");
+
+  const emailAdminInput = document.getElementById("emailAdminInput") as HTMLInputElement | null;
+  const emailAdminError = document.getElementById("emailAdminError");
+
+  const passwordAdminInput = document.getElementById("passwordAdminInput") as HTMLInputElement | null;
+  const passwordAdminError = document.getElementById("passwordAdminError");
+
+  const confirmarAdminInput = document.getElementById("confirmarAdminInput") as HTMLInputElement | null;
+  const confirmarAdminError = document.getElementById("confirmarAdminError");
+
+  const togglePasswordAdmin = document.getElementById("togglePasswordAdmin");
+  const togglePasswordAdminIcon = document.getElementById("togglePasswordAdminIcon");
+  const togglePasswordAdminConfirm = document.getElementById("togglePasswordAdminConfirm");
+  const togglePasswordAdminConfirmIcon = document.getElementById("togglePasswordAdminConfirmIcon");
+
+  const formAlert = document.getElementById("formAlert");
+  const formAlertMessage = document.getElementById("formAlertMessage");
+  const registroEmpresaForm = document.getElementById("registroEmpresaForm") as HTMLFormElement | null;
+  const submitBtn = document.getElementById("submitBtn") as HTMLButtonElement | null;
+
+  // --- Toggle mostrar/ocultar contraseña ---
+  if (togglePasswordAdmin && passwordAdminInput && togglePasswordAdminIcon) {
+    togglePasswordAdmin.addEventListener("click", () => {
+      const isPassword = passwordAdminInput.type === "password";
+      passwordAdminInput.type = isPassword ? "text" : "password";
+      togglePasswordAdminIcon.classList.toggle("bi-eye", !isPassword);
+      togglePasswordAdminIcon.classList.toggle("bi-eye-slash", isPassword);
+    });
+  }
+  if (togglePasswordAdminConfirm && confirmarAdminInput && togglePasswordAdminConfirmIcon) {
+    togglePasswordAdminConfirm.addEventListener("click", () => {
+      const isPassword = confirmarAdminInput.type === "password";
+      confirmarAdminInput.type = isPassword ? "text" : "password";
+      togglePasswordAdminConfirmIcon.classList.toggle("bi-eye", !isPassword);
+      togglePasswordAdminConfirmIcon.classList.toggle("bi-eye-slash", isPassword);
+    });
+  }
+
+  // --- Validaciones: empresa ---
+  const validarNombreEmpresa = attachFieldValidation(nombreEmpresaInput, nombreEmpresaError, (v) =>
+    validarRequerido(v, "El nombre de la empresa")
+  );
+  // Logo es OPCIONAL — validarImagenFile ya devuelve isValid:true si file es null
+  const validarLogo = attachFileValidation(logoEmpresaInput, logoEmpresaError, validarImagenFile);
+
+  logoEmpresaInput?.addEventListener("change", () => {
+    const file = logoEmpresaInput.files?.[0] ?? null;
+    if (file && validarImagenFile(file).isValid && logoPreview) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        logoPreview.src = reader.result as string;
+        logoPreview.style.display = "block";
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  // --- Validaciones: administrador ---
+  const validarNombreAdmin = attachFieldValidation(nombreAdminInput, nombreAdminError, (v) =>
+    validarSoloLetras(v, "El nombre")
+  );
+  const validarApellidoAdmin = attachFieldValidation(apellidoAdminInput, apellidoAdminError, (v) =>
+    validarSoloLetras(v, "El apellido")
+  );
+  const validarEmailAdmin = attachFieldValidation(emailAdminInput, emailAdminError, validarFormatoEmail);
+  const validarPasswordAdmin = attachFieldValidation(passwordAdminInput, passwordAdminError, (v) =>
+    validarPassword(v)
+  );
+  const validarConfirmarAdmin = attachFieldValidation(confirmarAdminInput, confirmarAdminError, (v) =>
+    validarPasswordComparar(v, passwordAdminInput?.value ?? "")
+  );
+
+  passwordAdminInput?.addEventListener("input", () => {
+    if (confirmarAdminInput?.value) validarConfirmarAdmin?.();
+  });
+
+  // --- Envío ---
+  if (registroEmpresaForm && submitBtn && formAlert && formAlertMessage) {
+    registroEmpresaForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const nombreEmpresaOk = validarNombreEmpresa?.();
+      const logoOk = validarLogo?.();
+      const nombreAdminOk = validarNombreAdmin?.();
+      const apellidoAdminOk = validarApellidoAdmin?.();
+      const emailAdminOk = validarEmailAdmin?.();
+      const passwordAdminOk = validarPasswordAdmin?.();
+      const confirmarAdminOk = validarConfirmarAdmin?.();
+
+      if (
+        !nombreEmpresaOk?.isValid ||
+        !logoOk?.isValid ||
+        !nombreAdminOk?.isValid ||
+        !apellidoAdminOk?.isValid ||
+        !emailAdminOk?.isValid ||
+        !passwordAdminOk?.isValid ||
+        !confirmarAdminOk?.isValid
+      ) {
+        formAlertMessage.textContent =
+          "Por favor completa todos los campos requeridos correctamente.";
+        formAlert.className = "alert-custom alert-custom-danger d-flex";
+
+        if (!nombreEmpresaOk?.isValid) nombreEmpresaInput?.focus();
+        else if (!logoOk?.isValid) logoEmpresaInput?.focus();
+        else if (!nombreAdminOk?.isValid) nombreAdminInput?.focus();
+        else if (!apellidoAdminOk?.isValid) apellidoAdminInput?.focus();
+        else if (!emailAdminOk?.isValid) emailAdminInput?.focus();
+        else if (!passwordAdminOk?.isValid) passwordAdminInput?.focus();
+        else if (!confirmarAdminOk?.isValid) confirmarAdminInput?.focus();
+
+        return;
+      }
+
+      formAlert.classList.add("d-none");
+
+      const btnText = submitBtn.querySelector(".btn-text");
+      const btnIcon = submitBtn.querySelector(".btn-icon");
+      const btnSpinner = submitBtn.querySelector(".btn-spinner");
+
+      if (btnText && btnIcon && btnSpinner) {
+        btnText.textContent = "Enviando...";
+        btnIcon.classList.add("d-none");
+        btnSpinner.classList.remove("d-none");
+        submitBtn.disabled = true;
+
+        try {
+          const formData = new FormData();
+          formData.append("nombreEmpresa", nombreEmpresaInput!.value.trim());
+          formData.append("descripcionEmpresa", descripcionEmpresaInput?.value.trim() ?? "");
+          if (logoEmpresaInput?.files?.[0]) {
+            formData.append("logoEmpresa", logoEmpresaInput.files[0]);
+          }
+          formData.append("nombreAdmin", nombreAdminInput!.value.trim());
+          formData.append("apellidoAdmin", apellidoAdminInput!.value.trim());
+          formData.append("emailAdmin", emailAdminInput!.value.trim());
+          formData.append("passwordAdmin", passwordAdminInput!.value);
+
+          const response = await fetch("api/auth/registro-empresa", {
+            method: "POST",
+            body: formData,
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            btnText.textContent = "¡Solicitud enviada!";
+            btnSpinner.classList.add("d-none");
+            btnIcon.className = "bi bi-check-lg btn-icon";
+            btnIcon.classList.remove("d-none");
+
+            formAlertMessage.textContent =
+              data.message ||
+              "Solicitud enviada correctamente. Te contactaremos cuando sea aprobada.";
+            formAlert.className = "alert-custom alert-custom-success d-flex";
+
+            setTimeout(() => {
+              window.location.href = "/auth/login";
+            }, 2500);
+          } else {
+            throw new Error(data.message || "Error al enviar la solicitud");
+          }
+        } catch (error) {
+          console.error("Error al realizar la petición:", error);
+
+          btnText.textContent = "Enviar solicitud";
+          btnSpinner.classList.add("d-none");
+          btnIcon.className = "bi bi-arrow-right btn-icon";
+          btnIcon.classList.remove("d-none");
+          submitBtn.disabled = false;
+
+          formAlertMessage.textContent =
+            error instanceof Error ? error.message : "Error al conectar con el servidor";
+          formAlert.className = "alert-custom alert-custom-danger d-flex";
+        }
+      }
+    });
+  }
+</script>

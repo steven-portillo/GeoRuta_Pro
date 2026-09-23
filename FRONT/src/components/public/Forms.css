@@ -1,0 +1,307 @@
+/* =====================================================================
+   Forms.css
+   =====================================================================
+   Todo lo que es "elemento de formulario" reutilizable en cualquier
+   página: login, registro, los modales de admin, el perfil, etc.
+   Ningún color literal aquí — todo sale de las variables de Global.css.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------
+   Estructura de un campo: label + wrapper (ícono(por ejemplo un png o un icono de bootstrap
+    en password, no se confundan cacorros) + input) + error
+   --------------------------------------------------------------- */
+.form-label-custom {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--secondary-900);
+  margin-bottom: 0.4rem;
+}
+
+.input-field-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.field-icon {
+  position: absolute;
+  left: 14px;
+  font-size: 1.1rem;
+  color: var(--secondary-800);
+  pointer-events: none;
+  transition: color 0.2s ease;
+}
+
+.form-control-custom {
+  width: 100%;
+  background-color: var(--primary-100);
+  border: 1px solid var(--secondary-800);
+  border-radius: 12px;
+  padding: 0.75rem 1rem 0.75rem 2.6rem;
+  color: var(--secondary-900);
+  font-size: 0.95rem;
+  outline: none;
+  transition: all 0.25s ease;
+}
+
+.form-control-custom::placeholder {
+  color: var(--secondary-800);
+}
+
+.form-control-custom:focus {
+  background-color: var(--primary-50);
+  border-color: var(--primary-600);
+  box-shadow: 0 0 0 4px rgba(var(--primary-600-rgb), 0.15), 0 0 15px rgba(var(--primary-600-rgb), 0.2);
+}
+
+.form-control-custom:focus + .field-icon,
+.input-field-wrapper:focus-within .field-icon {
+  color: var(--primary-600);
+}
+
+/* Variante sin ícono a la izquierda — para <select> y <input type="file">
+   donde el ícono decorativo no encaja bien. Genérica, no es exclusiva
+   de los modales: cualquier campo sin field-icon la puede usar. */
+.form-control-custom.no-icon {
+  padding-left: 1rem;
+}
+
+/* Los <option> de un <select> nativo no heredan bien los estilos del
+   input en algunos navegadores — se fuerza el fondo oscuro del propio
+   select para que al menos el control cerrado luzca coherente.
+
+   OJO — limitación conocida: el color de la flecha (%2394a3b8) va
+   "horneado" dentro del data-URI del SVG y NO puede referenciar
+   var(--secondary-900). Si cambias ese color en Global.css,
+   tienes que actualizar también este hex a mano para que combinen. */
+select.form-control-custom {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%2394a3b8'%3E%3Cpath d='M8 11 3 6h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.9rem center;
+  background-size: 12px;
+}
+
+/* Input type="file": el botón nativo "Elegir archivo" se restiliza para
+   no romper la estética oscura */
+input[type="file"].form-control-custom {
+  padding-top: 0.6rem;
+  padding-bottom: 0.6rem;
+}
+input[type="file"].form-control-custom::file-selector-button {
+  margin-right: 0.75rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid var(--secondary-800);
+  background: rgba(var(--primary-600-rgb), 0.15);
+  color: var(--secondary-900);
+  font-weight: 600;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+input[type="file"].form-control-custom::file-selector-button:hover {
+  background: rgba(var(--primary-600-rgb), 0.3);
+}
+
+.toggle-password-btn {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: var(--secondary-800);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+.toggle-password-btn:hover {
+  color: var(--secondary-900);
+}
+
+/* ---------------------------------------------------------------
+   Checkbox personalizado
+   --------------------------------------------------------------- */
+.custom-checkbox-container {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  padding-left: 28px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--secondary-900);
+  user-select: none;
+}
+.custom-checkbox-container input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+.checkmark {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  height: 18px;
+  width: 18px;
+  background-color: var(--primary-400);
+  border: 1px solid var(--secondary-800);
+  border-radius: 5px;
+  transition: all 0.2s ease;
+}
+.custom-checkbox-container:hover input ~ .checkmark {
+  border-color: var(--primary-600);
+}
+.custom-checkbox-container input:checked ~ .checkmark {
+  background: linear-gradient(135deg, var(--primary-500), var(--primary-700));
+  border-color: transparent;
+}
+.checkmark:after {
+  content: "";
+  position: absolute;
+  display: none;
+  left: 6px;
+  top: 2px;
+  width: 5px;
+  height: 10px;
+  border: solid var(--secondary-800);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.custom-checkbox-container input:checked ~ .checkmark:after {
+  display: block;
+}
+
+/* ---------------------------------------------------------------
+   Botón principal con degradado (formularios a página completa:
+   login, registro, perfil). Para footers de modal más compactos,
+   ver .btn-guardar-gradient / .btn-cancelar-outline en modal.css
+   --------------------------------------------------------------- */
+.btn-submit-gradient {
+  width: 100%;
+  background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-700) 100%);
+  border: none;
+  border-radius: 12px;
+  padding: 0.85rem 1.5rem;
+  color: var(--primary-50);
+  font-weight: 700;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 8px 25px rgba(var(--primary-600-rgb), 0.35);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+.btn-submit-gradient::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(var(--overlay-rgb), 0.25), transparent);
+  transition: left 0.6s ease;
+}
+.btn-submit-gradient:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(var(--primary-600-rgb), 0.5);
+}
+.btn-submit-gradient:hover::before {
+  left: 100%;
+}
+.btn-submit-gradient:active {
+  transform: translateY(0);
+}
+.btn-submit-gradient:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none !important;
+}
+.btn-submit-gradient:disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-icon {
+  font-size: 1.1rem;
+  transition: transform 0.2s ease;
+}
+.btn-submit-gradient:hover .btn-icon {
+  transform: translateX(4px);
+}
+
+/* ---------------------------------------------------------------
+   Validación de campos — bordes + mensaje bajo el input
+   --------------------------------------------------------------- */
+.form-control-custom.is-invalid {
+  border-color: var(--color-danger) !important;
+  box-shadow: 0 0 0 4px rgba(var(--color-danger-rgb), 0.2) !important;
+}
+.form-control-custom.is-valid {
+  border-color: var(--color-success) !important;
+  box-shadow: 0 0 0 4px rgba(var(--color-success-rgb), 0.15) !important;
+}
+
+/* Campo de solo lectura — usado en Perfil (todo menos teléfono) y en
+   password.astro (email/código ya confirmados en un paso anterior) */
+.form-control-custom.is-readonly,
+.form-control-custom[readonly] {
+  opacity: 0.65;
+  cursor: not-allowed;
+  background-color: rgba(var(--overlay-rgb), 0.02);
+}
+
+.error-feedback {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-field-error-text);
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-top: 0.4rem;
+  animation: fadeIn 0.2s ease-in-out;
+}
+.error-feedback:empty {
+  display: none;
+}
+
+/* ---------------------------------------------------------------
+   Alerta global de formulario
+   --------------------------------------------------------------- */
+.alert-custom {
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: fadeIn 0.3s ease;
+}
+.alert-custom-danger {
+  background: rgba(var(--color-danger-rgb), 0.15);
+  border: 1px solid rgba(var(--color-danger-rgb), 0.35);
+  color: var(--color-alert-danger-text);
+}
+.alert-custom-success {
+  background: rgba(var(--color-success-rgb), 0.15);
+  border: 1px solid rgba(var(--color-success-rgb), 0.35);
+  color: var(--color-alert-success-text);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}

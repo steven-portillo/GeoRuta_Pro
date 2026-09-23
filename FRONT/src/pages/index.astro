@@ -1,11 +1,94 @@
 ---
-import Welcome from '../components/Welcome.astro';
 import Layout from '../layouts/Layout.astro';
+import  Inicio  from '../components/home/Inicio.astro';
 
 // Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
 // Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
 ---
 
-<Layout>
-	<Welcome />
+<Layout titulo='Home'>
+	<Inicio />
+
+    <script>
+    const btn = document.getElementById("hamburger-btn") as HTMLElement;
+    const menu = document.getElementById("mobile-menu") as HTMLElement;
+    const nav = document.getElementById("navbar") as HTMLElement;
+
+    function toggleMenu() {
+        btn.classList.toggle("open");
+        menu.classList.toggle("open");
+    }
+
+    function closeMenu() {
+        btn.classList.remove("open");
+        menu.classList.remove("open");
+    }
+
+    btn.addEventListener("click", toggleMenu);
+
+    menu.querySelectorAll("[data-close]").forEach((el) => {
+        el.addEventListener("click", closeMenu);
+    });
+
+    menu.querySelectorAll("[data-goto]").forEach((el) => {
+        el.addEventListener("click", () => {
+            closeMenu();
+            window.location.href = (el as HTMLElement).dataset.goto!;
+        });
+    });
+
+    document.addEventListener("click", (e) => {
+        if (nav && !nav.contains(e.target as Node)) closeMenu();
+    });
+
+
+/* ─── NAVBAR SCROLL ─── */
+window.addEventListener("scroll", () => {
+    const nav = document.getElementById("navbar");
+    if (nav) nav.classList.toggle("scrolled", window.scrollY > 20);
+});
+
+/* ─── SCROLL REVEAL ─── */
+function initReveal() {
+    const obs = new IntersectionObserver(
+        (entries) => {
+            entries.forEach((e) => {
+                if (e.isIntersecting) e.target.classList.add("visible");
+            });
+        },
+        { threshold: 0.1 },
+    );
+    document.querySelectorAll(".reveal").forEach((el) => obs.observe(el));
+}
+document.addEventListener("DOMContentLoaded", initReveal);
+
+
+/*
+    MAPA INICIO
+*/ 
+
+declare const L: any;
+let map = L.map("mapa").setView([5.794323, -73.062859], 18);
+
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+attribution:
+    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+}).addTo(map);
+let marker = null; // guardamos el marcador para moverlo
+
+const iconoPersona = L.divIcon({
+    className: "",
+    html: "<div style='font-size:28px'>📍</div>",
+    iconSize: [30, 30],
+    iconAnchor: [20, 30],
+});
+
+L.marker([5.794323, -73.062859], 18, { icon: iconoPersona })
+    .addTo(map)
+    .bindPopup("HOLA")
+    .openPopup();
+
+</script>
+
 </Layout>
+

@@ -1,0 +1,506 @@
+---
+import "./Inicio.css"
+---
+
+<div id="page-landing" class="page active">
+
+    <!-----
+        NAVBAR
+    --- -->
+    <nav id="navbar">
+        <div class="nav-inner">
+            <a class="logo" href="#hero">
+                <img src="../../assets/astro.svg" alt="logo GeoRuta" style="height: 45px; width: 80px; object-fit: fill;"/>
+                <span class="logo-text">Geo <span>Ruta</span></span>
+            </a>
+
+
+            <ul class="nav-links">
+                <li><a href="#features">Funcionalidades</a></li>
+                <li><a href="#roles">Roles</a></li>
+                <li><a href="#how">¿Cómo funciona?</a></li>
+            </ul>
+
+
+            <div class="nav-actions">
+                <a href="./auth/login" class="btn-ghost">Iniciar Sesión</a>
+                <a href="./auth/signin" class="btn-primary">
+                     <svg viewBox="0 0 24 24" width="16" height="16" fill="white">
+                        <path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V8H4v2H2v2h2v2h2v-2h2v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                    </svg>
+                Registrarse</a>
+            </div>
+            <!----
+            este solo aparece si el ancho no es suficiente, esto y el siguiente div que literalmente dice
+            mobile menu
+            --- -->
+            <button class="hamburger" id="hamburger-btn"  aria-label="Abrir menú">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+
+        <div class="mobile-menu" id="mobile-menu"  aria-label="Abrir menú">
+            <a href="#features" data-close>Funcionalidades</a>
+            <a href="#roles" data-close>Roles</a>
+            <a href="#how" data-close>¿Cómo funciona?</a>
+            <div class="mobile-menu-divider"></div>
+            <a href="./auth/login" class="btn-mobile-ghost" data-close>Iniciar Sesión</a>
+            <a href="./auth/signin" class="btn-mobile-primary" data-close>Registrarse</a>
+        </div>
+    </nav>
+
+
+    <!----
+        HERO
+    --->
+    <section class="hero" id="hero">
+        <div class="hero-bg">
+            <div class="hero-grid"></div>
+            <div class="hero-glow"></div>
+            <div class="hero-glow-2"></div>
+        </div>
+
+        <div class="hero-inner">
+
+            <div class="hero-content">
+                <div class="hero-badge">
+                    <div class="badge-dot"></div>
+                    Plataforma de Logística Inteligente
+                </div>
+                <h1 class="hero-title">
+                    Gestión de pedidos<br>con <span class="highlight">rastreo GPS</span><br>en <span class="accent">tiempo real</span>
+                </h1>
+                <p class="hero-desc">
+                    GeoRuta conecta administradores, clientes y proveedores en una sola plataforma. Controla
+                    inventario, asigna pedidos y visualiza entregas en vivo sobre el mapa.
+                </p>
+                <div class="hero-actions">
+                    <a href="../../pages/auth/signin.astro" class="btn-primary">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="white">
+                            <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z" />
+                        </svg>
+                        Comenzar ahora
+                    </a>
+
+                    <button class="btn-outline-lg" onclick="document.getElementById('how').scrollIntoView({behavior:'smooth'})">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
+                        </svg>
+                        Ver demo
+                    </button>
+                </div>
+
+                <div class="hero-stats">
+                    <div class="hero-stat">
+                        <div class="hero-stat-num">3</div>
+                        <div class="hero-stat-label">Roles integrados</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="hero-stat-num">GPS</div>
+                        <div class="hero-stat-label">Rastreo en vivo</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="hero-stat-num">100%</div>
+                        <div class="hero-stat-label">Open source stack</div>
+                    </div>
+                </div>    
+            </div>
+
+            <!----
+                DASHBOARD
+            --->
+
+            <div class="hero-visual">
+                <div class="float-card float-card-left">
+                    <div class="float-label">Empresas Asociadas</div>
+                    <div class="float-value">35</div>
+                    <div class="float-sub">+12% en el ultimo mes</div>
+                </div>
+
+                <div class="dashboard-card">
+                    <div class="dash-header">
+                        <span class="dash-title">Mapa de Entregas — Duitama</span>
+                        
+                        <span class="status-badge status-live">
+                        <div class="status-dot"></div>
+                        En vivo</span>
+                    </div>
+                    <div class="mapa" id="mapa"></div>
+                    <div class="dash-orders">
+                       <div class="order-row">
+                            <div>
+                                <div class="order-id">#PED-2041</div>
+                                <div class="order-info">Tienda La Esperanza · 3 productos</div>
+                            </div>
+                            <span class="pill pill-blue">En tránsito</span>
+                        </div>
+                        
+
+                        <div class="order-row">
+                            <div>
+                                <div class="order-id">#PED-2040</div>
+                                <div class="order-info">Almacén Central · 7 productos</div>
+                            </div>
+                            <span class="pill pill-green">Entregado</span>
+                        </div>
+                        <div class="order-row">
+                            <div>
+                                <div class="order-id">#PED-2039</div>
+                                <div class="order-info">Minimarket Norte · 2 productos</div>
+                            </div>
+                            <span class="pill pill-orange">Pendiente</span>
+                        </div>
+                    </div>
+                </div>  
+            </div>
+            <div class="float-card float-card-bottom">
+            <div class="float-label">Stock disponible</div>
+            <div class="float-value">2,340</div>
+            <div class="float-sub">unidades en almacén</div>
+        </div>
+        </div>
+    </section>
+
+    <!-----
+    FEATURES
+    --- -->
+    <section id="features">
+
+        <div class="container">
+            <div class="text-center reveal">
+                <div class="section-tag">⚙ Funcionalidades</div>
+                <h2 class="section-title">Todo lo que necesitas<br>en una sola plataforma</h2>
+                <p class="section-desc">
+                    Desde el pedido hasta la entrega, GeoRuta cubre cada etapa del proceso
+                    logístico con herramientas diseñadas para eficiencia real.
+                </p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card reveal">
+                    <div class="feat-icon">
+                        <svg viewBox="0 0 24 24" fill="#1D4ED8">
+                            <path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
+                        </svg>
+                    </div>
+                    <h3 class="feat-title">Catálogo e Inventario</h3>
+                    <p class="feat-desc">
+                        CRUD completo de productos con control de stock en tiempo real. El
+                        inventario se actualiza automáticamente con cada entrega confirmada.
+                    </p>
+                    <ul class="feat-list">
+                        <li>Agregar, editar y eliminar productos</li>
+                        <li>Control de stock con alertas de mínimos</li>
+                        <li>Actualización automática al entregar</li>
+                        <li>Historial de movimientos de inventario</li>
+                    </ul>
+                </div>
+                <div class="feature-card reveal" style="transition-delay:0.1s">
+                    <div class="feat-icon">
+                        <svg viewBox="0 0 24 24" fill="#1D4ED8">
+                            <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96C5 16.1 6.9 18 9 18h12v-2H9.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63H19c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z" />
+                        </svg>
+                    </div>
+                    <h3 class="feat-title">Carrito y Pedidos</h3>
+                    <p class="feat-desc">
+                        Los clientes arman pedidos desde el catálogo. El administrador los
+                        gestiona, verifica disponibilidad y los asigna a repartidores disponibles.
+                    </p>
+                    <ul class="feat-list">
+                        <li>Carrito de compras por cliente</li>
+                        <li>Estados: Pendiente → Asignado → En tránsito → Entregado</li>
+                        <li>Verificación automática de stock</li>
+                        <li>Historial completo por cliente</li>
+                    </ul>
+                </div>
+                <div class="feature-card reveal" style="transition-delay:0.2s">
+                    <div class="feat-icon">
+                        <svg viewBox="0 0 24 24" fill="#1D4ED8">
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+                        </svg>
+                    </div>
+                    <h3 class="feat-title">Rastreo GPS en Vivo</h3>
+                    <p class="feat-desc">
+                        El proveedor activa su GPS desde el celular. El cliente y el administrador
+                        ven su ubicación en tiempo real sobre un mapa interactivo con Leaflet + OSM.
+                    </p>
+                    <ul class="feat-list">
+                        <li>Geolocalización del navegador (Geolocation API)</li>
+                        <li>Mapa interactivo con Leaflet y OpenStreetMap</li>
+                        <li>Actualización de posición en tiempo real</li>
+                        <li>uta y ETA estimado de llegada</li>
+                    </ul>
+                </div>
+                <div class="feature-card reveal" style="transition-delay:0.3s">
+                    <div class="feat-icon">
+                        <svg viewBox="0 0 24 24" fill="#1D4ED8">
+                            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z" />
+                        </svg>
+                    </div>
+                    <h3 class="feat-title">Autenticación por Roles</h3>
+                    <p class="feat-desc">
+                        Sistema de login seguro con JWT. Cada rol tiene su propio panel y permisos.
+                        El acceso a recursos está protegido según el rol asignado.
+                    </p>
+                    <ul class="feat-list">
+                        <li>Login con correo y contraseña</li>
+                        <li>3 roles: Admin, Cliente, Proveedor</li>
+                        <li>Tokens JWT con expiración</li>
+                        <li>Rutas protegidas por rol</li>
+                    </ul>
+                </div>
+                <div class="feature-card reveal" style="transition-delay:0.4s">
+                    <div class="feat-icon">
+                        <svg viewBox="0 0 24 24" fill="#1D4ED8">
+                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z" />
+                        </svg>
+                    </div>
+                    <h3 class="feat-title">Dashboard y Reportes</h3>
+                    <p class="feat-desc">
+                        Panel administrativo con métricas clave: pedidos por estado, stock crítico,
+                        rendimiento de proveedores e historial de entregas.
+                    </p>
+                    <ul class="feat-list">
+                        <li>Vista general de pedidos activos</li>
+                        <li>Alertas de stock bajo</li>
+                        <li>Historial de pedidos filtrable</li>
+                        <li>Logs de auditoría básicos</li>
+                    </ul>
+                </div>
+                <div class="feature-card reveal" style="transition-delay:0.5s">
+                    <div class="feat-icon">
+                        <svg viewBox="0 0 24 24" fill="#1D4ED8">
+                            <path d="M13 3a9 9 0 100 18 9 9 0 000-18zm1 10h-4V7h2v4h2v2zM3 13H1v-2h2v2z" />
+                        </svg>
+                    </div>
+                    <h3 class="feat-title">Logs de Auditoría</h3>
+                    <p class="feat-desc">
+                        Cada acción importante queda registrada: creación de pedidos, cambios de
+                        estado, asignaciones, entregas y movimientos de inventario.
+                    </p>
+                    <ul class="feat-list">
+                        <li>Registro cronológico de eventos</li>
+                        <li>Identificación del usuario responsable</li>
+                        <li>Timestamp preciso por acción</li>
+                        <li>Filtro por tipo de evento o usuario</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!----
+    ROLES
+    --->
+    <section id="roles">
+        <div class="container">
+            <div class="text-center reveal">
+                <div class="section-tag">👤 Roles</div>
+                <h2 class="section-title">Tres roles, un solo sistema</h2>
+                <p class="section-desc">
+                    Cada actor de la cadena logística tiene su propio espacio de trabajo con
+                    funciones y vistas adaptadas a sus necesidades.
+                </p>
+            </div>
+            <div class="roles-grid">
+                <div class="role-card role-admin reveal">
+                    <div class="role-icon-wrap">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z" />
+                        </svg>
+                    </div>
+                    <div class="role-title">Administrador</div>
+                    <div class="role-subtitle">Empresa distribuidora</div>
+                    <ul class="role-perms">
+                        <li><span class="check-icon">✓</span> Gestiona catálogo e inventario completo</li>
+                        <li><span class="check-icon">✓</span> Recibe y aprueba pedidos de clientes</li>
+                        <li><span class="check-icon">✓</span> Asigna pedidos a proveedores disponibles</li>
+                        <li><span class="check-icon">✓</span> Monitorea todas las entregas en el mapa</li>
+                        <li><span class="check-icon">✓</span> Accede a logs de auditoría y reportes</li>
+                        <li><span class="check-icon">✓</span> Gestiona usuarios y roles del sistema</li>
+                    </ul>
+                </div>
+                <div class="role-card role-client reveal" style="transition-delay: 0.1s;">
+                    <div class="role-icon-wrap">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                        </svg>
+                    </div>
+                    <div class="role-title">Cliente</div>
+                    <div class="role-subtitle">Tiendas verificadas</div>
+                    <ul class="role-perms">
+                        <li><span class="check-icon">✓</span> Explora catálogo con precios y stock</li>
+                        <li><span class="check-icon">✓</span> Crea pedidos desde su carrito</li>
+                        <li><span class="check-icon">✓</span> Sigue el estado de sus pedidos</li>
+                        <li><span class="check-icon">✓</span> Rastrea al repartidor en el mapa</li>
+                        <li><span class="check-icon">✓</span> Consulta su historial de pedidos</li>
+                        <li><span class="check-icon">✓</span> Recibe notificaciones de estado</li>
+                    </ul>
+                </div>
+                <div class="role-card role-provider reveal" style="transition-delay: 0.2s;">
+                    <div class="role-icon-wrap">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
+                        </svg>
+                    </div>
+                    <div class="role-title">Proveedor</div>
+                    <div class="role-subtitle">Repartidor / motorizado</div>
+                    <ul class="role-perms">
+                        <li><span class="check-icon">✓</span> Ve los pedidos asignados a él</li>
+                        <li><span class="check-icon">✓</span> Activa y desactiva su GPS desde el celular</li>
+                        <li><span class="check-icon">✓</span> Actualiza estado: recolectado / entregado</li>
+                        <li><span class="check-icon">✓</span> Consulta historial de sus entregas</li>
+                        <li><span class="check-icon">✓</span> Ve información del cliente y dirección</li>
+                        <li><span class="check-icon">✓</span> Recibe nuevas asignaciones en tiempo real</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!----
+    HOW IT WORKS
+    --->
+    <section id="how">
+        <div class="container">
+            <div class="text-center reveal">
+                <div class="section-tag">🔄 Flujo</div>
+                <h2 class="section-title">¿Cómo funciona GeoRuta?</h2>
+                <p class="section-desc">
+                    Un flujo claro de principio a fin, donde cada rol sabe exactamente qué hacer
+                    y cuándo hacerlo.
+                </p>
+            </div>
+            <div class="steps-wrap reveal">
+                <div class="step">
+                    <div class="step-num">1</div>
+                    <div class="step-title">Cliente hace el pedido</div>
+                    <div class="step-desc">
+                        Selecciona productos del catálogo, los agrega al carrito y confirma el
+                        pedido. El sistema valida el stock disponible.
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-num">2</div>
+                    <div class="step-title">Admin recibe y aprueba</div>
+                    <div class="step-desc">
+                        El administrador revisa el pedido, verifica el inventario y lo aprueba.
+                        El stock queda reservado automáticamente.
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-num">3</div>
+                    <div class="step-title">Asignación al proveedor</div>
+                    <div class="step-desc">
+                        El admin asigna el pedido a un repartidor disponible. El proveedor recibe
+                        la notificación con detalles de entrega.
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-num">4</div>
+                    <div class="step-title">GPS activo en tránsito</div>
+                    <div class="step-desc">
+                        El proveedor activa el rastreo desde su celular. Su ubicación se
+                        transmite al cliente y al admin en el mapa en vivo.
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-num">5</div>
+                    <div class="step-title">Entrega y confirmación</div>
+                    <div class="step-desc">
+                        Al confirmar la entrega, el inventario se descuenta, el pedido se marca
+                        como completado y se genera el log de auditoría.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!----
+    STATS
+    --->
+    <section id="stats">
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat-item reveal">
+                    <div class="stat-num">3</div>
+                    <div class="stat-label">Roles de usuario</div>
+                </div>
+                <div class="stat-item reveal" style="transition-delay:0.1s">
+                    <div class="stat-num">5</div>
+                    <div class="stat-label">Estados de pedido</div>
+                </div>
+                <div class="stat-item reveal" style="transition-delay:0.2s">
+                    <div class="stat-num">GPS</div>
+                    <div class="stat-label">Rastreo en tiempo real</div>
+                </div>
+                <div class="stat-item reveal" style="transition-delay:0.3s">
+                    <div class="stat-num">OSM</div>
+                    <div class="stat-label">Mapas OpenStreetMap</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!----
+    FOOTER
+    --->
+    <footer>
+        <div class="footer-inner">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <div class="footer-logo">
+                        <div class="footer-logo-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
+                            </svg>
+                        </div>
+                        <span class="footer-logo-text">GeoRuta</span>
+                    </div>
+                    <p>
+                        Plataforma de gestión de pedidos, inventario y logística con rastreo GPS en tiempo real.
+                        Proyecto de práctica ADSO — SENA.
+                    </p>
+                </div>
+                <div class="footer-col">
+                    <h4>Plataforma</h4>
+                    <ul>
+                        <li><a href="#features">Funcionalidades</a></li>
+                        <li><a href="#roles">Roles</a></li>
+                        <li><a href="#how">Flujo de trabajo</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Acceso</h4>
+                    <ul>                           
+                        <li><a href="./auth/login.astro" style="cursor:pointer">Iniciar sesión</a></li>
+                        <li><a href="./auth/signin.astro" style="cursor:pointer">Registrarse</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Tecnologías</h4>
+                    <ul>
+                        <li><a href="#">HTML5 + CSS3 + JS</a></li>
+                        <li><a href="#">TS / DenoJS + AstroJS</a></li>
+                        <li><a href="#">MySQL</a></li>
+                        <li><a href="#">Leaflet + OpenStreetMap</a></li>
+                        <li><a href="#">WebSockets (GPS)</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2026 GeoRuta · Proyecto académico ADSO — SENA</p>
+                <div class="footer-chips">
+                    <span class="tech-chip">TypeScript</span>
+                    <span class="tech-chip">Mysql</span>
+                    <span class="tech-chip">Deno</span>
+                    <span class="tech-chip">Astro</span>
+                    <span class="tech-chip">OpenStreetMap</span>
+                    <span class="tech-chip">Leaflets</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
