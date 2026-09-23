@@ -3,7 +3,7 @@ import { Empresa } from "../../Models/Empresa.model.ts";
 import { Usuario } from "../../Models/Usuario.model.ts";
 import { EsquemaCambiarEstadoEmpresa } from "../../Helpers/EsquemasValidacion.ts";
 
-// GET /superadmin/empresas?busqueda=texto
+// GET /superadmin/empresas?busqueda=texto si
 export const obtenerEmpresas = async (ctx: RouterContext<string>) => {
   const { response, request } = ctx;
   try {

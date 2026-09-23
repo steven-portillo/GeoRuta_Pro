@@ -101,6 +101,8 @@ app.use(SuperAdminEmpresasRoutes.allowedMethods());
 app.use(superadminperfilroutes.routes());
 app.use(superadminperfilroutes.allowedMethods());
 
+
+//cambios pendientes
 const PORT = 8000;
 console.log(`Servidor escuchando en http://localhost:${PORT}`);
 await app.listen({ port: PORT });
