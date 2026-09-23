@@ -25,7 +25,6 @@ export async function authMiddleware(ctx: Context, next: Next) {
     return;
   }
 
-  // Guardamos el usuario decodificado en el estado del contexto
   ctx.state.user = usuario;
   await next();
 }

@@ -1,5 +1,6 @@
 import { Application, oakCors } from "./Dependencies/dependencias.ts";
-import { authRouter } from "./Router/authRouter.ts";
+import { authRouter } from "./Router/Auth/authRouter.ts";
+import { superAdminRouter } from "./Router/Admin/superAdminRouter.ts";
 
 const app = new Application();
 
@@ -13,7 +14,7 @@ app.use(
 );
 
 // Rutas
-const routers = [authRouter];
+const routers = [authRouter, superAdminRouter];
 
 routers.forEach((router) => {
   app.use(router.routes());

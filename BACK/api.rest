@@ -2,21 +2,54 @@
 
 
 ### Registrar cliente
-POST {{baseUrl}}/api/register
+POST {{baseUrl}}/api/auth/register
 Content-Type: application/json
 
 {
-	"nombre": "Deivyd",
-	"apellido": "Portillo",
-	"email": "deivyd@gmail.com",
+	"nombre": "Jose A",
+	"apellido": "Velez",
+	"email": "jose@gmail.com",
 	"password": "123456"
 }
+
 
 ### Iniciar sesión
-POST {{baseUrl}}/api/login
+POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
 {
-	"email": "deivyd@gmail.com",
-	"password": "123456"
+	"email": "juan@gmail.com",
+	"password": "12345678"
 }
+
+
+### Registrar empresa (con logo)
+POST {{baseUrl}}/api/auth/register-empresa
+Content-Type: multipart/form-data; boundary=----GeoRutaBoundary
+
+------GeoRutaBoundary
+Content-Disposition: form-data; name="nombreEmpresa"
+
+Distribuidora La Luna
+------GeoRutaBoundary
+Content-Disposition: form-data; name="nombreAdmin"
+
+Juan
+------GeoRutaBoundary
+Content-Disposition: form-data; name="apellidoAdmin"
+
+Mateus
+------GeoRutaBoundary
+Content-Disposition: form-data; name="emailAdmin"
+
+juan@gmail.com
+------GeoRutaBoundary
+Content-Disposition: form-data; name="passwordAdmin"
+
+12345678
+------GeoRutaBoundary
+Content-Disposition: form-data; name="logoEmpresa"; filename="logo.png"
+Content-Type: image/png
+
+< C:\Users\deivy\Desktop\logo.png
+------GeoRutaBoundary--

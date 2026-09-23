@@ -22,3 +22,4 @@ export {
   compare,
   genSalt,
 } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+export { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
