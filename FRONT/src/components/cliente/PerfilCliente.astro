@@ -1,0 +1,364 @@
+---
+// src/components/cliente/PerfilCliente.astro
+
+interface Props {
+  perfil: {
+    nombre: string;
+    apellido: string;
+    email: string;
+    imagenUrl: string;
+    activo: boolean;
+    fechaCreacion: string;
+    estadoCuenta: string;
+  };
+  iniciales: string;
+}
+
+const { perfil, iniciales } = Astro.props;
+
+const fechaFormateada = perfil.fechaCreacion
+  ? new Intl.DateTimeFormat('es-CO', { day: '2-digit', month: 'long', year: 'numeric' }).format(
+      new Date(perfil.fechaCreacion),
+    )
+  : '—';
+---
+
+<div class="perfil-layout">
+  <!-- ── columna izquierda: foto + estado ── -->
+  <div class="perfil-tarjeta-foto">
+    <div class="foto-perfil-wrap">
+      {perfil.imagenUrl ? (
+        <img src={perfil.imagenUrl} alt="Foto de perfil" class="foto-perfil-grande" id="foto-preview" />
+      ) : (
+        <div class="foto-perfil-placeholder" id="foto-preview-placeholder">{iniciales}</div>
+      )}
+      <img src="" alt="" class="foto-perfil-grande" id="foto-preview-nueva" style="display:none;" />
+    </div>
+
+    <label class="btn-cambiar-foto" for="input-foto">
+      Cambiar foto
+      <input type="file" id="input-foto" accept="image/png,image/jpeg,image/webp" hidden />
+    </label>
+
+    <div class="perfil-nombre-tarjeta">{perfil.nombre} {perfil.apellido}</div>
+
+    <div class={`badge-cuenta ${perfil.activo ? 'badge-cuenta-verde' : 'badge-cuenta-roja'}`}>
+      {perfil.estadoCuenta}
+    </div>
+
+    <div class="perfil-miembro-desde">Miembro desde {fechaFormateada}</div>
+  </div>
+
+  <!-- ── columna derecha: datos personales ── -->
+  <div class="perfil-tarjeta-datos">
+    <div class="encabezado-seccion">
+      <span class="titulo-seccion">Datos personales</span>
+    </div>
+
+    <form id="form-datos-personales" class="form-perfil">
+      <div class="campo-perfil">
+        <label for="campo-nombre">Nombre</label>
+        <input type="text" id="campo-nombre" name="nombre" value={perfil.nombre} required minlength="2" maxlength="100" />
+      </div>
+
+      <div class="campo-perfil">
+        <label for="campo-apellido">Apellido</label>
+        <input type="text" id="campo-apellido" name="apellido" value={perfil.apellido} required minlength="2" maxlength="100" />
+      </div>
+
+      <div class="campo-perfil campo-ancho">
+        <label for="campo-email">Correo electrónico</label>
+        <input type="email" id="campo-email" name="email" value={perfil.email} required />
+      </div>
+
+      <div class="form-perfil-acciones">
+        <button type="submit" class="btn-guardar-perfil" id="btn-guardar-perfil">Guardar cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function mostrarToast(mensaje: string, esError = false) {
+    const toast = document.createElement('div');
+    toast.textContent = mensaje;
+    toast.style.cssText = `
+      position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+      background:${esError ? '#dc2626' : '#1e293b'}; color:white;
+      padding:0.65rem 1.1rem; border-radius:10px; font-size:0.85rem;
+      z-index:9999; box-shadow:0 8px 24px rgba(0,0,0,0.2);
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2500);
+  }
+
+  // ── guardar nombre/apellido/email ──
+  document.getElementById('form-datos-personales')?.addEventListener('submit', async (evento) => {
+    evento.preventDefault();
+    const boton = document.getElementById('btn-guardar-perfil') as HTMLButtonElement;
+    const textoOriginal = boton.textContent;
+    boton.disabled = true;
+    boton.textContent = 'Guardando...';
+
+    const nombre = (document.getElementById('campo-nombre') as HTMLInputElement).value.trim();
+    const apellido = (document.getElementById('campo-apellido') as HTMLInputElement).value.trim();
+    const email = (document.getElementById('campo-email') as HTMLInputElement).value.trim();
+
+    try {
+      const res = await fetch('/api/cliente/perfil/datos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre, apellido, email }),
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        mostrarToast(data.message || 'No fue posible guardar los cambios', true);
+        return;
+      }
+
+      mostrarToast('Datos actualizados correctamente');
+      // recarga para que el navbar (nombre/iniciales) tambien quede sincronizado
+      setTimeout(() => window.location.reload(), 700);
+    } catch (err) {
+      console.error('error guardando datos personales:', err);
+      mostrarToast('Error al guardar los cambios', true);
+    } finally {
+      boton.disabled = false;
+      boton.textContent = textoOriginal;
+    }
+  });
+
+  // ── subir foto ──
+  document.getElementById('input-foto')?.addEventListener('change', async (evento) => {
+    const input = evento.target as HTMLInputElement;
+    const archivo = input.files?.[0];
+    if (!archivo) return;
+
+    // preview inmediato mientras sube (optimista)
+    const preview = document.getElementById('foto-preview-nueva') as HTMLImageElement;
+    const previewActual = document.getElementById('foto-preview') as HTMLImageElement | null;
+    const placeholderActual = document.getElementById('foto-preview-placeholder');
+
+    const urlLocal = URL.createObjectURL(archivo);
+    preview.src = urlLocal;
+    preview.style.display = 'block';
+    if (previewActual) previewActual.style.display = 'none';
+    if (placeholderActual) placeholderActual.style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('foto', archivo);
+
+    try {
+      const res = await fetch('/api/cliente/perfil/foto', { method: 'POST', body: formData });
+      const data = await res.json();
+
+      if (!data.success) {
+        mostrarToast(data.message || 'No fue posible subir la imagen', true);
+        return;
+      }
+
+      mostrarToast('Foto actualizada correctamente');
+      setTimeout(() => window.location.reload(), 700);
+    } catch (err) {
+      console.error('error subiendo la foto:', err);
+      mostrarToast('Error al subir la imagen', true);
+    } finally {
+      URL.revokeObjectURL(urlLocal);
+    }
+  });
+</script>
+
+<style>
+  .encabezado-seccion {
+    margin-bottom: 0.9rem;
+  }
+
+  .titulo-seccion {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--secondary-800);
+  }
+
+  .perfil-layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 1rem;
+    align-items: start;
+  }
+
+  /* ── tarjeta de foto ── */
+  .perfil-tarjeta-foto {
+    background: white;
+    border: 1px solid var(--secondary-200);
+    border-radius: 14px;
+    padding: 1.5rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .foto-perfil-wrap {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin-bottom: 1rem;
+  }
+
+  .foto-perfil-grande {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--primary-50);
+  }
+
+  .foto-perfil-placeholder {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: var(--primary-900);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.2rem;
+    font-weight: 700;
+    border: 3px solid var(--primary-50);
+  }
+
+  .btn-cambiar-foto {
+    display: inline-block;
+    padding: 0.45rem 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--secondary-200);
+    background: white;
+    color: var(--primary-700);
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 1.1rem;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .btn-cambiar-foto:hover {
+    background: var(--primary-50);
+    border-color: var(--primary-300);
+  }
+
+  .perfil-nombre-tarjeta {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--secondary-900);
+    margin-bottom: 0.5rem;
+  }
+
+  .badge-cuenta {
+    display: inline-flex;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    margin-bottom: 0.6rem;
+  }
+
+  .badge-cuenta-verde {
+    background: #dcfce7;
+    color: #16a34a;
+  }
+
+  .badge-cuenta-roja {
+    background: #fee2e2;
+    color: #dc2626;
+  }
+
+  .perfil-miembro-desde {
+    font-size: 0.72rem;
+    color: var(--secondary-400);
+  }
+
+  /* ── tarjeta de datos ── */
+  .perfil-tarjeta-datos {
+    background: white;
+    border: 1px solid var(--secondary-200);
+    border-radius: 14px;
+    padding: 1.5rem;
+  }
+
+  .form-perfil {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem 1rem;
+  }
+
+  .campo-perfil {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .campo-ancho {
+    grid-column: 1 / -1;
+  }
+
+  .campo-perfil label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--secondary-500);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .campo-perfil input {
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--secondary-200);
+    border-radius: 8px;
+    font-size: 0.88rem;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .campo-perfil input:focus {
+    border-color: var(--primary-400);
+  }
+
+  .form-perfil-acciones {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+  }
+
+  .btn-guardar-perfil {
+    padding: 0.65rem 1.5rem;
+    border-radius: 8px;
+    border: none;
+    background: var(--primary-700);
+    color: white;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .btn-guardar-perfil:hover:not(:disabled) {
+    background: var(--primary-800);
+  }
+
+  .btn-guardar-perfil:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  @media (max-width: 768px) {
+    .perfil-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .form-perfil {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

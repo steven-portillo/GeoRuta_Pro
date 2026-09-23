@@ -1,5 +1,5 @@
 {
-  "name": "front",
+  "name": "astronautical-aperture",
   "type": "module",
   "version": "0.0.1",
   "engines": {
@@ -12,7 +12,9 @@
     "astro": "astro"
   },
   "dependencies": {
-    "astro": "^7.3.3"
+    "@astrojs/node": "^11.1.6",
+    "astro": "^7.3.4",
+    "jose": "^6.2.12"
   },
   "allowScripts": {
     "esbuild": true

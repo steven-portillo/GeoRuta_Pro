@@ -1,0 +1,48 @@
+---
+// src/pages/login.astro
+// publica: "/login" no matchea ningun prefijo de RUTAS_PROTEGIDAS en
+// middleware.ts, asi que pasa derecho sin necesidad de token.
+
+import LoginForm from '../components/auth/LoginForm.astro';
+
+// mismos codigos que ya manda middleware.ts al redirigir con ?error=...
+// (sin_permisos, sesion_expirada) — la pagina resuelve el texto, el
+// componente solo lo pinta
+const errorUrl = Astro.url.searchParams.get('error');
+
+const MENSAJES_ERROR: Record<string, string> = {
+  sin_permisos: 'Tu cuenta no tiene permisos para esa sección.',
+  sesion_expirada: 'Tu sesión expiró, inicia sesión de nuevo.',
+};
+
+const mensajeError = errorUrl ? MENSAJES_ERROR[errorUrl] ?? 'Ocurrió un error, intenta de nuevo.' : null;
+---
+
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Iniciar sesión — GeoRuta</title>
+    <link rel="stylesheet" href="/src/styles/global.css" />
+  </head>
+  <body class="login-body">
+    <main class="login-contenedor">
+      <LoginForm mensajeError={mensajeError} />
+    </main>
+  </body>
+</html>
+
+<style>
+  .login-body {
+    margin: 0;
+  }
+
+  .login-contenedor {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--secondary-50, #f8fafc);
+    padding: 1rem;
+  }
+</style>

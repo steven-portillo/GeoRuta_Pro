@@ -1,0 +1,185 @@
+---
+// src/components/comunes/TablaAgGrid.astro
+import 'ag-grid-community/styles/ag-grid.css';
+import 'ag-grid-community/styles/ag-theme-quartz.css';
+
+// tipos de columna soportados: 'estado' pinta un badge de color en vez de texto plano
+export interface ColumnaGrid {
+  campo: string;
+  titulo: string;
+  tipo?: 'texto' | 'numero' | 'moneda' | 'fecha' | 'booleano' | 'estado';
+  ancho?: number;
+  flex?: number;
+  ordenable?: boolean;
+  filtrable?: boolean;
+}
+
+interface Props {
+  // id unico del contenedor — obligatorio si hay mas de una tabla en la misma pagina
+  gridId: string;
+  columnas: ColumnaGrid[];
+  datos: Record<string, unknown>[];
+  altura?: string;
+  filasPorPagina?: number;
+}
+
+const { gridId, columnas, datos, altura = '500px', filasPorPagina = 10 } = Astro.props;
+---
+
+<div class="tabla-ag-grid-wrapper">
+  <div
+    id={gridId}
+    class="ag-theme-quartz tabla-ag-grid"
+    style={`height: ${altura}`}
+    data-columnas={JSON.stringify(columnas)}
+    data-datos={JSON.stringify(datos)}
+    data-filas-pagina={filasPorPagina}
+  >
+  </div>
+</div>
+
+<script>
+  // @ts-expect-error La dependencia se resuelve en tiempo de ejecución aunque
+  // el entorno de tipos no exponga sus declaraciones.
+  import { createGrid, ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
+  // @ts-expect-error La dependencia se resuelve en tiempo de ejecución aunque
+  // el entorno de tipos no exponga sus declaraciones.
+  import type { GridOptions, ValueFormatterParams } from 'ag-grid-community';
+
+  // registra las funciones de la version community una sola vez para toda la app.
+  // si mas adelante se activa una licencia enterprise, agregar aqui:
+  //   import { AllEnterpriseModule, LicenseManager } from 'ag-grid-enterprise';
+  //   LicenseManager.setLicenseKey('tu-clave-aqui');
+  //   ModuleRegistry.registerModules([AllCommunityModule, AllEnterpriseModule]);
+  ModuleRegistry.registerModules([AllCommunityModule]);
+
+  interface ColumnaGrid {
+    campo: string;
+    titulo: string;
+    tipo?: string;
+    ancho?: number;
+    flex?: number;
+    ordenable?: boolean;
+    filtrable?: boolean;
+  }
+
+  // formateadores compartidos por tipo de columna: garantiza que "moneda" o
+  // "fecha" se vean identicos en cualquier tabla del proyecto, sin repetir
+  // Intl.NumberFormat/DateTimeFormat en cada pagina que use esta tabla
+  const formateadores: Record<string, (parametros: ValueFormatterParams) => string> = {
+    moneda: (parametros) =>
+      parametros.value == null
+        ? ''
+        : new Intl.NumberFormat('es-CO', {
+            style: 'currency',
+            currency: 'COP',
+            maximumFractionDigits: 0,
+          }).format(Number(parametros.value)),
+
+    fecha: (parametros) =>
+      parametros.value
+        ? new Intl.DateTimeFormat('es-CO', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+          }).format(new Date(parametros.value as string))
+        : '',
+
+    booleano: (parametros) => (parametros.value ? 'Sí' : 'No'),
+  };
+
+  // "estado" no es texto formateado sino un badge de color — se resuelve aparte
+  // porque devuelve html (cellRenderer), no un string plano (valueFormatter)
+  function renderizarEstado(parametros: ValueFormatterParams): string {
+    const valor = String(parametros.value ?? '');
+    const clave = valor
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // quita tildes (ej. "en tránsito" -> "en-transito")
+      .replace(/\s+/g, '-');
+    return `<span class="badge-estado badge-estado-${clave}">${valor}</span>`;
+  }
+
+  // convierte la definicion simple (ColumnaGrid) que mandan las paginas .astro
+  // en un colDef real de ag-grid, aplicando formatter/renderer segun "tipo"
+  function construirColDef(columna: ColumnaGrid) {
+    const colDef: Record<string, unknown> = {
+      field: columna.campo,
+      headerName: columna.titulo,
+      sortable: columna.ordenable ?? true,
+      filter: columna.filtrable ?? true,
+      resizable: true,
+    };
+
+    if (columna.ancho) colDef.width = columna.ancho;
+    if (columna.flex) colDef.flex = columna.flex;
+    if (columna.tipo && formateadores[columna.tipo]) colDef.valueFormatter = formateadores[columna.tipo];
+    if (columna.tipo === 'estado') colDef.cellRenderer = renderizarEstado;
+    if (columna.tipo === 'numero' || columna.tipo === 'moneda') colDef.type = 'numericColumn';
+
+    return colDef;
+  }
+
+  // busca todas las tablas de la pagina (puede haber mas de una) y las inicializa
+  function inicializarTablas(): void {
+    document.querySelectorAll<HTMLElement>('.tabla-ag-grid').forEach((contenedor) => {
+      if (contenedor.dataset.inicializado === 'true') return;
+
+      const columnas: ColumnaGrid[] = JSON.parse(contenedor.dataset.columnas ?? '[]');
+      const datos = JSON.parse(contenedor.dataset.datos ?? '[]');
+      const filasPorPagina = Number(contenedor.dataset.filasPagina ?? 10);
+
+      const opciones: GridOptions = {
+        columnDefs: columnas.map(construirColDef),
+        rowData: datos,
+        pagination: true,
+        paginationPageSize: filasPorPagina,
+        paginationPageSizeSelector: [10, 20, 50],
+        domLayout: 'normal',
+        localeText: { noRowsToShow: 'No hay datos para mostrar', page: 'Página', to: 'a', of: 'de' },
+      };
+
+      createGrid(contenedor, opciones);
+      contenedor.dataset.inicializado = 'true';
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', inicializarTablas);
+</script>
+
+<style>
+  .tabla-ag-grid-wrapper {
+    width: 100%;
+  }
+
+  .badge-estado {
+    padding: 4px 10px;
+    border-radius: 100px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: capitalize;
+    background: var(--secondary-100);
+    color: var(--secondary-700);
+  }
+
+  .badge-estado-entregado {
+    background: #dcfce7;
+    color: #16a34a;
+  }
+
+  .badge-estado-pendiente {
+    background: #fef3c7;
+    color: #b45309;
+  }
+
+  .badge-estado-en-transito,
+  .badge-estado-en-preparacion {
+    background: var(--primary-100);
+    color: var(--primary-700);
+  }
+
+  .badge-estado-cancelado {
+    background: #fee2e2;
+    color: #dc2626;
+  }
+</style>

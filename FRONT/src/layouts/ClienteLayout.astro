@@ -1,0 +1,167 @@
+---
+
+import '../styles/global.css';
+
+interface Props {
+  // titulo de la pestaña del navegador
+  titulo: string;
+  // que link del top-menu se marca como activo: 'inicio' | 'catalogo' | 'pedidos' | 'resenas'
+  vistaActual: string;
+  // datos de sesion para el avatar — llegan vacios hasta que migremos el perfil de cliente
+  nombreUsuario?: string;
+  inicialesUsuario?: string;
+  imagenUrl?: string | null;
+}
+
+const {
+  titulo,
+  vistaActual,
+  nombreUsuario = 'Usuario',
+  inicialesUsuario = 'U',
+  imagenUrl = null,
+} = Astro.props;
+
+const tieneFoto = Boolean(imagenUrl);
+---
+
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{titulo} — GeoRuta</title>
+
+    <!-- fuentes del sistema de diseño (fraunces + plus jakarta sans) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:wght@700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+    />
+  </head>
+  <body>
+    <div class="contenedor-principal">
+      <!-- ══ barra superior ══ -->
+      <div class="barra-superior nueva-barra">
+        <!-- ── logo ── -->
+        <a class="top-logo" href="/cliente/inicio" title="Ir al inicio">
+          <div class="logo-icono">
+            <svg viewBox="0 0 24 24" fill="white">
+              <path
+                d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3
+                3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"
+              ></path>
+            </svg>
+          </div>
+          <span class="top-logo-texto">Geo<span>Ruta</span></span>
+        </a>
+
+        <!-- ── menu ── -->
+        <div class="top-menu">
+          <a class={`top-link ${vistaActual === 'inicio' ? 'activo' : ''}`} href="/cliente/inicio">Inicio</a>
+          <a class={`top-link ${vistaActual === 'catalogo' ? 'activo' : ''}`} href="/cliente/catalogo">Catálogo</a>
+          <a class={`top-link ${vistaActual === 'pedidos' ? 'activo' : ''}`} href="/cliente/pedidos">Mis pedidos</a>
+          <a class={`top-link ${vistaActual === 'resenas' ? 'activo' : ''}`} href="/cliente/resenas">Reseñas</a>
+        </div>
+
+        <!-- ── buscador ── -->
+        <div class="top-buscador">
+          <input type="text" id="campo-busqueda-top" placeholder="Buscar productos..." />
+          <button id="btn-buscar-top">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5
+                6.5 6.5 0 109.5 16a6.471 6.471 0 004.23-1.57l.27.28v.79
+                L20 21.5 21.5 20l-6-6zm-6 0C7.01 14 5 11.99 5 9.5S7.01
+                5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
+              ></path>
+            </svg>
+          </button>
+        </div>
+
+        <!-- ── acciones ── -->
+        <div class="top-acciones">
+          <button class="icon-btn" title="Ir al catálogo" id="btn-carrito">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9
+                2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45C5.16 12.37 5
+                12.82 5 13.3 5 15.1 6.9 18 9 18h12v-2H9.42a.25.25 0
+                01-.25-.25l.03-.12.9-1.63H19c.75 0 1.41-.41 1.75-1.03
+                l3.58-6.49A1 1 0 0023.44 6H5.21l-.94-2H1z"
+              ></path>
+            </svg>
+          </button>
+
+          <button class="icon-btn" title="Notificaciones">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5
+                c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5
+                .67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"
+              ></path>
+            </svg>
+          </button>
+
+          <button class="icon-btn btn-cerrar-sesion" title="Cerrar sesión" id="btn-cerrar-sesion">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58
+                2.58L17 17l5-5-5-5zM4 5h8V3H4c-1.1 0-2 .9-2
+                2v14c0 1.1.9 2 2 2h8v-2H4V5z"
+              ></path>
+            </svg>
+          </button>
+
+          <a class="avatar-navbar" href="/cliente/perfil" title="Mi perfil">
+            {tieneFoto ? (
+              <img src={imagenUrl!} alt="Foto de perfil" class="foto-navbar" />
+            ) : (
+              <span>{inicialesUsuario}</span>
+            )}
+          </a>
+        </div>
+      </div>
+
+      <!-- ── contenido de la vista ── -->
+      <div class="zona-contenido">
+        <slot />
+      </div>
+    </div>
+
+    <script>
+      // busca desde la topbar: si no estamos en /cliente/catalogo, navega hacia
+      // alla guardando el texto en sessionStorage para que esa pagina lo recoja
+      // al cargar (evita mandar el texto por query string)
+      function buscarDesdeTopbar(): void {
+        const campo = document.getElementById('campo-busqueda-top') as HTMLInputElement | null;
+        const texto = campo?.value.trim() ?? '';
+
+        if (!window.location.pathname.startsWith('/cliente/catalogo')) {
+          sessionStorage.setItem('busqueda-producto', texto);
+          window.location.href = '/cliente/catalogo';
+          return;
+        }
+
+        // ya estando en catalogo, dispara un evento personalizado que la
+        // pagina de catalogo escucha para filtrar sin recargar
+        window.dispatchEvent(new CustomEvent('buscar-producto', { detail: texto }));
+      }
+
+      document.getElementById('btn-buscar-top')?.addEventListener('click', buscarDesdeTopbar);
+      document.getElementById('campo-busqueda-top')?.addEventListener('keyup', (evento) => {
+        if ((evento as KeyboardEvent).key === 'Enter') buscarDesdeTopbar();
+      });
+
+      document.getElementById('btn-carrito')?.addEventListener('click', () => {
+        window.location.href = '/cliente/catalogo';
+      });
+
+      document.getElementById('btn-cerrar-sesion')?.addEventListener('click', async () => {
+        if (!confirm('¿Estás seguro que deseas cerrar sesión?')) return;
+        await fetch('/api/auth/logout', { method: 'POST' });
+        window.location.href = '/login';
+      });
+    </script>
+  </body>
+</html>
