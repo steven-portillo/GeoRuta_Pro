@@ -15,13 +15,15 @@ if (!key) {
 interface TokenPayload {
   id: number;
   rol: string;
+  id_empresa: number | null;
 }
 
-export const crearToken = async ({ id, rol }: TokenPayload) => {
+export const crearToken = async ({ id, rol, id_empresa }: TokenPayload) => {
   const payload = {
     iss: server,
     sub: String(id),
     rol,
+    id_empresa,
     jti: crypto.randomUUID(),
     exp: getNumericDate(60 * 60 * 8), // 8 horas
   };

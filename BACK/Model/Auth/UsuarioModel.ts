@@ -109,6 +109,7 @@ export class Usuario {
           email: string;
           rol: string;
           idRol: number;
+          idEmpresa: number | null;
         };
       }
     | { success: false; message: string }
@@ -159,6 +160,7 @@ export class Usuario {
           email: usuario.email,
           rol: usuario.rol,
           idRol: usuario.id_rol,
+          idEmpresa: usuario.id_empresa,
         },
       };
     } catch (error) {

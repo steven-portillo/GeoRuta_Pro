@@ -43,6 +43,7 @@ export const iniciarSesion = async (ctx: Context) => {
       const token = await crearToken({
         id: result.data.idUsuario,
         rol: result.data.rol,
+        id_empresa: result.data.idEmpresa,
       });
 
       response.status = 200;
@@ -55,6 +56,7 @@ export const iniciarSesion = async (ctx: Context) => {
           email: result.data.email,
           rol: result.data.rol,
           idRol: result.data.idRol,
+          idEmpresa: result.data.idEmpresa,
         },
       };
     } else {

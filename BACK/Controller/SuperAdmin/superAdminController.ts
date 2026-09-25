@@ -1,5 +1,5 @@
 import { Context, RouterContext } from "../../Dependencies/dependencias.ts";
-import { SuperAdmin } from "../../Model/Admin/SuperAdminModel.ts";
+import { SuperAdmin } from "../../Model/SuperAdmin/SuperAdminModel.ts";
 import {
   generarRutaArchivo,
   escribirArchivo,
@@ -265,6 +265,38 @@ export const cambiarPasswordPerfil = async (ctx: Context) => {
     });
     ctx.response.status = resultado.success ? 200 : 400;
     ctx.response.body = resultado;
+  } catch (error) {
+    console.error(error);
+    ctx.response.status = 500;
+    ctx.response.body = {
+      success: false,
+      message: "Error interno del servidor",
+    };
+  }
+};
+
+/** GET /api/admin/superadmin/clientes/:id */
+export const obtenerCliente = async (
+  ctx: RouterContext<"/api/admin/superadmin/clientes/:id">,
+) => {
+  try {
+    const id_usuario = Number(ctx.params.id);
+
+    if (Number.isNaN(id_usuario)) {
+      ctx.response.status = 400;
+      ctx.response.body = { success: false, message: "ID inválido" };
+      return;
+    }
+
+    const cliente = await SuperAdmin.ObtenerClientePorId(id_usuario);
+    if (!cliente) {
+      ctx.response.status = 404;
+      ctx.response.body = { success: false, message: "Cliente no encontrado" };
+      return;
+    }
+
+    ctx.response.status = 200;
+    ctx.response.body = { success: true, data: cliente };
   } catch (error) {
     console.error(error);
     ctx.response.status = 500;

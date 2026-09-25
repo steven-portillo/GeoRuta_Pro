@@ -1,6 +1,9 @@
 import { Application, oakCors } from "./Dependencies/dependencias.ts";
 import { authRouter } from "./Router/Auth/authRouter.ts";
-import { superAdminRouter } from "./Router/Admin/superAdminRouter.ts";
+import { superAdminRouter } from "./Router/SuperAdmin/superAdminRouter.ts";
+import { categoriaRouter } from "./Router/Admin/categoriaRouter.ts";
+import { productoRouter } from "./Router/Admin/productoRouter.ts";
+import { inventarioRouter } from "./Router/Admin/inventarioRouter.ts";
 
 const app = new Application();
 
@@ -14,7 +17,13 @@ app.use(
 );
 
 // Rutas
-const routers = [authRouter, superAdminRouter];
+const routers = [
+  authRouter,
+  superAdminRouter,
+  categoriaRouter,
+  productoRouter,
+  inventarioRouter,
+];
 
 routers.forEach((router) => {
   app.use(router.routes());

@@ -83,6 +83,15 @@ export class SuperAdmin {
     );
   }
 
+  static async ObtenerClientePorId(id_usuario: number) {
+    const [cliente] = await conexion.query(
+      `SELECT id_usuario, nombre, apellido, email, imagen_url, activo, fecha_creacion
+     FROM usuarios WHERE id_usuario = ? AND id_rol = ?`,
+      [id_usuario, ID_ROL_CLIENTE],
+    );
+    return cliente ?? null;
+  }
+
   /** PERFIL PROPIO */
   static async ObtenerPerfil(id_usuario: number) {
     const [usuario] = await conexion.query(

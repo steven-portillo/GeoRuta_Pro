@@ -10,7 +10,8 @@ import {
   obtenerPerfil,
   editarPerfil,
   cambiarPasswordPerfil,
-} from "../../Controller/Admin/superAdminController.ts";
+  obtenerCliente,
+} from "../../Controller/SuperAdmin/superAdminController.ts";
 
 const superAdminRouter = new Router();
 
@@ -29,6 +30,7 @@ superAdminRouter.patch(
   cambiarEstadoCliente,
 );
 superAdminRouter.put("/api/admin/superadmin/clientes/:id", editarCliente);
+superAdminRouter.get("/api/admin/superadmin/clientes/:id", obtenerCliente);
 
 superAdminRouter.get("/api/admin/superadmin/perfil", obtenerPerfil);
 superAdminRouter.put("/api/admin/superadmin/perfil", editarPerfil);
