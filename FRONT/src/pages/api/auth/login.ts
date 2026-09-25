@@ -4,7 +4,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     
     const body = await request.json();
     
-    const respuestaBackend = await fetch(`${rutadeno}/api/login`, {
+    const respuestaBackend = await fetch(`${rutadeno}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

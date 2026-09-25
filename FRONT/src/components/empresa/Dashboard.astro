@@ -1,0 +1,22 @@
+---
+const token = Astro.cookies.get("token")?.value;
+---
+
+<div id="datostoken" data-token={token}></div>
+
+<script>
+  const datos = document.getElementById("datostoken") as HTMLElement;
+  const token = datos.dataset.token;
+  const ws = new WebSocket("ws://127.0.0.1:8005/ws");
+  ws.addEventListener("open", () => {
+    console.log("open");
+    ws.send(JSON.stringify({ tipo: "auth", token: token }));
+  });
+
+  ws.addEventListener("message", (e) => {
+    console.log("<<", e.data);
+  });
+
+  // Para poder usarlo en la consola:
+  (window as any).ws = ws; // en JS plano: window.ws = ws;
+</script>

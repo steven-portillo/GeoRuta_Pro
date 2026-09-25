@@ -1,0 +1,271 @@
+---
+import AgGridComponent from "../public/AgGridComponent.astro";
+import type { ColumnaDef } from "../../utils/agGrid";
+
+const token = Astro.cookies.get("token")?.value;
+const API_DENO = import.meta.env.API_DENO;
+const headers = { Authorization: `Bearer ${token}` };
+
+const TablaProveedores = async () => {
+    try {
+        const respuesta = await fetch(`${API_DENO}/api/empresa/proveedores`, { headers });
+        if (!respuesta.ok) {
+            console.error("Status no OK", respuesta.status, await respuesta.text());
+            return [];
+        }
+        const objProveedor = await respuesta.json();
+        return objProveedor.data ?? [];
+    } catch (error) {
+        console.error("Error al cargar repartidores", error);
+        return [];
+    }
+};
+
+const proveedores = await TablaProveedores();
+const proveedoresConId = proveedores.map((p: any) => ({ ...p, id: p.id_usuario }));
+
+const columnasProveedor: ColumnaDef[] = [
+    { tipo: "imagen", campo: "imagen_url", titulo: "Foto de Perfil" },
+    { campo: "nombre_proveedor", titulo: "Nombre" },
+    { campo: "email", titulo: "Correo Electronico" },
+    { tipo: "estado", campo: "activo", titulo: "estado" },
+];
+---
+
+<div class="page-header" style="padding-left: 5%; padding-top: 2%;">
+  <button class="btn-primary" id="btnNuevoProveedor">+ Crear Repartidor</button>
+</div>
+
+<AgGridComponent data={proveedoresConId} columnas={columnasProveedor} />
+
+<div class="modal fade custom-dark-modal" id="modalProveedor" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Crear repartidor</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="row g-2 mb-3">
+          <div class="col">
+            <label class="form-label-custom" for="modal-nombreProveedor">Nombres</label>
+            <div class="input-field-wrapper">
+              <i class="bi bi-person field-icon"></i>
+              <input type="text" id="modal-nombreProveedor" class="form-control-custom" placeholder="Nombre" autocomplete="given-name" />
+            </div>
+            <div class="error-feedback" id="modal-nombreProveedor-error"></div>
+          </div>
+          <div class="col">
+            <label class="form-label-custom" for="modal-apellidoProveedor">Apellidos</label>
+            <div class="input-field-wrapper">
+              <i class="bi bi-person field-icon"></i>
+              <input type="text" id="modal-apellidoProveedor" class="form-control-custom" placeholder="Apellido" autocomplete="family-name" />
+            </div>
+            <div class="error-feedback" id="modal-apellidoProveedor-error"></div>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label-custom" for="modal-emailProveedor">Correo electrónico</label>
+          <div class="input-field-wrapper">
+            <i class="bi bi-envelope field-icon"></i>
+            <input type="text" id="modal-emailProveedor" class="form-control-custom" placeholder="proveedor@correo.com" autocomplete="email" />
+          </div>
+          <div class="error-feedback" id="modal-emailProveedor-error"></div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label-custom" for="modal-passwordProveedor">Contraseña</label>
+          <div class="input-field-wrapper">
+            <i class="bi bi-key field-icon"></i>
+            <input type="password" id="modal-passwordProveedor" class="form-control-custom" placeholder="Mínimo 8 caracteres" autocomplete="new-password" />
+            <button type="button" class="toggle-password-btn" id="modal-togglePasswordProveedor" aria-label="Mostrar u ocultar contraseña">
+              <i class="bi bi-eye" id="modal-togglePasswordProveedorIcon"></i>
+            </button>
+          </div>
+          <div class="error-feedback" id="modal-passwordProveedor-error"></div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label-custom" for="modal-confirmarProveedor">Confirmar contraseña</label>
+          <div class="input-field-wrapper">
+            <i class="bi bi-key field-icon"></i>
+            <input type="password" id="modal-confirmarProveedor" class="form-control-custom" placeholder="Repite la contraseña" autocomplete="new-password" />
+            <button type="button" class="toggle-password-btn" id="modal-toggleConfirmarProveedor" aria-label="Mostrar u ocultar contraseña">
+              <i class="bi bi-eye" id="modal-toggleConfirmarProveedorIcon"></i>
+            </button>
+          </div>
+          <div class="error-feedback" id="modal-confirmarProveedor-error"></div>
+        </div>
+
+        <div id="modal-error-proveedor" class="alert-custom alert-custom-danger d-none" role="alert"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancelar-outline" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn-guardar-gradient" id="btnGuardarProveedor">Crear repartidor</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  import { Modal } from "bootstrap";
+  import {
+    validarSoloLetras,
+    validarFormatoEmail,
+    validarPassword,
+    validarPasswordComparar,
+    attachFieldValidation,
+  } from "../../utils/validaciones";
+
+  const modalEl = document.getElementById("modalProveedor") as HTMLElement;
+  const modalBS = new Modal(modalEl);
+  const modalError = document.getElementById("modal-error-proveedor") as HTMLElement;
+
+  const nombreInput = document.getElementById("modal-nombreProveedor") as HTMLInputElement;
+  const nombreError = document.getElementById("modal-nombreProveedor-error");
+
+  const apellidoInput = document.getElementById("modal-apellidoProveedor") as HTMLInputElement;
+  const apellidoError = document.getElementById("modal-apellidoProveedor-error");
+
+  const emailInput = document.getElementById("modal-emailProveedor") as HTMLInputElement;
+  const emailError = document.getElementById("modal-emailProveedor-error");
+
+  const passwordInput = document.getElementById("modal-passwordProveedor") as HTMLInputElement;
+  const passwordError = document.getElementById("modal-passwordProveedor-error");
+
+  const confirmarInput = document.getElementById("modal-confirmarProveedor") as HTMLInputElement;
+  const confirmarError = document.getElementById("modal-confirmarProveedor-error");
+
+  // --- Toggles mostrar/ocultar contraseña ---
+  const togglePasswordBtn = document.getElementById("modal-togglePasswordProveedor");
+  const togglePasswordIcon = document.getElementById("modal-togglePasswordProveedorIcon");
+  togglePasswordBtn?.addEventListener("click", () => {
+    const isPassword = passwordInput.type === "password";
+    passwordInput.type = isPassword ? "text" : "password";
+    togglePasswordIcon?.classList.toggle("bi-eye", !isPassword);
+    togglePasswordIcon?.classList.toggle("bi-eye-slash", isPassword);
+  });
+
+  const toggleConfirmarBtn = document.getElementById("modal-toggleConfirmarProveedor");
+  const toggleConfirmarIcon = document.getElementById("modal-toggleConfirmarProveedorIcon");
+  toggleConfirmarBtn?.addEventListener("click", () => {
+    const isPassword = confirmarInput.type === "password";
+    confirmarInput.type = isPassword ? "text" : "password";
+    toggleConfirmarIcon?.classList.toggle("bi-eye", !isPassword);
+    toggleConfirmarIcon?.classList.toggle("bi-eye-slash", isPassword);
+  });
+
+  // --- Validaciones ---
+  const validarNombre = attachFieldValidation(nombreInput, nombreError, (v) =>
+    validarSoloLetras(v, "El nombre")
+  );
+  const validarApellido = attachFieldValidation(apellidoInput, apellidoError, (v) =>
+    validarSoloLetras(v, "El apellido")
+  );
+  const validarEmail = attachFieldValidation(emailInput, emailError, validarFormatoEmail);
+  const validarPasswordCampo = attachFieldValidation(passwordInput, passwordError, (v) =>
+    validarPassword(v)
+  );
+  const validarConfirmar = attachFieldValidation(confirmarInput, confirmarError, (v) =>
+    validarPasswordComparar(v, passwordInput.value)
+  );
+
+  passwordInput.addEventListener("input", () => {
+    if (confirmarInput.value) validarConfirmar?.();
+  });
+
+  const limpiarModal = () => {
+    [nombreInput, apellidoInput, emailInput, passwordInput, confirmarInput].forEach((el) => {
+      el.value = "";
+      el.classList.remove("is-valid", "is-invalid");
+    });
+    [nombreError, apellidoError, emailError, passwordError, confirmarError].forEach((el) => {
+      if (el) el.innerHTML = "";
+    });
+    modalError.classList.add("d-none");
+  };
+
+  document.getElementById("btnNuevoProveedor")?.addEventListener("click", () => {
+    limpiarModal();
+    modalBS.show();
+  });
+
+  document.getElementById("btnGuardarProveedor")?.addEventListener("click", async () => {
+    modalError.classList.add("d-none");
+
+    const nombreOk = validarNombre?.();
+    const apellidoOk = validarApellido?.();
+    const emailOk = validarEmail?.();
+    const passwordOk = validarPasswordCampo?.();
+    const confirmarOk = validarConfirmar?.();
+
+    if (
+      !nombreOk?.isValid ||
+      !apellidoOk?.isValid ||
+      !emailOk?.isValid ||
+      !passwordOk?.isValid ||
+      !confirmarOk?.isValid
+    ) {
+      modalError.textContent = "Por favor completa todos los campos requeridos correctamente.";
+      modalError.classList.remove("d-none");
+
+      if (!nombreOk?.isValid) nombreInput.focus();
+      else if (!apellidoOk?.isValid) apellidoInput.focus();
+      else if (!emailOk?.isValid) emailInput.focus();
+      else if (!passwordOk?.isValid) passwordInput.focus();
+      else if (!confirmarOk?.isValid) confirmarInput.focus();
+
+      return;
+    }
+
+    const payload = {
+      nombre: nombreInput.value.trim(),
+      apellido: apellidoInput.value.trim(),
+      email: emailInput.value.trim(),
+      password: passwordInput.value,
+    };
+
+    try {
+      const res = await fetch("/api/empresa/proveedor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        modalError.textContent = data.message ?? "No se pudo crear el repartidor";
+        modalError.classList.remove("d-none");
+        return;
+      }
+
+      modalBS.hide();
+      window.location.reload();
+    } catch {
+      modalError.textContent = "Error de conexión";
+      modalError.classList.remove("d-none");
+    }
+  });
+
+  document.getElementById("ag-grid-wrapper")?.addEventListener("accion-tabla", async (e: any) => {
+    const { accion, id, estado } = e.detail;
+
+    if (accion === "toggle-estado") {
+      const rutaAccion = estado ? "desactivar" : "activar";
+      try {
+        const res = await fetch(`/api/empresa/proveedor/${id}/${rutaAccion}`, { method: "PATCH" });
+        const data = await res.json();
+        if (data.success) {
+          window.location.reload();
+        } else {
+          alert(data.message ?? "No se pudo cambiar el estado");
+        }
+      } catch {
+        alert("Error de conexión");
+      }
+    }
+  });
+</script>

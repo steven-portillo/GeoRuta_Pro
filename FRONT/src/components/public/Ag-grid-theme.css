@@ -1,0 +1,181 @@
+.ag-theme-alpine.ag-theme-georuta {
+  /* --- Colores base: cuerpo de la tabla en tonos claros de marca --- */
+  --ag-background-color: var(--primary-50);
+  --ag-foreground-color: var(--color-text-primary);
+  --ag-secondary-foreground-color: var(--color-text-secondary);
+  --ag-disabled-foreground-color: var(--color-text-muted);
+
+  /* --- Encabezado: oscuro, a tono con el sidebar (--secondary-700/800) --- */
+  --ag-header-background-color: var(--secondary-800);
+  --ag-header-foreground-color: var(--secondary-200);
+  --ag-header-column-separator-display: block;
+  --ag-header-column-separator-color: rgba(255, 255, 255, 0.12);
+  --ag-header-column-separator-height: 50%;
+  --ag-header-height: 48px;
+
+  /* --- Filas: zebra intercalando primary-50 / primary-100 --- */
+  --ag-row-height: 46px;
+  --ag-row-border-color: var(--primary-100);
+  --ag-odd-row-background-color: var(--primary-100);
+  --ag-row-hover-color: var(--primary-200);
+  --ag-selected-row-background-color: rgba(var(--primary-600-rgb), 0.18);
+  --ag-range-selection-background-color: rgba(var(--primary-600-rgb), 0.15);
+
+  /* --- Bordes / contenedor --- */
+  --ag-border-color: var(--color-border);
+  --ag-wrapper-border-radius: 16px;
+
+  /* --- Inputs (filtros, buscadores) --- */
+  --ag-input-background-color: var(--secondary-500);
+  --ag-input-border-color: var(--color-input-border);
+  --ag-input-focus-border-color: var(--color-primary);
+  --ag-input-focus-box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.2);
+
+  /* --- Checkboxes / acentos --- */
+  --ag-checkbox-checked-color: var(--color-primary);
+  --ag-checkbox-unchecked-color: var(--color-text-muted);
+  --ag-checkbox-background-color: var(--color-input-bg);
+
+  /* --- Menús, paneles laterales, overlays (Enterprise): mismo tono
+     oscuro que el header, para que combinen entre sí --- */
+  --ag-control-panel-background-color: var(--secondary-800);
+  --ag-menu-background-color: var(--secondary-800);
+  --ag-modal-overlay-background-color: rgba(var(--color-shadow-rgb), 0.6);
+
+  /* --- Tipografía --- */
+  --ag-font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+  --ag-font-size: 13.5px;
+}
+
+.ag-theme-alpine.ag-theme-georuta {
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 15px 40px rgba(var(--color-shadow-rgb), 0.35);
+}
+
+/* Encabezado con degradado sutil sobre el fondo oscuro — mismo patrón
+   que .sidebar-nav-link.active, pero aquí el degradado es de un tono
+   de secondary a otro (no primary/secondary), porque el header ya es
+   oscuro por sí mismo y el acento de marca se reserva para hover/selección */
+.ag-theme-alpine.ag-theme-georuta .ag-header {
+  background: linear-gradient(135deg, var(--secondary-800), var(--secondary-900));
+  border-bottom: 1px solid var(--secondary-700);
+}
+
+.ag-theme-alpine.ag-theme-georuta .ag-header-cell-text {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--white);
+}
+
+.ag-theme-alpine.ag-theme-georuta .ag-row-focus {
+  outline: 1px solid rgba(var(--color-primary-rgb), 0.4);
+}
+
+/* Contenedor completo del footer de paginación */
+.ag-theme-alpine.ag-theme-georuta .ag-paging-panel {
+  background: var(--secondary-800);
+  border-top: 1px solid var(--secondary-700);
+  color: rgba(255, 255, 255, 0.85);
+  padding: 0.5rem 1rem;
+}
+
+/* Texto: "Page 1 of 3", "1 to 15 of 42" */
+.ag-theme-alpine.ag-theme-georuta .ag-paging-number,
+.ag-theme-alpine.ag-theme-georuta .ag-paging-row-summary-panel,
+.ag-theme-alpine.ag-theme-georuta .ag-paging-page-summary-panel {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Botones de navegación (primera página, anterior, siguiente, última) */
+.ag-theme-alpine.ag-theme-georuta .ag-paging-button {
+  color: rgba(255, 255, 255, 0.75);
+}
+.ag-theme-alpine.ag-theme-georuta .ag-paging-button .ag-icon {
+  color: rgba(255, 255, 255, 0.75);
+}
+.ag-theme-alpine.ag-theme-georuta .ag-paging-button:not(.ag-disabled):hover .ag-icon {
+  color: var(--primary-300);
+}
+
+/* Botón deshabilitado (ej. "anterior" cuando ya estás en la página 1) */
+.ag-theme-alpine.ag-theme-georuta .ag-paging-button.ag-disabled .ag-icon {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+/* Selector de "filas por página" (si tienes paginationPageSizeSelector
+   activado) — es un <select> nativo dentro del panel */
+.ag-theme-alpine.ag-theme-georuta .ag-paging-page-size select,
+.ag-theme-alpine.ag-theme-georuta .ag-picker-field-wrapper {
+  background: var(--secondary-700);
+  border-color: var(--secondary-600);
+  color: var(--white);
+}
+
+/* Íconos DENTRO del header (ordenar, filtro) necesitan ser claros,
+   ya que su fondo ahora es oscuro — diferente del resto de íconos
+   de la tabla (paginación, menú de columnas), que siguen sobre fondo claro */
+.ag-theme-alpine.ag-theme-georuta .ag-header .ag-icon {
+  color: rgba(255, 255, 255, 0.75);
+}
+.ag-theme-alpine.ag-theme-georuta .ag-header .ag-icon:hover {
+  color: var(--white);
+}
+
+.ag-theme-alpine.ag-theme-georuta .ag-icon {
+  color: var(--color-text-secondary);
+}
+.ag-theme-alpine.ag-theme-georuta .ag-icon:hover {
+  color: var(--color-text-primary);
+}
+
+.ag-theme-alpine.ag-theme-georuta .ag-menu,
+.ag-theme-alpine.ag-theme-georuta .ag-popup-child {
+  color: var(--white);
+}
+
+.ag-theme-alpine.ag-theme-georuta .ag-menu-option-text,
+.ag-theme-alpine.ag-theme-georuta .ag-menu-option-shortcut {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Opción deshabilitada (ej. "Sort Ascending" cuando ya está ordenada
+   así) — necesita verse claramente apagada, pero legible sobre oscuro */
+.ag-theme-alpine.ag-theme-georuta .ag-menu-option-disabled .ag-menu-option-text {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* Ícono de cada opción del menú (la flecha de sort, el pin, etc.) */
+.ag-theme-alpine.ag-theme-georuta .ag-menu-option-part .ag-icon {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* Hover de una opción del menú — usa tu color de marca como acento,
+   coherente con el resto de la tabla */
+.ag-theme-alpine.ag-theme-georuta .ag-menu-option-active {
+  background-color: rgba(var(--primary-600-rgb), 0.25);
+}
+
+/* El check de "No Pin" seleccionado actualmente */
+.ag-theme-alpine.ag-theme-georuta .ag-menu-option-icon .ag-icon {
+  color: var(--primary-300);
+}
+
+.ag-theme-alpine.ag-theme-georuta .ag-list,
+.ag-theme-alpine.ag-theme-georuta .ag-select-list {
+  background: var(--secondary-700);
+  border: 1px solid var(--secondary-600);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ag-theme-alpine.ag-theme-georuta .ag-list-item {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.ag-theme-alpine.ag-theme-georuta .ag-list-item:hover,
+.ag-theme-alpine.ag-theme-georuta .ag-list-item.ag-active-item {
+  background: rgba(var(--primary-600-rgb), 0.3);
+  color: var(--white);
+}

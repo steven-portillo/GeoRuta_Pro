@@ -16,6 +16,7 @@ export {
   decode,
   getNumericDate,
 } from "https://deno.land/x/djwt@v3.0.2/mod.ts";
+export type { Payload } from "https://deno.land/x/djwt@v3.0.1/mod.ts";
 export { encodeBase64Url } from "https://deno.land/std@0.224.0/encoding/base64url.ts";
 export {
   hash,

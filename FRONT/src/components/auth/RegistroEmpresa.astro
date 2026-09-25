@@ -526,7 +526,7 @@ import "../public/Forms.css";
           formData.append("emailAdmin", emailAdminInput!.value.trim());
           formData.append("passwordAdmin", passwordAdminInput!.value);
 
-          const response = await fetch("api/auth/registro-empresa", {
+          const response = await fetch("/api/auth/registro-empresa", {
             method: "POST",
             body: formData,
           });

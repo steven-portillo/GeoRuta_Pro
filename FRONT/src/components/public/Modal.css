@@ -1,0 +1,212 @@
+
+
+
+.custom-dark-modal.custom-dark-modal .modal-content {
+  background: var(--color-surface);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  color: var(--color-text-primary);
+  box-shadow: 0 20px 50px rgba(var(--color-shadow-rgb), 0.5), inset 0 1px 1px rgba(var(--color-overlay-rgb), 0.08);
+}
+
+.custom-dark-modal.custom-dark-modal .modal-header {
+  background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.15), rgba(var(--color-secondary-rgb), 0.15));
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 20px 20px 0 0;
+}
+
+.custom-dark-modal.custom-dark-modal .modal-title {
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.custom-dark-modal.custom-dark-modal .modal-footer {
+  border-top: 1px solid var(--color-border);
+}
+
+/* El botón nativo .btn-close de Bootstrap ya usa filter invert vía
+   btn-close-white, así que se deja tal cual — solo se asegura contraste */
+.custom-dark-modal.custom-dark-modal .btn-close-white {
+  opacity: 0.8;
+}
+.custom-dark-modal.custom-dark-modal .btn-close-white:hover {
+  opacity: 1;
+}
+
+/* ---------------------------------------------------------------
+   Botones del footer del modal — versión compacta de
+   .btn-submit-gradient (forms.css) para caber en un footer de modal
+   --------------------------------------------------------------- */
+.btn-guardar-gradient {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+  border: none;
+  border-radius: 10px;
+  padding: 0.55rem 1.25rem;
+  color: var(--color-text-on-primary);
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(var(--color-primary-rgb), 0.35);
+  transition: all 0.25s ease;
+}
+.btn-guardar-gradient:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(var(--color-primary-rgb), 0.5);
+}
+
+.btn-cancelar-outline {
+  background: transparent;
+  border: 1px solid var(--color-input-border);
+  border-radius: 10px;
+  padding: 0.55rem 1.25rem;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-cancelar-outline:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-border-glow);
+}
+
+/* ---------------------------------------------------------------
+   Preview de archivo dentro del modal (foto de perfil de usuario,
+   foto de dispositivo, archivo de solicitud). Antes se llamaba
+   .modal-logo-row/.modal-logo-preview — renombrado porque ya no es
+   exclusivo de "logo" de usuario.
+   --------------------------------------------------------------- */
+.modal-file-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.modal-file-preview {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%; /* circular por defecto — pensado para fotos de perfil */
+  object-fit: cover;
+  border: 1px solid var(--color-border);
+  flex-shrink: 0;
+  background: var(--color-input-bg);
+  /* Se oculta hasta que haya una imagen que mostrar (lo controla el script) */
+  display: none;
+}
+
+.modal-file-row .form-control-custom {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Variante cuadrada — para fotos de objetos/dispositivos, donde un
+   círculo no tiene sentido (a diferencia de la foto de perfil) */
+.modal-file-preview.square {
+  border-radius: 10px;
+}
+
+/* Badge que reemplaza al preview de imagen cuando el archivo adjunto
+   es un PDF (no se puede miniaturizar como imagen) */
+.pdf-badge {
+  display: none;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  background: rgba(var(--color-danger-rgb), 0.12);
+  border: 1px solid rgba(var(--color-danger-rgb), 0.3);
+  color: var(--color-text-primary);
+  font-size: 0.8rem;
+  max-width: 140px;
+  flex-shrink: 0;
+}
+.pdf-badge i {
+  color: var(--color-danger);
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+.pdf-badge span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------------------------------------------------------------
+   Modal de "Ver detalle" (solo lectura) — pares label/valor y los
+   links de ver/descargar el archivo adjunto de una solicitud
+   --------------------------------------------------------------- */
+.detalle-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.detalle-item-full {
+  grid-column: 1 / -1;
+}
+
+.detalle-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.25rem;
+}
+
+.detalle-valor {
+  color: var(--color-text-primary);
+  font-size: 0.95rem;
+  white-space: pre-wrap; /* respeta saltos de línea de la descripción */
+}
+
+.detalle-archivo-links {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.25rem;
+}
+
+.detalle-archivo-links a {
+  flex: 1;
+  text-align: center;
+  padding: 0.55rem 1rem;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.detalle-archivo-links .btn-ver-archivo {
+  background: rgba(var(--color-primary-rgb), 0.15);
+  border: 1px solid rgba(var(--color-primary-rgb), 0.35);
+  color: var(--color-text-primary);
+}
+.detalle-archivo-links .btn-ver-archivo:hover {
+  background: rgba(var(--color-primary-rgb), 0.25);
+}
+
+.detalle-archivo-links .btn-descargar-archivo {
+  background: transparent;
+  border: 1px solid var(--color-input-border);
+  color: var(--color-text-secondary);
+}
+.detalle-archivo-links .btn-descargar-archivo:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-border-glow);
+}
+
+.app-sidebar,
+.app-content {
+  transition: filter 0.25s ease;
+}
+
+body.modal-open .app-sidebar,
+body.modal-open .app-content {
+  filter: blur(4px);
+  pointer-events: none; 
+}

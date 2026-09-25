@@ -30,6 +30,8 @@
     --secondary-200: #e2e8f0;
     --secondary-100: #f1f5f9;
     --secondary-50:  #f8fafc;
+
+
     --white: #ffffff;
     --green-500: #22c55e;
     --orange-500: #f97316;
@@ -47,21 +49,68 @@
     --color-warning: #f59e0b;
     --color-alert-warning-text: #fcd34d;
     --color-danger: #EF4444;
-    --color-field-error-text: #f87171;   /* texto bajo un campo inválido (.error-feedback) */
-    --color-alert-danger-text: #fca5a5;  /* texto dentro de la alerta roja (.alert-custom-danger) */
+    --color-field-error-text: #f87171;
+    --color-alert-danger-text: #fca5a5;
 
-    /* ---------------------------------------------------------------
-       Tripletas RGB — SOLO existen para poder usar rgba(var(--x-rgb), N)
-       en cualquier color que necesite transparencia. No se usan solas,
-       siempre van envueltas en rgba(). Si agregas un color nuevo que
-       vaya a necesitar una versión translúcida en algún lado, agrégale
-       su "-rgb" aquí también.
-       --------------------------------------------------------------- */
     --primary-600-rgb: 37, 99, 235;
     --color-danger-rgb: 239, 68, 68;
     --color-success-rgb: 16, 185, 129;
     --color-warning-rgb: 245, 158, 11;
     --overlay-rgb: 255, 255, 255; /* blanco — para "rgba(255,255,255,N)" sueltos (shimmer de botones, fondos sutiles) */
+
+
+    /*TOCO AGREGAR ESTAS COSAS EXTRA AL FINAL PORQUE LO USAN COMPONENTES DE SIDEBAR Y AG-GRID
+      ME DIO PEREZA CAMBIAR LOS NOMBRES DE LAS VARIABLES EN ESOS COMPONENTES, DESPUES LO HAGO    
+    */
+     /* ---------------------------------------------------------------
+     SUPERFICIES
+     --------------------------------------------------------------- */
+    --color-bg: var(--secondary-50);           /* fondo general de página */
+    --color-surface: var(--white);             /* sidebar, tarjetas, modales */
+    --color-surface-alt: var(--secondary-50);  /* filas zebra, header de tabla */
+    --color-tooltip-bg: var(--secondary-900);  /* tooltip oscuro — sigue siendo el más legible aunque el tema sea claro */
+
+    /* ---------------------------------------------------------------
+        TEXTO
+     --------------------------------------------------------------- */
+    --color-text-primary: var(--secondary-900);
+    --color-text-secondary: var(--secondary-600);
+    --color-text-muted: var(--secondary-400);
+    --color-text-on-primary: var(--white);     /* texto sobre botones/superficies de color primary sólido */
+
+    /* ---------------------------------------------------------------
+        BORDES
+     --------------------------------------------------------------- */
+    --color-border: var(--secondary-200);
+    --color-border-strong: var(--secondary-300);
+    --color-border-glow: rgba(var(--primary-600-rgb), 0.4);
+
+    /* ---------------------------------------------------------------
+        OVERLAY / SOMBRA — para tinte de hover y demás "rgba(x, N)" sueltos.
+        A diferencia de --overlay-rgb (blanco, que ya usas en la landing
+        para shimmer de botones), este es OSCURO a propósito: en tema
+        claro, un hover necesita oscurecer un poco la superficie, no
+        aclararla — usar blanco aquí lo dejaría invisible.
+     --------------------------------------------------------------- */
+    --color-overlay-rgb: 15, 23, 42;   /* = secondary-900 en RGB */
+    --color-shadow-rgb: 0, 0, 0;      /* ya se usa hardcodeado en --shadow-sm/md/lg; esto solo lo expone como var reutilizable */
+
+    /* ---------------------------------------------------------------
+        PRIMARY / SECONDARY — alias "de rol" sobre tu escala cruda,
+        para que Sidebar.css y ag-grid-theme.css tengan un nombre fijo
+        que no dependa de a qué tono numérico decidiste anclar el acento
+     --------------------------------------------------------------- */
+    --color-primary: var(--primary-600);
+    --color-primary-rgb: var(--primary-600-rgb);
+    --color-secondary: var(--secondary-600);
+    --color-secondary-rgb: 71, 85, 105;  /* = secondary-600 en RGB */
+
+  /* ---------------------------------------------------------------
+     INPUTS
+     --------------------------------------------------------------- */
+    --color-input-bg: var(--white);
+    --color-input-border: var(--secondary-200);
+    --color-input-border-focus: var(--primary-600);
 }
 
 html {
@@ -86,6 +135,15 @@ body {
         display: block;
     }
 
+/* ENCABEZADOS DE PAGINAS SUELTAS POR SI QUIEREN*/
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
 /* ─── NAVBAR ─── */
 nav {
     position: fixed;

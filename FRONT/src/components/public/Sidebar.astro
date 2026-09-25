@@ -1,0 +1,261 @@
+---
+import "./Sidebar.css";
+
+export interface SidebarLink {
+  href: string;
+  label: string;
+  icon: string;
+}
+
+export interface EmpresaBranding {
+  nombre: string;
+  logoUrl?: string;
+}
+
+export interface UsuarioSidebar {
+  nombre: string;
+  fotoUrl?: string;
+}
+
+export interface Props {
+  activePath?: string;
+  links?: SidebarLink[];
+  empresa?: EmpresaBranding;
+  usuario?: UsuarioSidebar;
+}
+
+const { activePath = "", links = [], empresa, usuario } = Astro.props;
+
+// Iniciales para el avatar cuando no hay foto de perfil (ej: "Juan Pérez" -> "JP")
+const iniciales = usuario?.nombre
+  ? usuario.nombre
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase())
+      .join("")
+  : "?";
+---
+
+<!-- Botón hamburguesa: solo visible en móvil, fijo en la esquina -->
+<button
+  class="mobile-menu-toggle"
+  id="mobileMenuToggle"
+  aria-label="Abrir menú"
+  aria-expanded="false"
+>
+  <i class="bi bi-list"></i>
+</button>
+
+<!-- Fondo oscuro detrás del sidebar cuando está abierto en móvil -->
+<div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+<aside class="app-sidebar" id="appSidebar">
+  <div class="sidebar-header">
+    <a id="sidebarCollapseBtn" class="sidebar-brand">
+      <div class="sidebar-brand-icon">
+        <img
+          src="/logo-georuta.png"
+          alt="GeoRuta"
+          class="sidebar-brand-logo"
+          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+        />
+        <i class="bi bi-signpost-2-fill sidebar-brand-fallback"></i>
+      </div>
+      <span class="sidebar-brand-text logo-text">Geo<span>Ruta</span></span>
+    </a>
+
+    <!-- Botón de cerrar: solo tiene sentido en móvil (dentro del drawer) -->
+    <button
+      class="sidebar-close-btn"
+      id="sidebarCloseBtn"
+      aria-label="Cerrar menú"
+    >
+      <i class="bi bi-x-lg"></i>
+    </button>
+  </div>
+
+  <!-- Marca secundaria: identidad de la empresa. Solo aparece si se pasa la prop -->
+  {
+    empresa && (
+      <div class="sidebar-subbrand" data-tooltip={empresa.nombre}>
+        <div class="sidebar-subbrand-icon">
+          {empresa.logoUrl ? (
+            <>
+              <img
+                src={empresa.logoUrl}
+                alt={empresa.nombre}
+                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+              />
+              <i class="bi bi-building" style="display:none;" />
+            </>
+          ) : (
+            <i class="bi bi-building" />
+          )}
+        </div>
+        <span class="sidebar-subbrand-text">{empresa.nombre}</span>
+      </div>
+    )
+  }
+
+  <nav class="sidebar-nav">
+    <ul class="sidebar-nav-list">
+      {
+        links.map((link) => (
+          <li class="sidebar-nav-item">
+            <a
+              href={link.href}
+              class:list={[
+                "sidebar-nav-link",
+                { active: activePath === link.href },
+              ]}
+              data-tooltip={link.label}
+            >
+              <i class={`bi ${link.icon} sidebar-nav-icon`} />
+              <span class="sidebar-nav-text">{link.label}</span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </nav>
+
+  <div class="sidebar-footer">
+    <a
+      href="/perfil"
+      class="sidebar-profile-link"
+      data-tooltip={usuario?.nombre ?? "Mi perfil"}
+    >
+      <div class="sidebar-profile-avatar">
+        {
+          usuario?.fotoUrl ? (
+            <>
+              <img
+                src={usuario.fotoUrl}
+                alt={usuario.nombre}
+                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+              />
+              <span>{iniciales}</span>
+            </>
+          ) : (
+            <span>{iniciales}</span>
+          )
+        }
+      </div>
+      <span class="sidebar-profile-name">{usuario?.nombre ?? "Mi perfil"}</span>
+    </a>
+
+    <a
+      id="btnLogout"
+      class="sidebar-logout-btn"
+      data-tooltip="Cerrar sesión"
+      aria-label="Cerrar sesión"
+    >
+      <i class="bi bi-box-arrow-right"></i>
+    </a>
+  </div>
+</aside>
+
+<script>
+  //
+  // Elementos
+  //
+  const sidebar = document.getElementById("appSidebar");
+  const collapseBtn = document.getElementById("sidebarCollapseBtn");
+  const closeBtn = document.getElementById("sidebarCloseBtn");
+  const mobileToggle = document.getElementById("mobileMenuToggle");
+  const backdrop = document.getElementById("sidebarBackdrop");
+
+  const MOBILE_BREAKPOINT = 992;
+  const STORAGE_KEY = "sidebar-collapsed";
+
+  //
+  // Colapso en desktop
+  //
+  function applyStoredCollapsedState() {
+    if (!sidebar) return;
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === "true" && window.innerWidth >= MOBILE_BREAKPOINT) {
+      sidebar.classList.add("is-collapsed");
+      document.body.classList.add("sidebar-collapsed");
+    }
+  }
+
+  collapseBtn?.addEventListener("click", () => {
+    // En móvil el logo/marca no colapsa nada — evita el combo con is-mobile-open
+    if (!sidebar || window.innerWidth < MOBILE_BREAKPOINT) return;
+    const isCollapsed = sidebar.classList.toggle("is-collapsed");
+    document.body.classList.toggle("sidebar-collapsed", isCollapsed);
+    localStorage.setItem(STORAGE_KEY, String(isCollapsed));
+  });
+
+  //
+  // Apertura/cierre en móvil
+  //
+  function openMobileSidebar() {
+    sidebar?.classList.add("is-mobile-open");
+    backdrop?.classList.add("is-visible");
+    mobileToggle?.setAttribute("aria-expanded", "true");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeMobileSidebar() {
+    sidebar?.classList.remove("is-mobile-open");
+    backdrop?.classList.remove("is-visible");
+    mobileToggle?.setAttribute("aria-expanded", "false");
+    document.body.style.overflow = "";
+  }
+
+  mobileToggle?.addEventListener("click", () => {
+    if (sidebar?.classList.contains("is-mobile-open")) {
+      closeMobileSidebar();
+    } else {
+      openMobileSidebar();
+    }
+  });
+
+  closeBtn?.addEventListener("click", closeMobileSidebar);
+  backdrop?.addEventListener("click", closeMobileSidebar);
+
+  window.addEventListener("resize", () => {
+    if (window.innerWidth >= MOBILE_BREAKPOINT) {
+      closeMobileSidebar();
+    }
+  });
+
+  applyStoredCollapsedState();
+
+  document.addEventListener("click", (e) => {
+    if (!sidebar) return;
+
+    const target = e.target as Node;
+    const clickedInsideSidebar = sidebar.contains(target);
+    const clickedOwnToggle =
+      mobileToggle?.contains(target) || collapseBtn?.contains(target);
+
+    if (clickedInsideSidebar || clickedOwnToggle) return;
+
+    if (window.innerWidth >= MOBILE_BREAKPOINT) {
+      if (!sidebar.classList.contains("is-collapsed")) {
+        sidebar.classList.add("is-collapsed");
+        document.body.classList.add("sidebar-collapsed");
+        localStorage.setItem(STORAGE_KEY, "true");
+      }
+    } else {
+      if (sidebar.classList.contains("is-mobile-open")) {
+        closeMobileSidebar();
+      }
+    }
+  });
+
+  window.addEventListener("resize", () => {
+    if (window.innerWidth >= MOBILE_BREAKPOINT) {
+      closeMobileSidebar();
+    } else {
+      // El colapso no existe conceptualmente en móvil — si venías de
+      // desktop colapsado y la ventana se achica, límpialo
+      sidebar?.classList.remove("is-collapsed");
+      document.body.classList.remove("sidebar-collapsed");
+    }
+  });
+</script>

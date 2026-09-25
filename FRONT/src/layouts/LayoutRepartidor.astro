@@ -1,0 +1,115 @@
+---
+import "bootstrap/dist/css/bootstrap.min.css";
+import "bootstrap-icons/font/bootstrap-icons.min.css";
+import "../components/public/Global.css";
+import "../components/public/Modal.css"
+import "../components/public/Forms.css"
+import Sidebar from "../components/public/Sidebar.astro";
+
+interface Props {
+    titulo: string;
+}
+const { titulo } = Astro.props;
+
+const token = Astro.cookies.get("token")?.value;
+const API_DENO = import.meta.env.API_DENO;
+const headers = { Authorization: `Bearer ${token}` };
+
+interface PerfilSidebar {
+  nombres: string | null;
+  fotoUrl: string | null;
+  nombreEmpresa: string | null;
+  logoUrl: string | null;
+}
+
+const perfilSideBar = async (): Promise<PerfilSidebar> => {
+  const vacio: PerfilSidebar = { nombres: null, fotoUrl: null, nombreEmpresa: null, logoUrl: null };
+  try {
+    const resPerfil = await fetch(`${API_DENO}/api/auth/perfil-sb`, { headers });
+    if (!resPerfil.ok) {
+      console.error("status no ok", resPerfil.status, await resPerfil.text());
+      return vacio;
+    }
+    const perfil = await resPerfil.json();
+    return perfil.data ?? vacio;
+  } catch (error) {
+    console.error("Error al traer perfil sidebar:", error);
+    return vacio; // ← nunca undefined, siempre la forma esperada
+  }
+};
+
+const perfilSB = await perfilSideBar();
+
+const linksAdmin = [
+    { href: "/repartidor/", label: "Dashboard", icon: "bi-grid-1x2-fill" },
+];
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{titulo}</title>
+  </head>
+  <body>
+    <Sidebar
+        activePath={Astro.url.pathname}
+        links={linksAdmin}
+        empresa={perfilSB.nombreEmpresa ? { nombre: perfilSB.nombreEmpresa, logoUrl: perfilSB.logoUrl ?? undefined } : undefined}
+        usuario={{ nombre: perfilSB.nombres ?? "Usuario", fotoUrl: perfilSB.fotoUrl ?? undefined }}
+    />
+    <main class="app-content">
+        <slot />
+    </main>
+
+    <script>
+      const btnLogout = document.getElementById("btnLogout") as HTMLButtonElement;
+      btnLogout.addEventListener("click", async () => {
+        await fetch("/api/auth/logout", { method: "POST" });
+        window.location.href = "/auth/login";
+      });
+
+      //script para que el modal no se rompa por el efecto blur que se aplica cuando se abre
+      document.addEventListener("DOMContentLoaded", () => {
+        document.querySelectorAll(".custom-dark-modal").forEach((modal) => {
+          document.body.appendChild(modal);
+        });
+      });
+    </script>
+  </body>
+</html>
+
+<style>
+  html,
+  body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .app-content {
+    margin-left: 260px; /* debe coincidir con --sidebar-width del Sidebar.astro */
+    transition: margin-left 0.25s ease;
+    min-height: 100vh;
+  }
+
+  /* Cuando el sidebar está colapsado (clase que se agrega en <body>),
+     el contenido se recorre a la misma anchura reducida */
+  body.sidebar-collapsed .app-content {
+    margin-left: 76px; /* debe coincidir con --sidebar-width-collapsed */
+  }
+
+  /* En móvil el sidebar es off-canvas (no empuja), así que el contenido
+     ocupa todo el ancho sin importar si quedó "colapsado" en la sesión
+     anterior de desktop */
+  @media (max-width: 991.98px) {
+    .app-content {
+      margin-left: 0 !important;
+    }
+  }
+
+</style>

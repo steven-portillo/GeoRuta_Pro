@@ -1,0 +1,76 @@
+---
+const token = Astro.cookies.get("token")?.value;
+const API_DENO = import.meta.env.API_DENO ?? "http://127.0.0.1:8005";
+const headers = { Authorization: `Bearer ${token}` };
+
+const cargarPedidoIds = async (): Promise<number[]> => {
+  try {
+    const respuesta = await fetch(`${API_DENO}/cliente/mapa/pedidos-en-transito`, {
+      headers,
+    });
+    if (!respuesta.ok) {
+      console.error("Status no OK", respuesta.status, await respuesta.text());
+      return [];
+    }
+    const obj = await respuesta.json();
+    const data = obj.data ?? [];
+    return Array.isArray(data) ? data.map(Number) : [];
+  } catch (error) {
+    console.error("Error al cargar pedidos en transito", error);
+    return [];
+  }
+};
+
+const pedidoIds = await cargarPedidoIds();
+const pedidoIdsJson = JSON.stringify(pedidoIds);
+---
+
+<div
+  id="datospagina"
+  data-token={token ?? ""}
+  data-ids={pedidoIdsJson}
+></div>
+
+<script>
+  const datos = document.getElementById("datospagina") as HTMLElement;
+  const token = datos.dataset.token ?? "";
+  const pedidoIds: number[] = JSON.parse(datos.dataset.ids || "[]");
+
+  const ws = new WebSocket("ws://127.0.0.1:8005/ws");
+  (window as any).ws = ws;
+
+  ws.addEventListener("open", () => {
+    console.log("open");
+    ws.send(JSON.stringify({ tipo: "auth", token }));
+  });
+
+  ws.addEventListener("message", (e) => {
+    console.log("<<", e.data);
+    let msg: { tipo?: string };
+    try {
+      msg = JSON.parse(e.data);
+    } catch {
+      return;
+    }
+  
+    // Solo después de auth_ok
+    if (msg.tipo === "auth_ok") {
+      console.log("pedidoIds a enviar", pedidoIds);
+      ws.send(
+        JSON.stringify({
+          tipo: "UnirseComoCliente",
+          pedidoIds,
+        }),
+      );
+    }
+
+    if (msg.tipo === "unido") {
+      console.log("Unido a grupos de pedidos", msg);
+    }
+
+    if (msg.tipo === "ActualizarUbicacion") {
+      console.log("GPS proveedor", msg);
+    }
+  });
+  ws.onclose
+</script>

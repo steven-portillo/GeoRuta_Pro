@@ -1,0 +1,455 @@
+.app-sidebar {
+  --color-surface: var(--secondary-700);
+  --color-text-primary: var(--secondary-50);
+  --color-text-secondary: var(--secondary-300);
+  --color-text-muted: var(--secondary-400);
+  --color-border: rgba(var(--overlay-rgb), 0.08);
+  --color-overlay-rgb: var(--overlay-rgb); 
+  --sidebar-width: 260px;
+  --sidebar-width-collapsed: 76px;
+}
+
+.app-sidebar {
+  --sidebar-width: 260px;
+  --sidebar-width-collapsed: 76px;
+
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: var(--sidebar-width);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-right: 1px solid var(--color-border);
+  box-shadow: 4px 0 30px rgba(var(--color-shadow-rgb), 0.35);
+  z-index: 1000;
+  transition: width 0.25s ease, transform 0.3s ease;
+  overflow-x: hidden;
+}
+
+.app-sidebar.is-collapsed {
+  width: var(--sidebar-width-collapsed);
+}
+
+/* ---------------------------------------------------------------
+   Header / marca propia (GeoRuta)
+   --------------------------------------------------------------- */
+.sidebar-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.25rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  min-height: 76px;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.sidebar-brand-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.2), rgba(var(--color-secondary-rgb), 0.2));
+  border: 1px solid var(--color-border-glow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.sidebar-brand-logo {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.sidebar-brand-text {
+  font-weight: 800;
+  font-size: 1.1rem;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 0.2s ease;
+}
+
+.sidebar-brand-fallback {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+  font-size: 1.2rem;
+  width: 100%;
+  height: 100%;
+}
+
+.sidebar-profile-avatar span {
+  display: none; /* se muestra solo si la img falla o no hay fotoUrl */
+}
+.sidebar-profile-avatar:not(:has(img)) span {
+  display: flex; /* sin fotoUrl en absoluto: mostrar iniciales directo */
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.app-sidebar.is-collapsed .sidebar-brand-text {
+  opacity: 0;
+  width: 0;
+}
+
+.sidebar-close-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: rgba(var(--color-overlay-rgb), 0.03);
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.sidebar-close-btn:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-border-glow);
+}
+.sidebar-close-btn {
+  display: none; /* solo tiene sentido en el drawer móvil */
+}
+
+/* ---------------------------------------------------------------
+   Marca secundaria: la empresa (solo Admin/Repartidor)
+   --------------------------------------------------------------- */
+.sidebar-subbrand {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sidebar-subbrand-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(var(--color-overlay-rgb), 0.05);
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+  font-size: 0.9rem;
+}
+
+.sidebar-subbrand-text {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--primary-700);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 0.2s ease;
+  
+}
+
+.app-sidebar.is-collapsed .sidebar-subbrand-text {
+  opacity: 0;
+  width: 0;
+}
+
+/* ---------------------------------------------------------------
+   Navegación
+   --------------------------------------------------------------- */
+.sidebar-nav {
+  position: relative;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 1rem 0.75rem;
+  background: var(--color-surface);
+}
+
+.sidebar-nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sidebar-nav-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 12px;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+.sidebar-nav-link:hover {
+  background: rgba(var(--color-overlay-rgb), 0.05);
+  color: var(--color-text-primary);
+}
+.sidebar-nav-link.active {
+  background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.18), rgba(var(--color-secondary-rgb), 0.18));
+  color: var(--color-text-primary);
+  box-shadow: inset 0 0 0 1px rgba(var(--color-primary-rgb), 0.35);
+}
+
+.sidebar-nav-link.active::before {
+  content: "";
+  position: absolute;
+  left: -0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 22px;
+  border-radius: 0 4px 4px 0;
+  background: linear-gradient(180deg, var(--color-primary), var(--color-secondary));
+}
+
+.sidebar-nav-icon {
+  flex-shrink: 0;
+  font-size: 1.15rem;
+  width: 1.5rem;
+  text-align: center;
+}
+.sidebar-nav-link.active .sidebar-nav-icon {
+  color: var(--color-primary);
+}
+
+.sidebar-nav-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 0.2s ease;
+}
+.app-sidebar.is-collapsed .sidebar-nav-text {
+  opacity: 0;
+  width: 0;
+}
+
+/* ---------------------------------------------------------------
+   Tooltip cuando el sidebar está colapsado.
+   Generalizado a CUALQUIER elemento con [data-tooltip] (nav links,
+   marca de empresa, perfil, logout) — no solo .sidebar-nav-link.
+   --------------------------------------------------------------- */
+.app-sidebar.is-collapsed [data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--color-tooltip-bg);
+  color: var(--color-text-primary);
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  box-shadow: 0 8px 20px rgba(var(--color-shadow-rgb), 0.4);
+  border: 1px solid var(--color-border);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 1001;
+}
+.app-sidebar.is-collapsed [data-tooltip]:hover::after {
+  opacity: 1;
+}
+
+/* ---------------------------------------------------------------
+   Footer: perfil (avatar + nombre) + botón de cerrar sesión
+   --------------------------------------------------------------- */
+.sidebar-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.sidebar-profile-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: background 0.2s ease;
+}
+.sidebar-profile-link:hover {
+  background: rgba(var(--color-overlay-rgb), 0.05);
+}
+
+.sidebar-profile-avatar {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.2), rgba(var(--color-secondary-rgb), 0.2));
+  border: 1px solid var(--color-border-glow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.sidebar-profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sidebar-profile-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 0.2s ease;
+}
+.app-sidebar.is-collapsed .sidebar-profile-name {
+  opacity: 0;
+  width: 0;
+}
+
+.sidebar-logout-btn {
+  position: relative;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: rgba(var(--color-overlay-rgb), 0.03);
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.sidebar-logout-btn:hover {
+  color: var(--color-danger, var(--color-text-primary));
+  border-color: var(--color-danger, var(--color-border-glow));
+}
+
+/* En colapsado, el footer pasa a columna para que ambos íconos quepan */
+.app-sidebar.is-collapsed .sidebar-footer {
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.app-sidebar.is-collapsed .sidebar-profile-link {
+  flex: 0 0 auto;
+  justify-content: center;
+  padding: 0.35rem;
+}
+
+/* ---------------------------------------------------------------
+   Botón hamburguesa + backdrop (solo móvil)
+   --------------------------------------------------------------- */
+.mobile-menu-toggle {
+  display: none;
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 1002;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  backdrop-filter: blur(12px);
+  color: var(--color-text-primary);
+  font-size: 1.3rem;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(var(--color-shadow-rgb), 0.3);
+}
+
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(var(--color-shadow-rgb), 0.6);
+  backdrop-filter: blur(2px);
+  z-index: 999;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.sidebar-backdrop.is-visible {
+  opacity: 1;
+}
+
+.app-sidebar.is-mobile-open ~ .mobile-menu-toggle,
+.mobile-menu-toggle[aria-expanded="true"] {
+  display: none;
+}
+/* ---------------------------------------------------------------
+   Responsive: por debajo de 992px, drawer off-canvas
+   --------------------------------------------------------------- */
+@media (max-width: 991.98px) {
+  .mobile-menu-toggle {
+    display: flex;
+  }
+  .sidebar-backdrop.is-visible {
+    display: block;
+  }
+  .app-sidebar {
+    width: var(--sidebar-width) !important;
+    transform: translateX(-100%);
+  }
+  .app-sidebar.is-mobile-open {
+    transform: translateX(0);
+  }
+  .sidebar-close-btn {
+    display: flex;
+  }
+  .sidebar-nav-text,
+  .sidebar-brand-text,
+  .sidebar-subbrand-text,
+  .sidebar-profile-name {
+    opacity: 1 !important;
+    width: auto !important;
+  }
+  .sidebar-footer {
+    flex-direction: row !important;
+  }
+  .sidebar-profile-link {
+    flex: 1 !important;
+    justify-content: flex-start !important;
+  }
+}

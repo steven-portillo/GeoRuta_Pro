@@ -1,0 +1,194 @@
+---
+import type { ColumnaDef } from "../../utils/agGrid";
+import { utf8ToBase64 } from "../../utils/base64";
+import "./Ag-grid-theme.css";
+interface Props {
+  data: any[];
+  columnas: ColumnaDef[];
+}
+const { data, columnas } = Astro.props;
+
+const dataBase64 = utf8ToBase64(JSON.stringify(data));
+const columnasBase64 = utf8ToBase64(JSON.stringify(columnas));
+---
+
+<div id="ag-grid-wrapper" data-rows={dataBase64} data-columnas={columnasBase64} style="margin-left: 2.5%; margin-right: 2.5%;">
+  <div
+    id="tabla-generica"
+    class="ag-theme-alpine ag-theme-georuta"
+    style="height:500px; width:95;"
+  >
+  </div>
+</div>
+
+<script>
+  import {
+    createGrid,
+    ModuleRegistry,
+    AllEnterpriseModule,
+  } from "ag-grid-enterprise";
+  import { base64ToUtf8 } from "../../utils/base64";
+
+  ModuleRegistry.registerModules([AllEnterpriseModule]);
+
+  // base publica de la API para las fotos de la tabla
+  const IMG_BASE = import.meta.env.PUBLIC_API_DENO;
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const wrapper = document.getElementById("ag-grid-wrapper") as HTMLElement;
+    const rows = JSON.parse(base64ToUtf8(wrapper.dataset.rows ?? ""));
+    const columnas = JSON.parse(base64ToUtf8(wrapper.dataset.columnas ?? ""));
+
+    const columnDefs = columnas.map((col: any) => {
+      if (col.tipo === "acciones") {
+        return {
+          headerName: col.titulo,
+          sortable: false,
+          filter: false,
+          width: 240,
+          cellRenderer: (params: any) => {
+            const botones = col.acciones
+              .map(
+                (accion: string) => `
+                            <button class="btn btn-sm btn-outline-secondary me-1"
+                                    data-accion="${accion}"
+                                    data-id="${params.data.id}">
+                                ${accion}
+                            </button>
+                        `,
+              )
+              .join("");
+            return `<div class="d-flex h-100 align-items-center">${botones}</div>`;
+          },
+        };
+      }
+
+      if (col.tipo === "estado") {
+        return {
+          field: col.campo,
+          headerName: col.titulo,
+          width: 130,
+          cellRenderer: (params: any) => {
+            const activo = params.value === 1 || params.value === true;
+            const color = activo ? "btn-primary" : "btn-danger";
+            const texto = activo ? "Activo" : "Inactivo";
+            return `<button class="btn btn-sm ${color}"
+                                    data-accion="toggle-estado"
+                                    data-id="${params.data.id}"
+                                    data-estado="${activo}">${texto}</button>`;
+          },
+        };
+      }
+      if (col.tipo === "estado-editable") {
+        return {
+          field: col.campo,
+          headerName: col.titulo,
+          width: 170,
+          editable: true,
+          cellEditor: "agSelectCellEditor",
+          cellEditorParams: { values: col.opcionesEstado ?? [] },
+          // Se abre el dropdown con un solo clic en vez de doble clic
+          singleClickEdit: true,
+          onCellValueChanged: (params: any) => {
+            if (params.newValue === params.oldValue) return;
+            const evento = new CustomEvent("campo-editado", {
+              detail: {
+                campo: col.campo,
+                id: params.data.id,
+                valorNuevo: params.newValue,
+                valorAnterior: params.oldValue,
+                fila: params.data,
+              },
+              bubbles: true,
+            });
+            wrapper.dispatchEvent(evento);
+          },
+        };
+      }
+
+      if (col.tipo === "imagen") {
+        return {
+          field: col.campo,
+          headerName: col.titulo,
+          sortable: false,
+          filter: false,
+          width: 90,
+          cellRenderer: (params: any) => {
+            let ruta = (params.value ?? "default").toString().trim();
+
+            if (ruta.startsWith("http")) {
+            } else {
+              ruta = ruta.replace(/^\/+/, ""); // quita / iniciales
+              if (ruta.startsWith("Uploads/")) {
+                ruta = ruta.slice("Uploads/".length);
+              }
+              if (!ruta) ruta = "default";
+
+              // encode por segmento
+              const segmentos = ruta
+                .split("/")
+                .map((s: string) => encodeURIComponent(s));
+              ruta = `${IMG_BASE}/Uploads/${segmentos.join("/")}`;
+            }
+
+            const src = ruta.startsWith("http")
+              ? ruta
+              : `${IMG_BASE}/Uploads/default`;
+
+            return `
+        <div class="d-flex h-100 align-items-center justify-content-center">
+          <img
+            src="${src}"
+            alt="${col.titulo}"
+            style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid rgba(255,255,255,0.15);"
+            onerror="this.onerror=null;this.src='${IMG_BASE}/Uploads/default';"
+          />
+        </div>`;
+          },
+        };
+      }
+
+      return {
+        field: col.campo,
+        headerName: col.titulo,
+        filter: true,
+        floatingFilter: false,
+        tooltipField: col.campo,
+        //wrapText: true,                 // Descomenta si queiro que el valoer del campo se parta en varias lineas(si el texto es muy largo)
+        //autoHeight: true,               // Necesario si se usa wrapText
+      };
+    });
+
+    const gridDiv = document.getElementById("tabla-generica") as HTMLElement;
+    createGrid(gridDiv, {
+      defaultColDef: {
+        flex: 1,
+        resizable: true,
+        tooltipValueGetter: (params) => params.value ?? null,
+      },
+      rowData: rows,
+      columnDefs,
+      pagination: true,
+      paginationPageSize: 15,
+      tooltipShowDelay: 300,
+    });
+
+    // Delegación de eventos: un solo listener detecta clics en cualquier botón de acción
+    gridDiv.addEventListener("click", (e) => {
+      const btn = (e.target as HTMLElement).closest(
+        "[data-accion]",
+      ) as HTMLElement | null;
+      if (!btn) return;
+
+      const evento = new CustomEvent("accion-tabla", {
+        detail: {
+          accion: btn.dataset.accion,
+          id: Number(btn.dataset.id),
+          estado: btn.dataset.estado === "true",
+        },
+        bubbles: true,
+      });
+      wrapper.dispatchEvent(evento);
+    });
+  });
+</script>

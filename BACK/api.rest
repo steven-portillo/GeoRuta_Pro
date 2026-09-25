@@ -1,7 +1,7 @@
 @baseUrl = http://localhost:8005
 
 ### 
-POST {{baseUrl}}/api/register 
+POST {{baseUrl}}/api/auth/register 
 Content-Type: application/json
 
 {
@@ -12,9 +12,24 @@ Content-Type: application/json
 }
 
 ### Iniciar sesión 
-POST {{baseUrl}}/api/login 
+POST {{baseUrl}}/api/auth/login 
 Content-Type: application/json
 
 {
-"email": "alvarez@gmail.com", "password": "12345678"
+"email": "cocacola@gmail.com", "password": "12345678"
 }
+
+
+### Crear Proveedor
+POST {{baseUrl}}/api/empresa/crear-proveedor
+Content-Type: application/json 
+Authorization: `Bearer `
+
+{
+    "nombre": "Gabriel",
+    "apellido": "Jesus",
+    "email": "gabrielj@gmail.com",
+    "password": "12345678"
+}
+
+
