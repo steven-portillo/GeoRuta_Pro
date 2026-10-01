@@ -33,7 +33,7 @@ const columnasBase64 = utf8ToBase64(JSON.stringify(columnas));
 
   // base publica de la API para las fotos de la tabla
   const IMG_BASE = import.meta.env.PUBLIC_API_DENO;
-
+  
   document.addEventListener("DOMContentLoaded", () => {
     const wrapper = document.getElementById("ag-grid-wrapper") as HTMLElement;
     const rows = JSON.parse(base64ToUtf8(wrapper.dataset.rows ?? ""));

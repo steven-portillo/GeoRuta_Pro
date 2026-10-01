@@ -66,10 +66,7 @@ export class Usuario {
       }
 
       // Verificar email único
-      const [existeEmail] = await conexion.query(
-        `SELECT id_usuario FROM usuarios WHERE email = ?`,
-        [u.email],
-      );
+      const existeEmail = await this.existeEmail(u.email);
       if (existeEmail) {
         return {
           success: false,
@@ -193,10 +190,7 @@ export class Usuario {
       }
 
       // Verificar email único
-      const [existeEmail] = await conexion.query(
-        `SELECT id_usuario FROM usuarios WHERE email = ?`,
-        [empresa.emailAdmin],
-      );
+      const existeEmail = await this.existeEmail(empresa.emailAdmin);
       if (existeEmail) {
         return {
           success: false,
@@ -298,7 +292,7 @@ export class Usuario {
     try {
       const [usuario] = await conexion.query(
         `select concat(u.nombre," ", u.apellido) as nombres, u.imagen_url,
-         e.nombre as nombreEmpresa, e.logo_url
+         e.nombre as nombreEmpresa
          from usuarios u
          left join empresas e on u.id_empresa = e.id_empresa
          where u.id_usuario = ?
@@ -322,5 +316,24 @@ export class Usuario {
       console.log("Error en tomar datos de perfil: " + error);
       return { success: false, message:"Error del servidor"}
     }
+  }
+
+
+  //autenticacion importante para correos duplicados
+  public async existeEmail(
+    nombre: string,
+    excluyendoId: number | null = null,
+  ): Promise<boolean> {
+    const query = excluyendoId
+      ? `select count(1) as total from usuarios
+               where lower(trim(email)) = lower(trim(?))
+                 and id_usuario != ?`
+      : `select count(1) as total from usuarios
+               where lower(trim(email)) = lower(trim(?))`;
+
+    const params = excluyendoId ? [nombre, excluyendoId] : [nombre];
+    const { rows } = await conexion.execute(query, params);
+    const resultado = rows![0] as unknown as { total: number };
+    return resultado.total > 0;
   }
 }

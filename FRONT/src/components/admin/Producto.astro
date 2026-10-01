@@ -1,0 +1,470 @@
+---
+import AgGridComponent from "../public/AgGridComponent.astro";
+import type { ColumnaDef } from "../../utils/agGrid";
+import { utf8ToBase64 } from "../../utils/base64";
+
+const usuarioSesion = Astro.locals.usuario;
+const token = Astro.cookies.get("token")?.value;
+if (!token || !usuarioSesion) {
+  return Astro.redirect("/");
+}
+
+const API_DENO = import.meta.env.API_DENO ?? "http://127.0.0.1:8002";
+const headers = { Authorization: `Bearer ${token}` };
+
+const CargarProductos = async () => {
+  try {
+    const respuesta = await fetch(`${API_DENO}/api/admin/productos`, { headers });
+    if (!respuesta.ok) {
+      console.error("Status no OK", respuesta.status, await respuesta.text());
+      return [];
+    }
+    const obj = await respuesta.json();
+    return obj.data ?? [];
+  } catch (error) {
+    console.error("Error al cargar productos", error);
+    return [];
+  }
+};
+
+// Se necesita para poblar el <select> de categoría — solo las activas,
+// no tiene sentido dejar asignar un producto a una categoría desactivada.
+const CargarCategoriasActivas = async () => {
+  try {
+    const respuesta = await fetch(`${API_DENO}/api/admin/categorias`, { headers });
+    if (!respuesta.ok) return [];
+    const obj = await respuesta.json();
+    const categorias = obj.data ?? [];
+    return categorias.filter((c: any) => c.activo === 1 || c.activo === true);
+  } catch (error) {
+    console.error("Error al cargar categorías", error);
+    return [];
+  }
+};
+
+const productos = await CargarProductos();
+const productosConId = productos.map((p: any) => ({ ...p, id: p.id_producto }));
+
+const categoriasActivas = await CargarCategoriasActivas();
+const categoriasBase64 = utf8ToBase64(JSON.stringify(categoriasActivas));
+
+const columnasProductos: ColumnaDef[] = [
+  { campo: "imagen_url", titulo: "Foto", tipo: "imagen" },
+  { campo: "nombre", titulo: "Nombre" },
+  { campo: "nombre_categoria", titulo: "Categoría" },
+  { campo: "precio", titulo: "Precio" },
+  { campo: "stock_disponible", titulo: "Disponible" },
+  { campo: "stock_reservado", titulo: "Reservado" },
+  { campo: "activo", titulo: "Estado", tipo: "estado" },
+  { titulo: "Acciones", tipo: "acciones", acciones: ["Editar"] },
+];
+---
+
+<div id="datos-pagina-productos" data-categorias={categoriasBase64} style="display: none;"></div>
+
+<div class="page-header">
+  <div>
+    <h4 class="page-title">Productos</h4>
+  </div>
+  <button class="btn-guardar-gradient" id="btnNuevoProducto">+ Nuevo producto</button>
+</div>
+
+<AgGridComponent data={productosConId} columnas={columnasProductos} />
+
+<div class="modal fade custom-dark-modal" id="modalProducto" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="tituloModalProducto">Nuevo producto</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+
+      <div class="modal-body">
+        <input type="hidden" id="modal-idProducto" />
+
+        <div class="mb-3">
+          <label class="form-label-custom" for="modal-categoriaProducto">Categoría</label>
+          <select id="modal-categoriaProducto" class="form-control-custom no-icon">
+            <option value="">Selecciona una categoría</option>
+          </select>
+          <div class="error-feedback" id="modal-categoriaProducto-error"></div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label-custom" for="modal-nombreProducto">Nombre</label>
+          <div class="input-field-wrapper">
+            <i class="bi bi-box-seam field-icon"></i>
+            <input type="text" id="modal-nombreProducto" class="form-control-custom" autocomplete="off" />
+          </div>
+          <div class="error-feedback" id="modal-nombreProducto-error"></div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label-custom" for="modal-descripcionProducto">
+            Descripción <span class="opcional-tag">(opcional)</span>
+          </label>
+          <div class="input-field-wrapper textarea-wrapper">
+            <i class="bi bi-card-text field-icon"></i>
+            <textarea id="modal-descripcionProducto" class="form-control-custom textarea-custom" rows="3"></textarea>
+          </div>
+        </div>
+
+        <div class="row g-2 mb-3">
+          <div class="col">
+            <label class="form-label-custom" for="modal-precioProducto">Precio</label>
+            <div class="input-field-wrapper">
+              <i class="bi bi-currency-dollar field-icon"></i>
+              <input type="number" id="modal-precioProducto" class="form-control-custom" min="0" step="0.01" placeholder="0.00" />
+            </div>
+            <div class="error-feedback" id="modal-precioProducto-error"></div>
+          </div>
+          <div class="col">
+            <label class="form-label-custom" for="modal-stockMinimoProducto">
+              Stock mínimo <span class="opcional-tag">(opcional)</span>
+            </label>
+            <div class="input-field-wrapper">
+              <i class="bi bi-box field-icon"></i>
+              <input type="number" id="modal-stockMinimoProducto" class="form-control-custom" min="0" step="1" placeholder="0" />
+            </div>
+            <div class="error-feedback" id="modal-stockMinimoProducto-error"></div>
+          </div>
+        </div>
+
+        <!-- Imágenes ya guardadas (solo lectura — el backend no borra individuales) -->
+        <div class="mb-2" id="bloqueImagenesExistentes" style="display: none;">
+          <label class="form-label-custom">Imágenes actuales</label>
+          <div class="imagenes-grid" id="imagenesExistentesGrid"></div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label-custom" for="modal-imagenesProducto">
+            <span id="labelImagenes">Imágenes</span> <span class="opcional-tag">(opcional, puedes elegir varias)</span>
+          </label>
+          <input
+            type="file"
+            id="modal-imagenesProducto"
+            class="form-control-custom no-icon"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+          />
+          <div class="imagenes-grid" id="imagenesPreviewGrid"></div>
+          <div class="error-feedback" id="modal-imagenesProducto-error"></div>
+        </div>
+
+        <div id="modal-error-producto" class="alert-custom alert-custom-danger d-none" role="alert"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancelar-outline" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn-guardar-gradient" id="btnGuardarProducto">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .form-control-custom.textarea-custom {
+    resize: vertical;
+    overflow-y: auto;
+    line-height: 1.5;
+    padding-top: 0.75rem;
+  }
+  .input-field-wrapper.textarea-wrapper {
+    align-items: flex-start;
+  }
+  .input-field-wrapper.textarea-wrapper .field-icon {
+    top: 0.85rem;
+  }
+  .opcional-tag {
+    font-weight: 400;
+    color: var(--color-text-secondary);
+  }
+
+  .imagenes-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.6rem;
+  }
+  .imagenes-grid img {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+  }
+</style>
+
+<script>
+  import { Modal } from "bootstrap";
+  import { base64ToUtf8 } from "../../utils/base64";
+  import { attachFieldValidation, attachFileValidation, validarImagenFile } from "../../utils/validaciones";
+
+  // AJUSTA este prefijo al que realmente sirva tus imágenes
+  const IMG_BASE = import.meta.env.PUBLIC_API_DENO ?? "http://127.0.0.1:8002";
+  const urlImagen = (ruta: string) => `${IMG_BASE}/uploads/${encodeURI(ruta)}`;
+
+  function validarRequerido(val: string, label: string) {
+    const value = val.trim();
+    return value
+      ? { isValid: true, message: "" }
+      : { isValid: false, message: `${label} es obligatorio.` };
+  }
+
+  function validarPrecio(val: string) {
+    const value = val.trim();
+    if (!value) return { isValid: false, message: "El precio es obligatorio." };
+    const num = Number(value);
+    if (Number.isNaN(num) || num <= 0) {
+      return { isValid: false, message: "Ingresa un precio mayor a 0." };
+    }
+    return { isValid: true, message: "" };
+  }
+
+  function validarStockMinimo(val: string) {
+    const value = val.trim();
+    if (!value) return { isValid: true, message: "" }; // opcional
+    const num = Number(value);
+    if (Number.isNaN(num) || num < 0) {
+      return { isValid: false, message: "Debe ser 0 o un número positivo." };
+    }
+    return { isValid: true, message: "" };
+  }
+
+  const datosPagina = document.getElementById("datos-pagina-productos") as HTMLElement;
+  const categoriasActivas = JSON.parse(base64ToUtf8(datosPagina.dataset.categorias ?? "W10="));
+
+  const categoriaSelect = document.getElementById("modal-categoriaProducto") as HTMLSelectElement;
+  const categoriaError = document.getElementById("modal-categoriaProducto-error");
+  categoriasActivas.forEach((c: any) => {
+    const opt = document.createElement("option");
+    opt.value = c.id_categoria;
+    opt.textContent = c.nombre;
+    categoriaSelect.appendChild(opt);
+  });
+
+  const modalEl = document.getElementById("modalProducto") as HTMLElement;
+  const modalBS = new Modal(modalEl);
+  const modalError = document.getElementById("modal-error-producto") as HTMLElement;
+
+  const nombreInput = document.getElementById("modal-nombreProducto") as HTMLInputElement;
+  const nombreError = document.getElementById("modal-nombreProducto-error");
+
+  const descripcionInput = document.getElementById("modal-descripcionProducto") as HTMLTextAreaElement;
+
+  const precioInput = document.getElementById("modal-precioProducto") as HTMLInputElement;
+  const precioError = document.getElementById("modal-precioProducto-error");
+
+  const stockMinimoInput = document.getElementById("modal-stockMinimoProducto") as HTMLInputElement;
+  const stockMinimoError = document.getElementById("modal-stockMinimoProducto-error");
+
+  const imagenesInput = document.getElementById("modal-imagenesProducto") as HTMLInputElement;
+  const imagenesError = document.getElementById("modal-imagenesProducto-error");
+  const imagenesPreviewGrid = document.getElementById("imagenesPreviewGrid") as HTMLElement;
+
+  const bloqueImagenesExistentes = document.getElementById("bloqueImagenesExistentes") as HTMLElement;
+  const imagenesExistentesGrid = document.getElementById("imagenesExistentesGrid") as HTMLElement;
+
+  const validarNombre = attachFieldValidation(nombreInput, nombreError, (v) => validarRequerido(v, "El nombre"));
+  const validarPrecioCampo = attachFieldValidation(precioInput, precioError, validarPrecio);
+  const validarStockCampo = attachFieldValidation(stockMinimoInput, stockMinimoError, validarStockMinimo);
+
+  // Valida CADA archivo elegido (multiple) — si alguno no pasa, se
+  // marca el campo completo como inválido
+  function validarImagenesMultiples(): { isValid: boolean; message: string } {
+    const files = imagenesInput.files;
+    if (!files || files.length === 0) return { isValid: true, message: "" }; // opcional
+    for (const file of Array.from(files)) {
+      const resultado = validarImagenFile(file);
+      if (!resultado.isValid) return resultado;
+    }
+    return { isValid: true, message: "" };
+  }
+
+  imagenesInput.addEventListener("change", () => {
+    const resultado = validarImagenesMultiples();
+    imagenesInput.classList.toggle("is-invalid", !resultado.isValid);
+    imagenesInput.classList.toggle("is-valid", resultado.isValid && !!imagenesInput.files?.length);
+    if (imagenesError) {
+      imagenesError.innerHTML = resultado.isValid
+        ? ""
+        : `<i class="bi bi-exclamation-circle-fill"></i> <span>${resultado.message}</span>`;
+    }
+
+    imagenesPreviewGrid.innerHTML = "";
+    if (!resultado.isValid || !imagenesInput.files) return;
+
+    Array.from(imagenesInput.files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = document.createElement("img");
+        img.src = reader.result as string;
+        imagenesPreviewGrid.appendChild(img);
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+
+  let modoEdicion = false;
+
+  const limpiarModal = () => {
+    (document.getElementById("modal-idProducto") as HTMLInputElement).value = "";
+    categoriaSelect.value = "";
+    nombreInput.value = "";
+    descripcionInput.value = "";
+    precioInput.value = "";
+    stockMinimoInput.value = "";
+    imagenesInput.value = "";
+    imagenesPreviewGrid.innerHTML = "";
+    bloqueImagenesExistentes.style.display = "none";
+    imagenesExistentesGrid.innerHTML = "";
+    document.getElementById("labelImagenes")!.textContent = "Imágenes";
+
+    [categoriaSelect, nombreInput, precioInput, stockMinimoInput, imagenesInput].forEach((el) =>
+      el.classList.remove("is-valid", "is-invalid")
+    );
+    [categoriaError, nombreError, precioError, stockMinimoError, imagenesError].forEach((el) => {
+      if (el) el.innerHTML = "";
+    });
+
+    modalError.classList.add("d-none");
+    (document.getElementById("tituloModalProducto") as HTMLElement).textContent = "Nuevo producto";
+  };
+
+  document.getElementById("btnNuevoProducto")?.addEventListener("click", () => {
+    modoEdicion = false;
+    limpiarModal();
+    modalBS.show();
+  });
+
+  (window as any).abrirEditarProducto = async (idProducto: number) => {
+    modoEdicion = true;
+    limpiarModal();
+    (document.getElementById("tituloModalProducto") as HTMLElement).textContent = "Editar producto";
+    document.getElementById("labelImagenes")!.textContent = "Agregar más imágenes";
+
+    try {
+      const res = await fetch(`/api/admin/productos/${idProducto}`);
+      const data = await res.json();
+      const p = data.data;
+
+      (document.getElementById("modal-idProducto") as HTMLInputElement).value = p.id_producto;
+      categoriaSelect.value = String(p.id_categoria ?? "");
+      nombreInput.value = p.nombre ?? "";
+      descripcionInput.value = p.descripcion ?? "";
+      precioInput.value = p.precio ?? "";
+      stockMinimoInput.value = p.stock_minimo ?? "";
+
+      if (p.imagenes && p.imagenes.length > 0) {
+        bloqueImagenesExistentes.style.display = "block";
+        imagenesExistentesGrid.innerHTML = p.imagenes
+          .map((img: any) => `<img src="${urlImagen(img.url)}" alt="" />`)
+          .join("");
+      }
+
+      modalBS.show();
+    } catch {
+      alert("Error al cargar el producto");
+    }
+  };
+
+  document.getElementById("btnGuardarProducto")?.addEventListener("click", async () => {
+    modalError.classList.add("d-none");
+
+    const categoriaValida = Boolean(categoriaSelect.value);
+    categoriaSelect.classList.toggle("is-invalid", !categoriaValida);
+    if (categoriaError) {
+      categoriaError.innerHTML = categoriaValida
+        ? ""
+        : `<i class="bi bi-exclamation-circle-fill"></i> <span>Selecciona una categoría.</span>`;
+    }
+
+    const nombreOk = validarNombre?.();
+    const precioOk = validarPrecioCampo?.();
+    const stockOk = validarStockCampo?.();
+    const imagenesOk = validarImagenesMultiples();
+
+    if (
+      !categoriaValida ||
+      !nombreOk?.isValid ||
+      !precioOk?.isValid ||
+      !stockOk?.isValid ||
+      !imagenesOk.isValid
+    ) {
+      modalError.textContent = "Por favor completa todos los campos requeridos correctamente.";
+      modalError.classList.remove("d-none");
+
+      if (!categoriaValida) categoriaSelect.focus();
+      else if (!nombreOk?.isValid) nombreInput.focus();
+      else if (!precioOk?.isValid) precioInput.focus();
+      else if (!stockOk?.isValid) stockMinimoInput.focus();
+      else if (!imagenesOk.isValid) imagenesInput.focus();
+
+      return;
+    }
+
+    const idProducto = (document.getElementById("modal-idProducto") as HTMLInputElement).value;
+
+    const formData = new FormData();
+    formData.append("id_categoria", categoriaSelect.value);
+    formData.append("nombre", nombreInput.value.trim());
+    formData.append("descripcion", descripcionInput.value.trim());
+    formData.append("precio", precioInput.value);
+    if (stockMinimoInput.value) {
+      formData.append("stock_minimo", stockMinimoInput.value);
+    }
+    if (imagenesInput.files) {
+      Array.from(imagenesInput.files).forEach((file) => {
+        formData.append("imagenes", file);
+      });
+    }
+
+    try {
+      const res = await fetch(
+        idProducto ? `/api/admin/productos/${idProducto}` : "/api/admin/productos",
+        { method: idProducto ? "PUT" : "POST", body: formData }
+      );
+      const data = await res.json();
+
+      if (!data.success) {
+        modalError.textContent = data.message;
+        modalError.classList.remove("d-none");
+        return;
+      }
+
+      modalBS.hide();
+      window.location.reload();
+    } catch {
+      modalError.textContent = "Error de conexión";
+      modalError.classList.remove("d-none");
+    }
+  });
+
+  document.getElementById("ag-grid-wrapper")?.addEventListener("accion-tabla", async (e: any) => {
+    const { accion, id, estado } = e.detail;
+
+    if (accion === "Editar") {
+      (window as any).abrirEditarProducto(id);
+      return;
+    }
+
+    if (accion === "toggle-estado") {
+      const nuevoEstado = estado ? 0 : 1;
+      try {
+        const res = await fetch(`/api/admin/productos/${id}/estado`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ estado: nuevoEstado }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          window.location.reload();
+        } else {
+          alert(data.message ?? "No se pudo cambiar el estado");
+        }
+      } catch {
+        alert("Error de conexión");
+      }
+    }
+  });
+</script>

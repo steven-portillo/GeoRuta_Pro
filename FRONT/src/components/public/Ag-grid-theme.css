@@ -6,7 +6,7 @@
   --ag-disabled-foreground-color: var(--color-text-muted);
 
   /* --- Encabezado: oscuro, a tono con el sidebar (--secondary-700/800) --- */
-  --ag-header-background-color: var(--secondary-800);
+  --ag-header-background-color: var(--primary-600);
   --ag-header-foreground-color: var(--secondary-200);
   --ag-header-column-separator-display: block;
   --ag-header-column-separator-color: rgba(255, 255, 255, 0.12);
@@ -178,4 +178,15 @@
 .ag-theme-alpine.ag-theme-georuta .ag-list-item.ag-active-item {
   background: rgba(var(--primary-600-rgb), 0.3);
   color: var(--white);
+}
+
+/*ToolTip*/
+.ag-theme-alpine.ag-theme-georuta .ag-tooltip {
+  background: var(--secondary-800);
+  color: var(--white);
+  border: 1px solid var(--secondary-600);
+  border-radius: 8px;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.8rem;
+  box-shadow: 0 8px 20px rgba(var(--color-shadow-rgb), 0.3);
 }

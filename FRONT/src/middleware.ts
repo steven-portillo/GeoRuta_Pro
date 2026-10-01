@@ -23,7 +23,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     if (esPublica) {
         if (usuario) {
             const rol = usuario.rol?.toUpperCase();
-            if (rol === "SUPERADMIN") return redirect("/super-admin/");
+            if (rol === "SUPERADMIN") return redirect("/superadmin/");
             if (rol === "ADMIN") return redirect("/admin/");
             if (rol === "PROVEEDOR") return redirect("/repartidor/");
             if (rol === "CLIENTE") return redirect("/cliente/");
@@ -37,7 +37,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
         return redirect("/");
     }
 
-    if (path.startsWith("/super-admin") && usuario.rol !== "SUPERADMIN") {
+    if (path.startsWith("/superadmin") && usuario.rol !== "SUPERADMIN") {
         cookies.delete("token", { path: "/" });
         return redirect("/");
     }

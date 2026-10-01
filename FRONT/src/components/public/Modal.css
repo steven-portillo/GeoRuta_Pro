@@ -1,21 +1,19 @@
-
-
-
 .custom-dark-modal.custom-dark-modal .modal-content {
   background: var(--color-surface);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--color-border);
   border-radius: 20px;
   color: var(--color-text-primary);
-  box-shadow: 0 20px 50px rgba(var(--color-shadow-rgb), 0.5), inset 0 1px 1px rgba(var(--color-overlay-rgb), 0.08);
+  box-shadow: var(--shadow-lg);
 }
 
+
 .custom-dark-modal.custom-dark-modal .modal-header {
-  background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.15), rgba(var(--color-secondary-rgb), 0.15));
+  background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.8), rgba(var(--color-primary-rgb), 0.7));
   border-bottom: 1px solid var(--color-border);
   border-radius: 20px 20px 0 0;
 }
+
+
 
 .custom-dark-modal.custom-dark-modal .modal-title {
   font-weight: 800;
@@ -40,7 +38,7 @@
    .btn-submit-gradient (forms.css) para caber en un footer de modal
    --------------------------------------------------------------- */
 .btn-guardar-gradient {
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+  background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-700) 100%);
   border: none;
   border-radius: 10px;
   padding: 0.55rem 1.25rem;
@@ -210,3 +208,9 @@ body.modal-open .app-content {
   filter: blur(4px);
   pointer-events: none; 
 }
+
+.custom-dark-modal.custom-dark-modal .btn-close-white {
+  filter: none;
+  opacity: 0.6;
+}
+.custom-dark-modal.custom-dark-modal .btn-close-white:hover { opacity: 1; }

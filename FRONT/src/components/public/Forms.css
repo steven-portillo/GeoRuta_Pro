@@ -305,3 +305,22 @@ input[type="file"].form-control-custom::file-selector-button:hover {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+
+
+  .form-control-custom.textarea-custom {
+    resize: vertical;
+    overflow-y: auto;
+    line-height: 1.5;
+    padding-top: 0.75rem;
+  }
+  .input-field-wrapper.textarea-wrapper {
+    align-items: flex-start;
+  }
+  .input-field-wrapper.textarea-wrapper .field-icon {
+    top: 0.85rem;
+  }
+  .opcional-tag {
+    font-weight: 400;
+    color: var(--color-text-secondary);
+  }

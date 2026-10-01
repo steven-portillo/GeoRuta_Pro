@@ -2,7 +2,8 @@ import { Context } from "../../Dependencies/dependencias.ts";
 import { Usuario } from "../../Model/Auth/UsuarioModel.ts";
 import { crearToken } from "../../Helpers/Jwt.ts";
 import {
-  generarRutaArchivo,
+  generarNombreUnico,
+  rutaFisicaArchivo,
   escribirArchivo,
   validarArchivo,
 } from "../../Helpers/archivos.ts";
@@ -190,14 +191,15 @@ export const registrarEmpresa = async (ctx: Context) => {
     }
 
     // Ruta calculada de antemano, pero el archivo todavía no se escribe en disco
+    const nombreUnico = logoValidado ? generarNombreUnico(logoValidado) : undefined;
     const rutaLogo = logoValidado
-      ? generarRutaArchivo(logoValidado, "logos")
+      ? rutaFisicaArchivo("logos", nombreUnico!)
       : undefined;
 
     const usuario = new Usuario(null, null, {
       nombreEmpresa,
       descripcionEmpresa: descripcionEmpresa || undefined,
-      logoEmpresa: rutaLogo,
+      logoEmpresa: `logos/${nombreUnico}` || undefined,
       nombreAdmin,
       apellidoAdmin,
       emailAdmin,

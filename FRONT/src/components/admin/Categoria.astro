@@ -1,0 +1,231 @@
+---
+import AgGridComponent from "../public/AgGridComponent.astro";
+import type { ColumnaDef } from "../../utils/agGrid";
+
+const usuarioSesion = Astro.locals.usuario;
+const token = Astro.cookies.get("token")?.value;
+if (!token || !usuarioSesion) {
+  return Astro.redirect("/");
+}
+
+const API_DENO = import.meta.env.API_DENO;
+const headers = { Authorization: `Bearer ${token}` };
+
+const CargarCategorias = async () => {
+  try {
+    const respuesta = await fetch(`${API_DENO}/api/admin/categorias`, { headers });
+    if (!respuesta.ok) {
+      console.error("Status no OK", respuesta.status, await respuesta.text());
+      return [];
+    }
+    const obj = await respuesta.json();
+    return obj.data ?? [];
+  } catch (error) {
+    console.error("Error al cargar categorías", error);
+    return [];
+  }
+};
+
+const categorias = await CargarCategorias();
+const categoriasConId = categorias.map((c: any) => ({ ...c, id: c.id_categoria }));
+
+const columnasCategorias: ColumnaDef[] = [
+  { campo: "nombre", titulo: "Nombre" },
+  { campo: "descripcion", titulo: "Descripción" },
+  { campo: "activo", titulo: "Estado", tipo: "estado" },
+  { titulo: "Acciones", tipo: "acciones", acciones: ["Editar"] },
+];
+---
+
+<div class="page-header">
+  <div>
+    <h4 class="page-title">Categorías</h4>
+  </div>
+  <button class="btn-guardar-gradient" id="btnNuevaCategoria">+ Nueva categoría</button>
+</div>
+
+<AgGridComponent data={categoriasConId} columnas={columnasCategorias} />
+
+<div class="modal fade custom-dark-modal" id="modalCategoria" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="tituloModalCategoria">Nueva categoría</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+
+      <div class="modal-body">
+        <input type="hidden" id="modal-idCategoria" />
+
+        <div class="mb-3">
+          <label class="form-label-custom" for="modal-nombreCategoria">Nombre</label>
+          <div class="input-field-wrapper">
+            <i class="bi bi-tag field-icon"></i>
+            <input type="text" id="modal-nombreCategoria" class="form-control-custom" autocomplete="off" />
+          </div>
+          <div class="error-feedback" id="modal-nombreCategoria-error"></div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label-custom" for="modal-descripcionCategoria">
+            Descripción <span class="opcional-tag">(opcional)</span>
+          </label>
+          <div class="input-field-wrapper textarea-wrapper">
+            <i class="bi bi-card-text field-icon"></i>
+            <textarea
+              id="modal-descripcionCategoria"
+              class="form-control-custom textarea-custom"
+              rows="3"
+            ></textarea>
+          </div>
+        </div>
+
+        <div id="modal-error-categoria" class="alert-custom alert-custom-danger d-none" role="alert"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancelar-outline" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn-guardar-gradient" id="btnGuardarCategoria">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+  import { Modal } from "bootstrap";
+  import { attachFieldValidation } from "../../utils/validaciones";
+
+  function validarRequerido(val: string, label: string) {
+    const value = val.trim();
+    return value
+      ? { isValid: true, message: "" }
+      : { isValid: false, message: `${label} es obligatorio.` };
+  }
+
+  const modalEl = document.getElementById("modalCategoria") as HTMLElement;
+  const modalBS = new Modal(modalEl);
+  const modalError = document.getElementById("modal-error-categoria") as HTMLElement;
+
+  const nombreInput = document.getElementById("modal-nombreCategoria") as HTMLInputElement;
+  const nombreError = document.getElementById("modal-nombreCategoria-error");
+
+  const descripcionInput = document.getElementById("modal-descripcionCategoria") as HTMLTextAreaElement;
+
+  const validarNombre = attachFieldValidation(nombreInput, nombreError, (v) =>
+    validarRequerido(v, "El nombre")
+  );
+
+  let modoEdicion = false;
+
+  const limpiarModal = () => {
+    (document.getElementById("modal-idCategoria") as HTMLInputElement).value = "";
+    nombreInput.value = "";
+    descripcionInput.value = "";
+
+    nombreInput.classList.remove("is-valid", "is-invalid");
+    if (nombreError) nombreError.innerHTML = "";
+
+    modalError.classList.add("d-none");
+    (document.getElementById("tituloModalCategoria") as HTMLElement).textContent = "Nueva categoría";
+  };
+
+  document.getElementById("btnNuevaCategoria")?.addEventListener("click", () => {
+    modoEdicion = false;
+    limpiarModal();
+    modalBS.show();
+  });
+
+  (window as any).abrirEditarCategoria = async (idCategoria: number) => {
+    modoEdicion = true;
+    limpiarModal();
+    (document.getElementById("tituloModalCategoria") as HTMLElement).textContent = "Editar categoría";
+
+    try {
+      const res = await fetch(`/api/admin/categorias/${idCategoria}`);
+      const data = await res.json();
+      const c = data.data;
+
+      (document.getElementById("modal-idCategoria") as HTMLInputElement).value = c.id_categoria;
+      nombreInput.value = c.nombre ?? "";
+      descripcionInput.value = c.descripcion ?? "";
+
+      modalBS.show();
+    } catch {
+      alert("Error al cargar la categoría");
+    }
+  };
+
+  document.getElementById("btnGuardarCategoria")?.addEventListener("click", async () => {
+    modalError.classList.add("d-none");
+
+    const nombreOk = validarNombre?.();
+    if (!nombreOk?.isValid) {
+      modalError.textContent = "Por favor completa todos los campos requeridos correctamente.";
+      modalError.classList.remove("d-none");
+      nombreInput.focus();
+      return;
+    }
+
+    const idCategoria = (document.getElementById("modal-idCategoria") as HTMLInputElement).value;
+    const payload = {
+      nombre: nombreInput.value.trim(),
+      descripcion: descripcionInput.value.trim() || undefined,
+    };
+
+    try {
+      const res = await fetch(
+        idCategoria ? `/api/admin/categorias/${idCategoria}` : "/api/admin/categorias",
+        {
+          method: idCategoria ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
+      const data = await res.json();
+
+      if (!data.success) {
+        modalError.textContent = data.message;
+        modalError.classList.remove("d-none");
+        return;
+      }
+
+      modalBS.hide();
+      window.location.reload();
+    } catch {
+      modalError.textContent = "Error de conexión";
+      modalError.classList.remove("d-none");
+    }
+  });
+
+  // --- Delegación desde AgGridComponent: "Editar" y "toggle-estado" ---
+  document.getElementById("ag-grid-wrapper")?.addEventListener("accion-tabla", async (e: any) => {
+    const { accion, id, estado } = e.detail;
+
+    if (accion === "Editar") {
+      (window as any).abrirEditarCategoria(id);
+      return;
+    }
+
+    if (accion === "toggle-estado") {
+      // "estado" que llega es el ACTUAL (true = activo) — se envía el
+      // opuesto como nuevo valor, en el formato 0/1 que espera el backend
+      const nuevoEstado = estado ? 0 : 1;
+      try {
+        const res = await fetch(`/api/admin/categorias/${id}/estado`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ estado: nuevoEstado }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          window.location.reload();
+        } else {
+          alert(data.message ?? "No se pudo cambiar el estado");
+        }
+      } catch {
+        alert("Error de conexión");
+      }
+    }
+  });
+</script>

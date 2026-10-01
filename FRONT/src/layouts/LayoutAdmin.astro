@@ -2,9 +2,11 @@
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.min.css";
 import "../components/public/Global.css";
+import "../components/public/Empresa.css"
 import "../components/public/Modal.css"
 import "../components/public/Forms.css"
 import Sidebar from "../components/public/Sidebar.astro";
+import { generarPaletaEmpresa } from "../utils/paletaDinamica";
 
 interface Props {
     titulo: string;
@@ -21,7 +23,7 @@ interface PerfilSidebar {
   nombreEmpresa: string | null;
   logoUrl: string | null;
 }
-
+//peticion para tomar datos de sesion como nombre o empresa + logos o imagenes de perfil
 const perfilSideBar = async (): Promise<PerfilSidebar> => {
   const vacio: PerfilSidebar = { nombres: null, fotoUrl: null, nombreEmpresa: null, logoUrl: null };
   try {
@@ -34,20 +36,69 @@ const perfilSideBar = async (): Promise<PerfilSidebar> => {
     return perfil.data ?? vacio;
   } catch (error) {
     console.error("Error al traer perfil sidebar:", error);
-    return vacio; // ← nunca undefined, siempre la forma esperada
+    return vacio;
   }
 };
 
+const colorEmpresa = async () =>{
+  try {
+  const respuesta = await fetch(`${API_DENO}/api/color-empresa`,{headers});
+  if (!respuesta.ok) {
+    console.error("status no ok", respuesta.status, await respuesta.text());
+      return [];
+  }
+  const colorEmpresa = await respuesta.json();
+  return colorEmpresa.data ?? [];
+  } catch (error) {
+    console.error("Error al traer perfil sidebar:", error);
+    return [];
+  }
+
+}
+const empresa = await colorEmpresa();
+
+let varsCss: Record<string,string> = {};
+if (empresa?.color_primario) {
+  try {
+    const paleta = generarPaletaEmpresa(empresa.color_primario);
+    varsCss = {
+    primary900: paleta.primary[900], primary800: paleta.primary[800],
+    primary700: paleta.primary[700], primary600: paleta.primary[600],
+    primary500: paleta.primary[500], primary400: paleta.primary[400],
+    primary300: paleta.primary[300], primary200: paleta.primary[200],
+    primary100: paleta.primary[100], primary50: paleta.primary[50],
+
+    secondary900: paleta.secondary[900], secondary800: paleta.secondary[800],
+    secondary700: paleta.secondary[700], secondary600: paleta.secondary[600],
+    secondary500: paleta.secondary[500], secondary400: paleta.secondary[400],
+    secondary300: paleta.secondary[300], secondary200: paleta.secondary[200],
+    secondary100: paleta.secondary[100], secondary50: paleta.secondary[50],
+
+    primary600Rgb: paleta.primary600Rgb,  secondary900Rgb: paleta.secondary900Rgb,
+    secondary600Rgb: paleta.secondary600Rgb,
+    };
+  } catch (error) {
+    console.error("paletaDinamica, color_primario de bd invalido: " + error);
+  }
+}
 const perfilSB = await perfilSideBar();
 
 const linksAdmin = [
     { href: "/admin/", label: "Dashboard", icon: "bi-grid-1x2-fill" },
     { href: "/admin/repartidores", label: "Repartidores", icon: "bi bi-truck" },
+    { href: "/admin/categorias", label: "Categorias", icon: "bi bi-tags" },
+    { href: "/admin/productos", label: "Productos", icon: "bi bi-box-seam" },
+    { href: "/admin/inventario", label: "Inventario", icon: "bi bi-clipboard-data" },
 ];
 ---
 
 <!doctype html>
-<html lang="es">
+<html
+  lang="es"
+  style={Object.entries(varsCss)
+    .map(([name, value]) => `--${name}: ${value}`)
+    .join("; ")}
+>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />

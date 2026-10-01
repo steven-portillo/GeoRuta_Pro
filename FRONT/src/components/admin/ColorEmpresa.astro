@@ -1,0 +1,233 @@
+---
+const usuarioSesion = Astro.locals.usuario;
+const token = Astro.cookies.get("token")?.value;
+if (!token || !usuarioSesion) {
+  return Astro.redirect("/");
+}
+
+const API_DENO = import.meta.env.API_DENO;
+const headers = { Authorization: `Bearer ${token}` };
+
+let colorActual = "";
+try {
+  const respuesta = await fetch(`${API_DENO}/api/color-empresa`, { headers });
+  if (respuesta.ok) {
+    const obj = await respuesta.json();
+    colorActual = obj.data?.color_primario;
+  }
+} catch (error) {
+  console.error("Error al cargar el color actual de la empresa", error);
+}
+---
+
+<div class="page-header">
+  <div>
+    <h4 class="page-title">Color de marca</h4>
+  </div>
+</div>
+
+<div class="color-empresa-card">
+  <p class="color-empresa-desc">
+    Elige el color principal de tu empresa. Por legibilidad, el sistema
+    ajusta automáticamente el tono/luminosidad si el color elegido es
+    demasiado extremo (muy saturado, muy oscuro o muy claro) — la vista
+    previa de abajo ya te muestra el resultado final, tal como se va a
+    ver en el panel.
+  </p>
+
+  <div class="color-picker-row">
+    <label for="colorPrimarioInput" class="form-label-custom">Color principal</label>
+    <div class="color-picker-inline">
+      <input type="color" id="colorPrimarioInput" value={colorActual} />
+      <span id="colorHexLabel" class="color-hex-label">{colorActual}</span>
+    </div>
+  </div>
+
+  <div class="escala-preview" id="escalaPreview" aria-label="Vista previa de la escala generada"></div>
+
+  <div class="preview-mockup">
+    <button type="button" class="preview-btn" id="previewBtn">Botón de ejemplo</button>
+    <span class="preview-link" id="previewLink">Link de ejemplo</span>
+  </div>
+
+  <div id="colorAlert" class="alert-custom alert-custom-danger d-none" role="alert"></div>
+  <div id="colorSuccess" class="alert-custom alert-custom-success d-none" role="alert"></div>
+
+  <button type="button" class="btn-submit-gradient" id="btnGuardarColor">
+    <span class="btn-text">Guardar color</span>
+    <i class="bi bi-check-lg btn-icon"></i>
+    <div class="btn-spinner spinner-border spinner-border-sm text-light d-none" role="status">
+      <span class="visually-hidden">Guardando...</span>
+    </div>
+  </button>
+</div>
+
+<style>
+  .color-empresa-card {
+    max-width: 560px;
+    background: var(--white);
+    border: 1px solid var(--secondary-200);
+    border-radius: var(--radius-lg);
+    padding: 1.75rem;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .color-empresa-desc {
+    font-size: 0.88rem;
+    color: var(--secondary-600);
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+  }
+
+  .color-picker-row {
+    margin-bottom: 1.25rem;
+  }
+
+  .color-picker-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  /* El <input type="color"> nativo trae su propio look por navegador —
+     solo se le da tamaño y borde consistentes con el resto del UI */
+  #colorPrimarioInput {
+    width: 56px;
+    height: 44px;
+    padding: 2px;
+    border: 1px solid var(--secondary-200);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    background: none;
+  }
+
+  .color-hex-label {
+    font-family: monospace;
+    font-size: 0.9rem;
+    color: var(--secondary-700);
+    text-transform: uppercase;
+  }
+
+  /* Tira de 10 escalones — la vista previa "clampeada" en vivo */
+  .escala-preview {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 4px;
+    margin-bottom: 1.5rem;
+    height: 50px;
+  }
+  .escala-preview .swatch {
+    aspect-ratio: 1;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+  }
+
+  .preview-mockup {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 1rem;
+    background: var(--secondary-50);
+    border-radius: var(--radius-sm);
+    margin-bottom: 1.5rem;
+  }
+  .preview-btn {
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 1.1rem;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: white;
+    cursor: default;
+  }
+  .preview-link {
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+</style>
+
+<script>
+  import { generarPaletaEmpresa } from "../../utils/paletaDinamica";
+
+  const colorInput = document.getElementById("colorPrimarioInput") as HTMLInputElement;
+  const hexLabel = document.getElementById("colorHexLabel") as HTMLElement;
+  const escalaPreview = document.getElementById("escalaPreview") as HTMLElement;
+  const previewBtn = document.getElementById("previewBtn") as HTMLElement;
+  const previewLink = document.getElementById("previewLink") as HTMLElement;
+
+  const alertBox = document.getElementById("colorAlert") as HTMLElement;
+  const successBox = document.getElementById("colorSuccess") as HTMLElement;
+  const btnGuardar = document.getElementById("btnGuardarColor") as HTMLButtonElement;
+
+  const PASOS = [900, 800, 700, 600, 500, 400, 300, 200, 100, 50] as const;
+
+  function actualizarPreview(hex: string) {
+    hexLabel.textContent = hex.toUpperCase();
+
+    try {
+      const paleta = generarPaletaEmpresa(hex);
+
+      escalaPreview.innerHTML = PASOS.map(
+        (p) => `<div class="swatch" style="background:${paleta.primary[p]}" title="${p}"></div>`
+      ).join("");
+
+      // El botón/link de ejemplo usan el mismo 600/500 que usaría
+      // Forms.css de verdad — así el admin ve el resultado real, no
+      // una aproximación
+      previewBtn.style.background = paleta.primary[600];
+      previewLink.style.color = paleta.primary[600];
+    } catch {
+      escalaPreview.innerHTML = `<span style="grid-column: 1 / -1; color: var(--color-danger); font-size: 0.85rem;">Color inválido</span>`;
+    }
+  }
+
+  // Estado inicial (con el color que ya tenía guardado la empresa)
+  actualizarPreview(colorInput.value);
+
+  // El <input type="color"> dispara "input" en cada arrastre dentro
+  // del selector del navegador — la preview se actualiza en vivo
+  colorInput.addEventListener("input", () => {
+    actualizarPreview(colorInput.value);
+  });
+
+  btnGuardar.addEventListener("click", async () => {
+    alertBox.classList.add("d-none");
+    successBox.classList.add("d-none");
+
+    const btnText = btnGuardar.querySelector(".btn-text") as HTMLElement;
+    const btnIcon = btnGuardar.querySelector(".btn-icon") as HTMLElement;
+    const btnSpinner = btnGuardar.querySelector(".btn-spinner") as HTMLElement;
+
+    btnText.textContent = "Guardando...";
+    btnIcon.classList.add("d-none");
+    btnSpinner.classList.remove("d-none");
+    btnGuardar.disabled = true;
+
+    try {
+      const res = await fetch("/api/admin/cambiar-color-empresa", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ color_primario: colorInput.value }),
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        alertBox.textContent = data.message ?? "No se pudo guardar el color";
+        alertBox.classList.remove("d-none");
+        return;
+      }
+
+      successBox.textContent = data.message ?? "Color actualizado correctamente";
+      successBox.classList.remove("d-none");
+      window.location.reload();
+    } catch {
+      alertBox.textContent = "Error de conexión";
+      alertBox.classList.remove("d-none");
+    } finally {
+      btnText.textContent = "Guardar color";
+      btnIcon.classList.remove("d-none");
+      btnSpinner.classList.add("d-none");
+      btnGuardar.disabled = false;
+    }
+  });
+</script>

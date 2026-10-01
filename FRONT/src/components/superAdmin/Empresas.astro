@@ -1,0 +1,78 @@
+---
+import AgGridComponent from "../public/AgGridComponent.astro";
+import type { ColumnaDef } from "../../utils/agGrid";
+
+const usuarioSesion = Astro.locals.usuario;
+const token = Astro.cookies.get("token")?.value;
+if (!token || !usuarioSesion) {
+  return Astro.redirect("/");
+}
+
+const API_DENO = import.meta.env.API_DENO;
+const headers = { Authorization: `Bearer ${token}` };
+
+const CargarEmpresas = async () => {
+  try {
+    const respuesta = await fetch(`${API_DENO}/api/admin/superadmin/empresas`, { headers });
+    if (!respuesta.ok) {
+      console.error("Status no OK", respuesta.status, await respuesta.text());
+      return [];
+    }
+    const obj = await respuesta.json();
+    return obj.data ?? [];
+  } catch (error) {
+    console.error("Error al cargar empresas", error);
+    return [];
+  }
+};
+
+const empresas = await CargarEmpresas();
+
+const empresasConId = empresas.map((e: any) => ({
+  ...e,
+  id: e.id_empresa,
+  admin: `${e.nombre_admin ?? ""} ${e.apellido_admin ?? ""}`.trim(),
+}));
+
+const columnasEmpresas: ColumnaDef[] = [
+  { campo: "logo_url", titulo: "Logo", tipo: "imagen" },
+  { campo: "nombre", titulo: "Empresa" },
+  { campo: "descripcion", titulo: "Descripción" },
+  { campo: "admin", titulo: "Administrador" },
+  { campo: "email_admin", titulo: "Email admin" },
+  { campo: "estado", titulo: "Estado", tipo: "estado" },
+];
+---
+
+<div class="page-header">
+  <div>
+    <h4 class="page-title">Empresas</h4>
+  </div>
+</div>
+
+<AgGridComponent data={empresasConId} columnas={columnasEmpresas} />
+
+<script>
+  document.getElementById("ag-grid-wrapper")?.addEventListener("accion-tabla", async (e: any) => {
+    const { accion, id, estado } = e.detail;
+
+    if (accion === "toggle-estado") {
+      const nuevoEstado = estado ? 0 : 1;
+      try {
+        const res = await fetch(`/api/admin/superadmin/empresas/${id}/estado`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ estado: nuevoEstado }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          window.location.reload();
+        } else {
+          alert(data.message ?? "No se pudo cambiar el estado");
+        }
+      } catch {
+        alert("Error de conexión");
+      }
+    }
+  });
+</script>

@@ -1,12 +1,20 @@
 import { Application, oakCors } from "./Dependencies/dependencias.ts";
 import { authRouter } from "./Router/Auth/authRouter.ts";
-import { superAdminRouter } from "./Router/Admin/superAdminRouter.ts";
-import { adminRouter } from "./Router/Empresa/adminRouter.ts";
+import { superAdminRouter } from "./Router/SuperAdmin/superAdminRouter.ts";
+import { categoriaRouter } from "./Router/Admin/categoriaRouter.ts";
+import { inventarioRouter } from "./Router/Admin/inventarioRouter.ts";
+import { productoRouter } from "./Router/Admin/productoController.ts";
+import { proveedorRouter } from "./Router/Admin/proveedorRouter.ts";
+import { empresaRouter } from "./Router/Admin/empresaRouter.ts";
 import { PruebasRouter } from "./Router/Mapa/pruebasRouter.ts";
 import { manejarWsUbicacion } from "./ws/ubicacionHub.ts";
 
+import { servirArchivos } from "./Middlewares/archivos.middleware.ts";
+
+
 const app = new Application();
 
+app.use(servirArchivos);
 // CORS
 app.use(async (ctx, next) => {
   const { pathname } = ctx.request.url;
@@ -17,7 +25,7 @@ app.use(async (ctx, next) => {
   ) {
     const socket = await ctx.upgrade();
     manejarWsUbicacion(socket);
-    return; // no next(): no pasar a routers HTTP
+    return;
   }
 
   await next();
@@ -35,9 +43,17 @@ app.use(
 
 // Rutas
 const routers = [
+  //rutas publicas y de auth
   authRouter, 
-  superAdminRouter, 
-  adminRouter,
+  //rutas de superadmin
+  superAdminRouter,
+  //rutas del admin
+  categoriaRouter,
+  inventarioRouter,
+  productoRouter, 
+  proveedorRouter,
+  empresaRouter,
+  //rutas de mapa(prueba)
   PruebasRouter,
 ];
 

@@ -8,8 +8,9 @@
 
 :root {
     --page-backgroud: rgba(255, 255, 255, 0.92);
-    /* PRIMARY (Tailwind "blue") */
-    --primary-900: #1e3a8a;
+
+    /* PRIMARY(tailwind mixto)*/
+    --primary-900:  #1e3a8a;
     --primary-800: #1e40af;
     --primary-700: #1d4ed8;
     --primary-600: #2563eb;
@@ -19,7 +20,7 @@
     --primary-200: #bfdbfe;
     --primary-100: #dbeafe;
     --primary-50:  #eff6ff;
-    /* SECONDARY (Tailwind "slate") */
+    /* SECONDARY (Tailwind mixto) */
     --secondary-900: #0f172a;
     --secondary-800: #1e293b;
     --secondary-700: #334155;
@@ -31,7 +32,12 @@
     --secondary-100: #f1f5f9;
     --secondary-50:  #f8fafc;
 
+    --primary-600-rgb: rgb(37, 99, 235);
 
+    --secondary-900-rgb: rgb( 15, 23, 42);
+    --secondary-600-rgb: rgb( 71, 85, 105);
+
+    /*UNA SOLA PALETA, EN CASO DE QUE NO SE DETECTEN LAS VARIABLES SE USA EL TAILWHIND QUE YA TENIAMOS, LES EXPLICO DESPUES CACOS*/
     --white: #ffffff;
     --green-500: #22c55e;
     --orange-500: #f97316;
@@ -52,7 +58,7 @@
     --color-field-error-text: #f87171;
     --color-alert-danger-text: #fca5a5;
 
-    --primary-600-rgb: 37, 99, 235;
+    
     --color-danger-rgb: 239, 68, 68;
     --color-success-rgb: 16, 185, 129;
     --color-warning-rgb: 245, 158, 11;
@@ -60,7 +66,7 @@
 
 
     /*TOCO AGREGAR ESTAS COSAS EXTRA AL FINAL PORQUE LO USAN COMPONENTES DE SIDEBAR Y AG-GRID
-      ME DIO PEREZA CAMBIAR LOS NOMBRES DE LAS VARIABLES EN ESOS COMPONENTES, DESPUES LO HAGO    
+      ME DIO PEREZA CAMBIAR LOS NOMBRES DE LAS VARIABLES EN ESOS COMPONENTES, DESPUES LO HAGO(no lo voy a hacer)    
     */
      /* ---------------------------------------------------------------
      SUPERFICIES
@@ -81,29 +87,24 @@
     /* ---------------------------------------------------------------
         BORDES
      --------------------------------------------------------------- */
-    --color-border: var(--secondary-200);
+    --color-border: var(--secondary-700);
     --color-border-strong: var(--secondary-300);
     --color-border-glow: rgba(var(--primary-600-rgb), 0.4);
 
     /* ---------------------------------------------------------------
-        OVERLAY / SOMBRA — para tinte de hover y demás "rgba(x, N)" sueltos.
-        A diferencia de --overlay-rgb (blanco, que ya usas en la landing
-        para shimmer de botones), este es OSCURO a propósito: en tema
-        claro, un hover necesita oscurecer un poco la superficie, no
-        aclararla — usar blanco aquí lo dejaría invisible.
+        OVERLAY / SOMBRA 
      --------------------------------------------------------------- */
-    --color-overlay-rgb: 15, 23, 42;   /* = secondary-900 en RGB */
-    --color-shadow-rgb: 0, 0, 0;      /* ya se usa hardcodeado en --shadow-sm/md/lg; esto solo lo expone como var reutilizable */
-
+    --color-overlay-rgb: rgb(var(--secondary-900-rgb)); 
+    --color-shadow-rgb: 0, 0, 0; 
     /* ---------------------------------------------------------------
-        PRIMARY / SECONDARY — alias "de rol" sobre tu escala cruda,
-        para que Sidebar.css y ag-grid-theme.css tengan un nombre fijo
-        que no dependa de a qué tono numérico decidiste anclar el acento
+        PRIMARY / SECONDARY--estos son colores que se usan en el sidebar y el ag-gruid
+        si quieren usar ptras tonalidades para sus mierdas pues mejor pongan alias de este estilo
+        o mejor aun, en el css de esa pagina pues creen los alias
      --------------------------------------------------------------- */
     --color-primary: var(--primary-600);
     --color-primary-rgb: var(--primary-600-rgb);
     --color-secondary: var(--secondary-600);
-    --color-secondary-rgb: 71, 85, 105;  /* = secondary-600 en RGB */
+    --color-secondary-rgb: rgb(var(--secondary-600-rgb));
 
   /* ---------------------------------------------------------------
      INPUTS

@@ -1,0 +1,34 @@
+:root {
+  /* PRIMARY*/
+  --primary-900: var(--primary900, #1e3a8a);
+  --primary-800: var(--primary800, #1e40af);
+  --primary-700: var(--primary700, #1d4ed8);
+  --primary-600: var(--primary600, #2563eb);
+  --primary-500: var(--primary500, #3b82f6);
+  --primary-400: var(--primary400, #60a5fa);
+  --primary-300: var(--primary300, #93c5fd);
+  --primary-200: var(--primary200, #bfdbfe);
+  --primary-100: var(--primary100, #dbeafe);
+  --primary-50:  var(--primary50,  #eff6ff);
+
+  /* SECONDARY */
+  --secondary-900: var(--secondary900, #0f172a);
+  --secondary-800: var(--secondary800, #1e293b);
+  --secondary-700: var(--secondary700, #334155);
+  --secondary-600: var(--secondary600, #475569);
+  --secondary-500: var(--secondary500, #64748b);
+  --secondary-400: var(--secondary400, #94a3b8);
+  --secondary-300: var(--secondary300, #cbd5e1);
+  --secondary-200: var(--secondary200, #e2e8f0);
+  --secondary-100: var(--secondary100, #f1f5f9);
+  --secondary-50:  var(--secondary50,  #f8fafc);
+
+
+  --primary-600-rgb: var(--primary600Rgb, 37, 99, 235);
+
+  --secondary-900-rgb: var(--secondary900Rgb, 15, 23, 42);
+  --secondary-600-rgb: var(---secondary600Rgb, 71, 85, 105);
+
+
+  
+}

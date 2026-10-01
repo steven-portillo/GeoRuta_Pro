@@ -1,0 +1,265 @@
+---
+import AgGridComponent from "../public/AgGridComponent.astro";
+import type { ColumnaDef } from "../../utils/agGrid";
+
+const usuarioSesion = Astro.locals.usuario;
+const token = Astro.cookies.get("token")?.value;
+if (!token || !usuarioSesion) {
+  return Astro.redirect("/");
+}
+
+const API_DENO = import.meta.env.API_DENO;
+const headers = { Authorization: `Bearer ${token}` };
+
+const CargarClientes = async () => {
+  try {
+    const respuesta = await fetch(`${API_DENO}/api/admin/superadmin/clientes`, { headers });
+    if (!respuesta.ok) {
+      console.error("Status no OK", respuesta.status, await respuesta.text());
+      return [];
+    }
+    const obj = await respuesta.json();
+    return obj.data ?? [];
+  } catch (error) {
+    console.error("Error al cargar clientes", error);
+    return [];
+  }
+};
+
+const clientes = await CargarClientes();
+const clientesConId = clientes.map((c: any) => ({ ...c, id: c.id_usuario }));
+
+const columnasClientes: ColumnaDef[] = [
+  { campo: "imagen_url", titulo: "Foto", tipo: "imagen" },
+  { campo: "nombre", titulo: "Nombre" },
+  { campo: "apellido", titulo: "Apellido" },
+  { campo: "email", titulo: "Email" },
+  { campo: "fecha_creacion", titulo: "Registrado" },
+  { campo: "activo", titulo: "Estado", tipo: "estado" },
+  { titulo: "Acciones", tipo: "acciones", acciones: ["Editar"] },
+];
+---
+
+<div class="page-header">
+  <div>
+    <h4 class="page-title">Clientes</h4>
+  </div>
+</div>
+
+<AgGridComponent data={clientesConId} columnas={columnasClientes} />
+
+<div class="modal fade custom-dark-modal" id="modalCliente" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Editar cliente</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+
+      <div class="modal-body">
+        <input type="hidden" id="cliente-idUsuario" />
+
+        <div class="row g-2 mb-3">
+          <div class="col">
+            <label class="form-label-custom" for="cliente-nombre">Nombre</label>
+            <div class="input-field-wrapper">
+              <i class="bi bi-person field-icon"></i>
+              <input type="text" id="cliente-nombre" class="form-control-custom" autocomplete="off" />
+            </div>
+            <div class="error-feedback" id="cliente-nombre-error"></div>
+          </div>
+          <div class="col">
+            <label class="form-label-custom" for="cliente-apellido">Apellido</label>
+            <div class="input-field-wrapper">
+              <i class="bi bi-person field-icon"></i>
+              <input type="text" id="cliente-apellido" class="form-control-custom" autocomplete="off" />
+            </div>
+            <div class="error-feedback" id="cliente-apellido-error"></div>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label-custom" for="cliente-email">Email</label>
+          <div class="input-field-wrapper">
+            <i class="bi bi-envelope field-icon"></i>
+            <input type="email" id="cliente-email" class="form-control-custom" autocomplete="off" />
+          </div>
+          <div class="error-feedback" id="cliente-email-error"></div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label-custom" for="cliente-foto">Foto (opcional)</label>
+          <div class="modal-file-row">
+            <img id="cliente-foto-preview" class="modal-file-preview" alt="Foto del cliente" style="display: none;" />
+            <input
+              type="file"
+              id="cliente-foto"
+              class="form-control-custom no-icon"
+              accept="image/jpeg,image/png,image/webp"
+            />
+          </div>
+          <div class="error-feedback" id="cliente-foto-error"></div>
+        </div>
+
+        <div id="modal-error-cliente" class="alert-custom alert-custom-danger d-none" role="alert"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancelar-outline" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn-guardar-gradient" id="btnGuardarCliente">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  import { Modal } from "bootstrap";
+  import { validarSoloLetras, validarFormatoEmail, validarImagenFile, attachFieldValidation, attachFileValidation } from "../../utils/validaciones";
+
+  
+  const IMG_BASE = import.meta.env.PUBLIC_API_DENO;
+  const urlImagen = (ruta: string) => `${IMG_BASE}/uploads/${encodeURI(ruta)}`;
+
+  const modalEl = document.getElementById("modalCliente") as HTMLElement;
+  const modalBS = new Modal(modalEl);
+  const modalError = document.getElementById("modal-error-cliente") as HTMLElement;
+
+  const nombreInput = document.getElementById("cliente-nombre") as HTMLInputElement;
+  const nombreError = document.getElementById("cliente-nombre-error");
+
+  const apellidoInput = document.getElementById("cliente-apellido") as HTMLInputElement;
+  const apellidoError = document.getElementById("cliente-apellido-error");
+
+  const emailInput = document.getElementById("cliente-email") as HTMLInputElement;
+  const emailError = document.getElementById("cliente-email-error");
+
+  const fotoInput = document.getElementById("cliente-foto") as HTMLInputElement;
+  const fotoError = document.getElementById("cliente-foto-error");
+  const fotoPreview = document.getElementById("cliente-foto-preview") as HTMLImageElement;
+
+  const validarNombre = attachFieldValidation(nombreInput, nombreError, (v) => validarSoloLetras(v, "El nombre"));
+  const validarApellido = attachFieldValidation(apellidoInput, apellidoError, (v) => validarSoloLetras(v, "El apellido"));
+  const validarEmail = attachFieldValidation(emailInput, emailError, validarFormatoEmail);
+  const validarFoto = attachFileValidation(fotoInput, fotoError, validarImagenFile);
+
+
+  fotoInput.addEventListener("change", () => {
+    const file = fotoInput.files?.[0] ?? null;
+    if (file && validarImagenFile(file).isValid) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        fotoPreview.src = reader.result as string;
+        fotoPreview.style.display = "block";
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  (window as any).abrirEditarCliente = async (idUsuario: number) => {
+    try {
+      const res = await fetch(`/api/admin/superadmin/clientes/${idUsuario}`);
+      const data = await res.json();
+      const c = data.data;
+
+      (document.getElementById("cliente-idUsuario") as HTMLInputElement).value = c.id_usuario;
+      nombreInput.value = c.nombre ?? "";
+      apellidoInput.value = c.apellido ?? "";
+      emailInput.value = c.email ?? "";
+      fotoInput.value = "";
+
+      [nombreInput, apellidoInput, emailInput, fotoInput].forEach((el) => el.classList.remove("is-valid", "is-invalid"));
+      [nombreError, apellidoError, emailError, fotoError].forEach((el) => { if (el) el.innerHTML = ""; });
+      modalError.classList.add("d-none");
+
+      if (c.imagen_url) {
+        fotoPreview.src = urlImagen(c.imagen_url);
+        fotoPreview.style.display = "block";
+      } else {
+        fotoPreview.style.display = "none";
+      }
+
+      modalBS.show();
+    } catch {
+      alert("Error al cargar el cliente");
+    }
+  };
+
+  document.getElementById("btnGuardarCliente")?.addEventListener("click", async () => {
+    modalError.classList.add("d-none");
+
+    const nombreOk = validarNombre?.();
+    const apellidoOk = validarApellido?.();
+    const emailOk = validarEmail?.();
+    const fotoOk = validarFoto?.();
+
+    if (!nombreOk?.isValid || !apellidoOk?.isValid || !emailOk?.isValid || !fotoOk?.isValid) {
+      modalError.textContent = "Por favor completa todos los campos requeridos correctamente.";
+      modalError.classList.remove("d-none");
+
+      if (!nombreOk?.isValid) nombreInput.focus();
+      else if (!apellidoOk?.isValid) apellidoInput.focus();
+      else if (!emailOk?.isValid) emailInput.focus();
+      else if (!fotoOk?.isValid) fotoInput.focus();
+
+      return;
+    }
+
+    const idUsuario = (document.getElementById("cliente-idUsuario") as HTMLInputElement).value;
+
+    const formData = new FormData();
+    formData.append("nombre", nombreInput.value.trim());
+    formData.append("apellido", apellidoInput.value.trim());
+    formData.append("email", emailInput.value.trim());
+    if (fotoInput.files?.[0]) {
+      formData.append("foto", fotoInput.files[0]);
+    }
+
+    try {
+      const res = await fetch(`/api/admin/superadmin/clientes/${idUsuario}`, {
+        method: "PUT",
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        modalError.textContent = data.message;
+        modalError.classList.remove("d-none");
+        return;
+      }
+
+      modalBS.hide();
+      window.location.reload();
+    } catch {
+      modalError.textContent = "Error de conexión";
+      modalError.classList.remove("d-none");
+    }
+  });
+
+  document.getElementById("ag-grid-wrapper")?.addEventListener("accion-tabla", async (e: any) => {
+    const { accion, id, estado } = e.detail;
+
+    if (accion === "Editar") {
+      (window as any).abrirEditarCliente(id);
+      return;
+    }
+
+    if (accion === "toggle-estado") {
+      const nuevoEstado = estado ? 0 : 1;
+      try {
+        const res = await fetch(`/api/admin/superadmin/clientes/${id}/estado`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ estado: nuevoEstado }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          window.location.reload();
+        } else {
+          alert(data.message ?? "No se pudo cambiar el estado");
+        }
+      } catch {
+        alert("Error de conexión");
+      }
+    }
+  });
+</script>

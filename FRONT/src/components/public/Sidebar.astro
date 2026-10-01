@@ -1,6 +1,7 @@
 ---
 import "./Sidebar.css";
 
+
 export interface SidebarLink {
   href: string;
   label: string;
@@ -35,6 +36,19 @@ const iniciales = usuario?.nombre
       .map((p) => p[0]?.toUpperCase())
       .join("")
   : "?";
+
+
+let rutaPerfil = ""; 
+const rol = Astro.locals.usuario?.rol;
+if (rol === "SUPERADMIN") {
+  rutaPerfil = "/super-admin";
+}else if(rol === "ADMIN") {
+  rutaPerfil = "/admin";
+}else if(rol === "PROVEEDOR"){
+  rutaPerfil = "/repartidor";
+}else if(rol === "CLIENTE"){
+  rutaPerfil = "/cliente";
+}
 ---
 
 <!-- Botón hamburguesa: solo visible en móvil, fijo en la esquina -->
@@ -55,9 +69,10 @@ const iniciales = usuario?.nombre
     <a id="sidebarCollapseBtn" class="sidebar-brand">
       <div class="sidebar-brand-icon">
         <img
-          src="/logo-georuta.png"
+          src="/logo_georuta.png"
           alt="GeoRuta"
           class="sidebar-brand-logo"
+          style="width: 100%;"
           onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
         />
         <i class="bi bi-signpost-2-fill sidebar-brand-fallback"></i>
@@ -80,18 +95,7 @@ const iniciales = usuario?.nombre
     empresa && (
       <div class="sidebar-subbrand" data-tooltip={empresa.nombre}>
         <div class="sidebar-subbrand-icon">
-          {empresa.logoUrl ? (
-            <>
-              <img
-                src={empresa.logoUrl}
-                alt={empresa.nombre}
-                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-              />
-              <i class="bi bi-building" style="display:none;" />
-            </>
-          ) : (
             <i class="bi bi-building" />
-          )}
         </div>
         <span class="sidebar-subbrand-text">{empresa.nombre}</span>
       </div>
@@ -122,7 +126,7 @@ const iniciales = usuario?.nombre
 
   <div class="sidebar-footer">
     <a
-      href="/perfil"
+      href=`${rutaPerfil}/perfil`
       class="sidebar-profile-link"
       data-tooltip={usuario?.nombre ?? "Mi perfil"}
     >
@@ -131,7 +135,7 @@ const iniciales = usuario?.nombre
           usuario?.fotoUrl ? (
             <>
               <img
-                src={usuario.fotoUrl}
+                src=`http://127.0.0.1:8005/Uploads/${usuario.fotoUrl}`
                 alt={usuario.nombre}
                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
               />

@@ -1,22 +1,28 @@
 // helpers/archivos.ts
 
 const MIME_PERMITIDOS = ["image/jpeg", "image/png", "image/webp"];
-const TAMANO_MAXIMO = 2 * 1024 * 1024; // 2MB
+const TAMANO_MAXIMO = 2 * 1024 * 1024; // 5MB
 
-export function generarRutaArchivo(archivo: File, subcarpeta: string): string {
-  const extension = archivo.name.split(".").pop();
-  const nombreUnico = `${Date.now()}-${crypto.randomUUID()}.${extension}`;
-  return `./uploads/${subcarpeta}/${nombreUnico}`;
+// helpers/archivos.ts
+
+// Ruta FÍSICA para escribir en disco (con ./Uploads/ al inicio)
+export function rutaFisicaArchivo(subcarpeta: string, nombreUnico: string): string {
+  return `./Uploads/${subcarpeta}/${nombreUnico}`;
 }
 
-export async function escribirArchivo(
-  archivo: File,
-  ruta: string,
-): Promise<void> {
-  const carpeta = ruta.substring(0, ruta.lastIndexOf("/"));
+// Ruta RELATIVA para guardar en la base de datos — sin "./Uploads/", 
+// solo "subcarpeta/nombre.ext". El middleware y el frontend ya saben
+// anteponer "/Uploads/" cuando construyen la URL pública.
+export function generarNombreUnico(archivo: File): string {
+  const extension = archivo.name.split(".").pop();
+  return `${Date.now()}-${crypto.randomUUID()}.${extension}`;
+}
+
+export async function escribirArchivo(archivo: File, rutaFisica: string): Promise<void> {
+  const carpeta = rutaFisica.substring(0, rutaFisica.lastIndexOf("/"));
   await Deno.mkdir(carpeta, { recursive: true });
   const bytes = new Uint8Array(await archivo.arrayBuffer());
-  await Deno.writeFile(ruta, bytes);
+  await Deno.writeFile(rutaFisica, bytes);
 }
 
 export function validarArchivo(archivo: File): string | null {

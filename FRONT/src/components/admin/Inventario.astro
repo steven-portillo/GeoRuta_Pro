@@ -1,0 +1,359 @@
+---
+import AgGridComponent from "../public/AgGridComponent.astro";
+import type { ColumnaDef } from "../../utils/agGrid";
+
+const usuarioSesion = Astro.locals.usuario;
+const token = Astro.cookies.get("token")?.value;
+if (!token || !usuarioSesion) {
+  return Astro.redirect("/");
+}
+
+const API_DENO = import.meta.env.API_DENO ?? "http://127.0.0.1:8002";
+const headers = { Authorization: `Bearer ${token}` };
+
+const CargarInventario = async () => {
+  try {
+    const respuesta = await fetch(`${API_DENO}/api/admin/inventario`, { headers });
+    if (!respuesta.ok) {
+      console.error("Status no OK", respuesta.status, await respuesta.text());
+      return [];
+    }
+    const obj = await respuesta.json();
+    return obj.data ?? [];
+  } catch (error) {
+    console.error("Error al cargar inventario", error);
+    return [];
+  }
+};
+
+const inventario = await CargarInventario();
+const inventarioConId = inventario.map((i: any) => ({ ...i, id: i.id_producto }));
+
+const columnasInventario: ColumnaDef[] = [
+  { campo: "imagen_url", titulo: "Foto", tipo: "imagen" },
+  { campo: "nombre", titulo: "Producto" },
+  { campo: "nombre_categoria", titulo: "Categoría" },
+  { campo: "stock_disponible", titulo: "Disponible" },
+  { campo: "stock_reservado", titulo: "Reservado" },
+  { campo: "stock_minimo", titulo: "Mínimo" },
+  { titulo: "Acciones", tipo: "acciones", acciones: ["Agregar Stock", "Historial"] },
+];
+---
+
+<div class="page-header">
+  <div>
+    <h4 class="page-title">Inventario</h4>
+  </div>
+</div>
+
+<AgGridComponent data={inventarioConId} columnas={columnasInventario} />
+
+<!-- Modal: Agregar Stock -->
+<div class="modal fade custom-dark-modal" id="modalAgregarStock" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Agregar stock</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+
+      <div class="modal-body">
+        <input type="hidden" id="stock-idProducto" />
+
+        <div class="mb-3">
+          <label class="form-label-custom">Producto</label>
+          <div class="input-field-wrapper">
+            <i class="bi bi-box-seam field-icon"></i>
+            <input type="text" id="stock-nombreProducto" class="form-control-custom is-readonly" readonly />
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label-custom">Stock actual</label>
+          <div class="input-field-wrapper">
+            <i class="bi bi-boxes field-icon"></i>
+            <input type="text" id="stock-actual" class="form-control-custom is-readonly" readonly />
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label-custom" for="stock-cantidad">Cantidad a agregar</label>
+          <div class="input-field-wrapper">
+            <i class="bi bi-plus-circle field-icon"></i>
+            <input type="number" id="stock-cantidad" class="form-control-custom" min="1" step="1" placeholder="0" />
+          </div>
+          <div class="error-feedback" id="stock-cantidad-error"></div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label-custom" for="stock-motivo">Motivo</label>
+          <div class="input-field-wrapper textarea-wrapper">
+            <i class="bi bi-card-text field-icon"></i>
+            <textarea id="stock-motivo" class="form-control-custom textarea-custom" rows="3" placeholder="Ej: Compra a proveedor, devolución, ajuste..."></textarea>
+          </div>
+          <div class="error-feedback" id="stock-motivo-error"></div>
+        </div>
+
+        <div id="modal-error-stock" class="alert-custom alert-custom-danger d-none" role="alert"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancelar-outline" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn-guardar-gradient" id="btnGuardarStock">Agregar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Historial (solo lectura) -->
+<div class="modal fade custom-dark-modal" id="modalHistorial" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="historial-titulo">Historial de movimientos</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+
+      <div class="modal-body">
+        <div id="historial-vacio" class="text-center" style="display: none; color: var(--color-text-muted); padding: 2rem 0;">
+          Sin movimientos registrados todavía.
+        </div>
+        <table class="historial-tabla" id="historial-tabla" style="display: none;">
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>Cantidad</th>
+              <th>Stock anterior → nuevo</th>
+              <th>Motivo</th>
+              <th>Usuario</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody id="historial-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancelar-outline" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .form-control-custom.textarea-custom {
+    resize: vertical;
+    overflow-y: auto;
+    line-height: 1.5;
+    padding-top: 0.75rem;
+  }
+  .input-field-wrapper.textarea-wrapper {
+    align-items: flex-start;
+  }
+  .input-field-wrapper.textarea-wrapper .field-icon {
+    top: 0.85rem;
+  }
+
+  /* Tabla simple de solo lectura — este historial no es un CRUD, no
+     justifica un segundo AgGridComponent en la misma página */
+  .historial-tabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  .historial-tabla th {
+    text-align: left;
+    padding: 0.6rem 0.75rem;
+    background: var(--color-surface-alt);
+    color: var(--color-text-secondary);
+    font-weight: 700;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .historial-tabla td {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+  }
+  .historial-tabla tr:last-child td {
+    border-bottom: none;
+  }
+  .tipo-entrada {
+    color: var(--color-success);
+    font-weight: 600;
+    text-transform: capitalize;
+  }
+  .tipo-salida {
+    color: var(--color-danger);
+    font-weight: 600;
+    text-transform: capitalize;
+  }
+</style>
+
+<script>
+  import { Modal } from "bootstrap";
+  import { attachFieldValidation } from "../../utils/validaciones";
+
+  function validarRequerido(val: string, label: string) {
+    const value = val.trim();
+    return value
+      ? { isValid: true, message: "" }
+      : { isValid: false, message: `${label} es obligatorio.` };
+  }
+
+  function validarCantidad(val: string) {
+    const value = val.trim();
+    if (!value) return { isValid: false, message: "La cantidad es obligatoria." };
+    const num = Number(value);
+    if (!Number.isInteger(num) || num <= 0) {
+      return { isValid: false, message: "Debe ser un número entero mayor a 0." };
+    }
+    return { isValid: true, message: "" };
+  }
+
+  // --- Modal Agregar Stock ---
+  const modalStockEl = document.getElementById("modalAgregarStock") as HTMLElement;
+  const modalStockBS = new Modal(modalStockEl);
+  const modalErrorStock = document.getElementById("modal-error-stock") as HTMLElement;
+
+  const stockIdProducto = document.getElementById("stock-idProducto") as HTMLInputElement;
+  const stockNombreProducto = document.getElementById("stock-nombreProducto") as HTMLInputElement;
+  const stockActual = document.getElementById("stock-actual") as HTMLInputElement;
+
+  const cantidadInput = document.getElementById("stock-cantidad") as HTMLInputElement;
+  const cantidadError = document.getElementById("stock-cantidad-error");
+
+  const motivoInput = document.getElementById("stock-motivo") as HTMLTextAreaElement;
+  const motivoError = document.getElementById("stock-motivo-error");
+
+  const validarCantidadCampo = attachFieldValidation(cantidadInput, cantidadError, validarCantidad);
+  const validarMotivo = attachFieldValidation(motivoInput as unknown as HTMLInputElement, motivoError, (v) =>
+    validarRequerido(v, "El motivo")
+  );
+
+  (window as any).abrirAgregarStock = (id: number, fila: any) => {
+    stockIdProducto.value = String(id);
+    stockNombreProducto.value = fila.nombre ?? "";
+    stockActual.value = `${fila.stock_disponible ?? 0} unidades`;
+    cantidadInput.value = "";
+    motivoInput.value = "";
+
+    [cantidadInput, motivoInput].forEach((el) => el.classList.remove("is-valid", "is-invalid"));
+    [cantidadError, motivoError].forEach((el) => {
+      if (el) el.innerHTML = "";
+    });
+    modalErrorStock.classList.add("d-none");
+
+    modalStockBS.show();
+  };
+
+  document.getElementById("btnGuardarStock")?.addEventListener("click", async () => {
+    modalErrorStock.classList.add("d-none");
+
+    const cantidadOk = validarCantidadCampo?.();
+    const motivoOk = validarMotivo?.();
+
+    if (!cantidadOk?.isValid || !motivoOk?.isValid) {
+      modalErrorStock.textContent = "Por favor completa todos los campos requeridos correctamente.";
+      modalErrorStock.classList.remove("d-none");
+
+      if (!cantidadOk?.isValid) cantidadInput.focus();
+      else if (!motivoOk?.isValid) motivoInput.focus();
+
+      return;
+    }
+
+    const payload = {
+      id_producto: Number(stockIdProducto.value),
+      cantidad: Number(cantidadInput.value),
+      motivo: motivoInput.value.trim(),
+    };
+
+    try {
+      const res = await fetch("/api/admin/inventario/agregar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        modalErrorStock.textContent = data.message;
+        modalErrorStock.classList.remove("d-none");
+        return;
+      }
+
+      modalStockBS.hide();
+      window.location.reload();
+    } catch {
+      modalErrorStock.textContent = "Error de conexión";
+      modalErrorStock.classList.remove("d-none");
+    }
+  });
+
+  // --- Modal Historial ---
+  const modalHistorialEl = document.getElementById("modalHistorial") as HTMLElement;
+  const modalHistorialBS = new Modal(modalHistorialEl);
+  const historialTitulo = document.getElementById("historial-titulo") as HTMLElement;
+  const historialVacio = document.getElementById("historial-vacio") as HTMLElement;
+  const historialTabla = document.getElementById("historial-tabla") as HTMLElement;
+  const historialTbody = document.getElementById("historial-tbody") as HTMLElement;
+
+  (window as any).abrirHistorial = async (id: number) => {
+    historialTitulo.textContent = "Historial de movimientos";
+    historialVacio.style.display = "none";
+    historialTabla.style.display = "none";
+    historialTbody.innerHTML = "";
+
+    try {
+      const res = await fetch(`/api/admin/inventario/${id}/historial`);
+      const data = await res.json();
+
+      if (!data.success) {
+        alert(data.message ?? "No se pudo cargar el historial");
+        return;
+      }
+
+      const { nombre_producto, movimientos } = data.data;
+      historialTitulo.textContent = `Historial — ${nombre_producto}`;
+
+      if (!movimientos || movimientos.length === 0) {
+        historialVacio.style.display = "block";
+      } else {
+        historialTabla.style.display = "table";
+        historialTbody.innerHTML = movimientos
+          .map((m: any) => {
+            const claseTipo = m.tipo_movimiento === "entrada" ? "tipo-entrada" : "tipo-salida";
+            const usuario = `${m.nombre_usuario ?? ""} ${m.apellido_usuario ?? ""}`.trim();
+            const fecha = new Date(m.fecha).toLocaleString("es-CO");
+            return `
+              <tr>
+                <td class="${claseTipo}">${m.tipo_movimiento}</td>
+                <td>${m.cantidad}</td>
+                <td>${m.stock_anterior} → ${m.stock_nuevo}</td>
+                <td>${m.motivo ?? ""}</td>
+                <td>${usuario}</td>
+                <td>${fecha}</td>
+              </tr>
+            `;
+          })
+          .join("");
+      }
+
+      modalHistorialBS.show();
+    } catch {
+      alert("Error de conexión al cargar el historial");
+    }
+  };
+
+  // --- Delegación desde AgGridComponent ---
+  document.getElementById("ag-grid-wrapper")?.addEventListener("accion-tabla", (e: any) => {
+    const { accion, id, fila } = e.detail;
+
+    if (accion === "Agregar Stock") {
+      (window as any).abrirAgregarStock(id, fila);
+    }
+    if (accion === "Historial") {
+      (window as any).abrirHistorial(id);
+    }
+  });
+</script>

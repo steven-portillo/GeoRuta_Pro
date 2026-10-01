@@ -4,7 +4,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
     
     const body = await request.text();
     
-    const respuestaBackend = await fetch(`${rutadeno}/api/register`, {
+    const respuestaBackend = await fetch(`${rutadeno}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body
