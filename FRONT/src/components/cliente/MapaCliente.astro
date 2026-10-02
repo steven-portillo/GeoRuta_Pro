@@ -1,0 +1,109 @@
+---
+const token = Astro.cookies.get("token")?.value;
+const API_DENO = import.meta.env.API_DENO ?? "http://127.0.0.1:8005";
+const headers = { Authorization: `Bearer ${token}` };
+
+const cargarPedidoIds = async (): Promise<number[]> => {
+  try {
+    const respuesta = await fetch(`${API_DENO}/cliente/mapa/pedidos-en-transito`, {
+      headers,
+    });
+    if (!respuesta.ok) {
+      console.error("Status no OK", respuesta.status, await respuesta.text());
+      return [];
+    }
+    const obj = await respuesta.json();
+    const data = obj.data ?? [];
+    return Array.isArray(data) ? data.map(Number) : [];
+  } catch (error) {
+    console.error("Error al cargar pedidos en transito", error);
+    return [];
+  }
+};
+
+const pedidoIds = await cargarPedidoIds();
+const pedidoIdsJson = JSON.stringify(pedidoIds);
+---
+
+<div
+  id="datospagina"
+  data-token={token ?? ""}
+  data-ids={pedidoIdsJson}
+></div>
+
+<div id="mapa" style="height: 70vh; width: 100%;"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+  import { WsUbicacionCliente } from "../../utils/wsCliente.ts";
+
+  declare const L: any;
+
+  const datos = document.getElementById("datospagina") as HTMLElement;
+  const token = datos.dataset.token ?? "";
+  const pedidoIds: number[] = JSON.parse(datos.dataset.ids || "[]");
+  const WS_URL = "ws://127.0.0.1:8005/ws";
+
+  let map = L.map("mapa").setView([5.794323, -73.062859], 13);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: "&copy; OpenStreetMap",
+  }).addTo(map);
+
+  const marcadoresProveedor = new Map<number, any>();
+
+  function upsertMarcadorProveedor(
+    proveedorId: number,
+    lat: number,
+    lng: number,
+  ) {
+    const key = Number(proveedorId);
+    const latLng = L.latLng(lat, lng);
+    if (marcadoresProveedor.has(key)) {
+      marcadoresProveedor.get(key).setLatLng(latLng);
+    } else {
+      const marker = L.marker(latLng).addTo(map);
+      marker.bindPopup(`Repartidor #${key}`);
+      marcadoresProveedor.set(key, marker);
+      map.panTo(latLng);
+    }
+  }
+
+  function quitarMarcadorProveedor(proveedorId: number) {
+    const key = Number(proveedorId);
+    const m = marcadoresProveedor.get(key);
+    if (m) {
+      map.removeLayer(m);
+      marcadoresProveedor.delete(key);
+    }
+  }
+
+  const cliente = new WsUbicacionCliente(WS_URL, token, {
+    onEstado: (e) => console.log("[WS Cliente]", e),
+    onMensaje: (msg) => {
+      if (msg.tipo === "ActualizarUbicacion") {
+        upsertMarcadorProveedor(
+          Number(msg.proveedorId),
+          Number(msg.lat),
+          Number(msg.lng),
+        );
+      }
+      if (msg.tipo === "ProveedorEnDescanso") {
+        quitarMarcadorProveedor(Number(msg.proveedorId));
+      }
+      if (msg.tipo === "ProveedorTerminoRuta") {
+        quitarMarcadorProveedor(Number(msg.proveedorId));
+      }
+      if (msg.tipo === "unido") {
+        console.log("Unido a pedidos", msg.pedidos);
+      }
+    },
+  });
+
+  cliente.setDespuesDeAuth(() => {
+    cliente.enviar({ tipo: "UnirseComoCliente", pedidoIds });
+  });
+
+  cliente.conectar();
+  window.addEventListener("beforeunload", () => cliente.cerrar());
+</script>

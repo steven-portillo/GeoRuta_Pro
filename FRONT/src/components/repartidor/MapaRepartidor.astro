@@ -1,0 +1,164 @@
+---
+const token = Astro.cookies.get("token")?.value;
+---
+
+<div id="datostoken" data-token={token}></div>
+<div id="mapa" style="height: 70vh; width: 100%;"></div>
+<button type="button" id="btnIniciarRuta">Iniciar ruta</button>
+<button type="button" id="btnDescanso">Descanso</button>
+<button type="button" id="btnReanudar">Reanudar</button>
+<button type="button" id="btnTerminarRuta">Terminar ruta</button>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+  import { WsUbicacionCliente } from "../../utils/wsCliente.ts";
+
+  declare const L: any;
+
+  const datos = document.getElementById("datostoken") as HTMLElement;
+  const token = datos.dataset.token ?? "";
+  const API_DENO = import.meta.env.PUBLIC_API_DENO ?? "http://127.0.0.1:8005";
+  const WS_URL = "ws://127.0.0.1:8005/ws";
+  const MARCADOR_YO = -1;
+
+  let map = L.map("mapa").setView([5.794323, -73.062859], 13);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: "&copy; OpenStreetMap",
+  }).addTo(map);
+
+  const marcadores = new Map<number, any>();
+
+  function upsertMarcador(
+    id: number,
+    lat: number,
+    lng: number,
+    popup?: string,
+  ) {
+    const key = Number(id);
+    const latLng = L.latLng(lat, lng);
+    if (marcadores.has(key)) {
+      marcadores.get(key).setLatLng(latLng);
+    } else {
+      const marker = L.marker(latLng).addTo(map);
+      if (popup) marker.bindPopup(popup);
+      marcadores.set(key, marker);
+    }
+  }
+
+  async function cargarDestinos() {
+    try {
+      const res = await fetch(`${API_DENO}/proveedor/mapa/destinos`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        console.error("Destinos HTTP", res.status, await res.text());
+        return;
+      }
+      const json = await res.json();
+      const destinos = json.data ?? [];
+      const grupo = L.featureGroup();
+
+      for (const d of destinos) {
+        const lat = Number(d.lat);
+        const lng = Number(d.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+
+        const pin = L.marker([lat, lng]).bindPopup(
+          `<strong>Pedido #${d.id_pedido}</strong><br/>${d.direccion_texto ?? ""}<br/>${d.nombre_cliente ?? ""}`,
+        );
+        pin.addTo(map);
+        grupo.addLayer(pin);
+      }
+
+      if (grupo.getLayers().length) {
+        map.fitBounds(grupo.getBounds().pad(0.2));
+      }
+    } catch (e) {
+      console.error("cargarDestinos", e);
+    }
+  }
+
+  let watchId: number | null = null;
+
+  function crearEnviarUbicacionThrottled(clienteWs: {
+    enviar: (p: object) => void;
+  }) {
+    let last = 0;
+    return (payload: object) => {
+      const now = Date.now();
+      if (now - last < 4000) return;
+      last = now;
+      clienteWs.enviar(payload);
+    };
+  }
+
+  function detenerGps() {
+    if (watchId != null) {
+      navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+    }
+  }
+
+  function iniciarGps(enviarFn: (p: object) => void) {
+    if (!navigator.geolocation) {
+      console.error("Sin geolocalización");
+      return;
+    }
+    detenerGps();
+    watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        upsertMarcador(MARCADOR_YO, lat, lng, "Mi ubicación");
+        enviarFn({ tipo: "EnviarUbicacion", lat, lng });
+      },
+      (err) => console.error("GPS", err),
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 },
+    );
+  }
+
+  const cliente = new WsUbicacionCliente(WS_URL, token, {
+    onEstado: (e) => console.log("[WS Proveedor]", e),
+    onMensaje: (msg) => {
+      // El hub no suele devolverte tu propia ubicación;
+      // sirve para errores / confirmaciones
+      if (msg.tipo === "Error") console.warn(msg.mensaje);
+      if (msg.tipo === "ruta_iniciada") console.log("Ruta iniciada en servidor");
+    },
+  });
+
+  cliente.setDespuesDeAuth(() => {
+    cliente.enviar({ tipo: "UnirseComoProveedor" });
+  });
+
+  cliente.conectar();
+  cargarDestinos();
+
+  const enviarThrottled = crearEnviarUbicacionThrottled(cliente);
+
+  document.getElementById("btnIniciarRuta")?.addEventListener("click", () => {
+    cliente.enviar({ tipo: "EmpezarRuta" });
+    iniciarGps(enviarThrottled);
+  });
+
+  document.getElementById("btnDescanso")?.addEventListener("click", () => {
+    cliente.enviar({ tipo: "Descanso" });
+    // GPS sigue: el admin sigue viéndote; clientes no
+  });
+
+  document.getElementById("btnReanudar")?.addEventListener("click", () => {
+    cliente.enviar({ tipo: "ReanudarRuta" });
+  });
+
+  document.getElementById("btnTerminarRuta")?.addEventListener("click", () => {
+    cliente.enviar({ tipo: "TerminarRuta" });
+    detenerGps();
+  });
+
+  window.addEventListener("beforeunload", () => {
+    detenerGps();
+    cliente.cerrar();
+  });
+</script>

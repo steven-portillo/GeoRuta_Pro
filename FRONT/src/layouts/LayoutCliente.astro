@@ -2,12 +2,12 @@
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.min.css";
 import "../components/public/Global.css";
-import "../components/public/Modal.css"
-import "../components/public/Forms.css"
+import "../components/public/Modal.css";
+import "../components/public/Forms.css";
 import Sidebar from "../components/public/Sidebar.astro";
 
 interface Props {
-    titulo: string;
+  titulo: string;
 }
 const { titulo } = Astro.props;
 
@@ -23,9 +23,16 @@ interface PerfilSidebar {
 }
 
 const perfilSideBar = async (): Promise<PerfilSidebar> => {
-  const vacio: PerfilSidebar = { nombres: null, fotoUrl: null, nombreEmpresa: null, logoUrl: null };
+  const vacio: PerfilSidebar = {
+    nombres: null,
+    fotoUrl: null,
+    nombreEmpresa: null,
+    logoUrl: null,
+  };
   try {
-    const resPerfil = await fetch(`${API_DENO}/api/auth/perfil-sb`, { headers });
+    const resPerfil = await fetch(`${API_DENO}/api/auth/perfil-sb`, {
+      headers,
+    });
     if (!resPerfil.ok) {
       console.error("status no ok", resPerfil.status, await resPerfil.text());
       return vacio;
@@ -41,7 +48,8 @@ const perfilSideBar = async (): Promise<PerfilSidebar> => {
 const perfilSB = await perfilSideBar();
 
 const linksAdmin = [
-    { href: "/cliente/", label: "Dashboard", icon: "bi-grid-1x2-fill" },
+  { href: "/cliente/", label: "Dashboard", icon: "bi-grid-1x2-fill" },
+  { href: "/cliente/mapa", label: "Mapa", icon: "bi bi-map" },
 ];
 ---
 
@@ -52,22 +60,36 @@ const linksAdmin = [
     <meta name="viewport" content="width=device-width" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" href="/favicon.ico" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
     <meta name="generator" content={Astro.generator} />
     <title>{titulo}</title>
   </head>
   <body>
     <Sidebar
-        activePath={Astro.url.pathname}
-        links={linksAdmin}
-        empresa={perfilSB.nombreEmpresa ? { nombre: perfilSB.nombreEmpresa, logoUrl: perfilSB.logoUrl ?? undefined } : undefined}
-        usuario={{ nombre: perfilSB.nombres ?? "Usuario", fotoUrl: perfilSB.fotoUrl ?? undefined }}
+      activePath={Astro.url.pathname}
+      links={linksAdmin}
+      empresa={perfilSB.nombreEmpresa
+        ? {
+            nombre: perfilSB.nombreEmpresa,
+            logoUrl: perfilSB.logoUrl ?? undefined,
+          }
+        : undefined}
+      usuario={{
+        nombre: perfilSB.nombres ?? "Usuario",
+        fotoUrl: perfilSB.fotoUrl ?? undefined,
+      }}
     />
     <main class="app-content">
-        <slot />
+      <slot />
     </main>
-
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-      const btnLogout = document.getElementById("btnLogout") as HTMLButtonElement;
+      const btnLogout = document.getElementById(
+        "btnLogout",
+      ) as HTMLButtonElement;
       btnLogout.addEventListener("click", async () => {
         await fetch("/api/auth/logout", { method: "POST" });
         window.location.href = "/auth/login";
@@ -111,5 +133,4 @@ const linksAdmin = [
       margin-left: 0 !important;
     }
   }
-
 </style>

@@ -46,24 +46,38 @@ const columnasBase64 = utf8ToBase64(JSON.stringify(columnas));
 
     const columnDefs = columnas.map((col: any) => {
       if (col.tipo === "acciones") {
+        const cantidadBotones = col.acciones.length;
+        const anchoEstimado = Math.max(180, cantidadBotones * 95);
+
         return {
           headerName: col.titulo,
           sortable: false,
           filter: false,
-          width: 240,
+          resizable: false,
+          width: anchoEstimado,
+          minWidth: anchoEstimado, // ← esto es lo que faltaba: evita que flex lo achique
+          maxWidth: anchoEstimado + 40, // un poco de margen, sin dejarlo crecer sin límite
+          autoHeight: true, // permite que la fila crezca si los botones envuelven a 2 líneas
+          cellStyle: {
+            display: "flex",
+            alignItems: "center",
+            padding: "6px 4px",
+          },
           cellRenderer: (params: any) => {
+            if (!params.data) return "";
             const botones = col.acciones
               .map(
                 (accion: string) => `
-                            <button class="btn btn-sm btn-outline-secondary me-1"
-                                    data-accion="${accion}"
-                                    data-id="${params.data.id}">
-                                ${accion}
-                            </button>
-                        `,
+            <button class="btn btn-sm btn-outline-secondary"
+                    style="white-space: nowrap; font-size: 0.75rem; padding: 0.25rem 0.5rem;"
+                    data-accion="${accion}"
+                    data-id="${params.data.id}">
+              ${accion}
+            </button>
+          `,
               )
               .join("");
-            return `<div class="d-flex h-100 align-items-center">${botones}</div>`;
+            return `<div style="display:flex; flex-wrap:wrap; gap:4px; align-items:center; justify-content:center; width:100%; padding:4px 0;">${botones}</div>`;
           },
         };
       }

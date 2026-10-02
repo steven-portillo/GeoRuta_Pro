@@ -15,12 +15,13 @@ categoriaRouter.use(authMiddleware);
 categoriaRouter.use(soloAdmin);
 
 categoriaRouter.get("/api/admin/categorias", listarCategorias);
+categoriaRouter.get("/api/admin/categorias/:id", obtenerCategoria);
 categoriaRouter.post("/api/admin/categorias", crearCategoria);
 categoriaRouter.put("/api/admin/categorias/:id", editarCategoria);
 categoriaRouter.patch(
   "/api/admin/categorias/:id/estado",
   cambiarEstadoCategoria,
 );
-categoriaRouter.get("/api/admin/categorias/:id", obtenerCategoria);
+
 
 export { categoriaRouter };

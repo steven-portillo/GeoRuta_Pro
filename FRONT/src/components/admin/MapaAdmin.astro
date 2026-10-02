@@ -1,0 +1,75 @@
+---
+const token = Astro.cookies.get("token")?.value;
+---
+
+<div id="datostoken" data-token={token}></div>
+
+<div id="mapa" style="height: 70vh; width: 100%;"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+  import { WsUbicacionCliente } from "../../utils/wsCliente.ts";
+
+  declare const L: any;
+
+  const datos = document.getElementById("datostoken") as HTMLElement;
+  const token = datos.dataset.token ?? "";
+  const WS_URL = "ws://127.0.0.1:8005/ws";
+
+  let map = L.map("mapa").setView([5.794323, -73.062859], 13);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  }).addTo(map);
+
+  const marcadoresProveedor = new Map<number, any>();
+
+  function upsertMarcadorProveedor(
+    proveedorId: number,
+    lat: number,
+    lng: number,
+  ) {
+    const key = Number(proveedorId);
+    const latLng = L.latLng(lat, lng);
+    if (marcadoresProveedor.has(key)) {
+      marcadoresProveedor.get(key).setLatLng(latLng);
+    } else {
+      const marker = L.marker(latLng).addTo(map);
+      marker.bindPopup(`Repartidor #${key}`);
+      marcadoresProveedor.set(key, marker);
+    }
+  }
+
+  function quitarMarcadorProveedor(proveedorId: number) {
+    const key = Number(proveedorId);
+    const m = marcadoresProveedor.get(key);
+    if (m) {
+      map.removeLayer(m);
+      marcadoresProveedor.delete(key);
+    }
+  }
+
+  const cliente = new WsUbicacionCliente(WS_URL, token, {
+    onEstado: (e) => console.log("[WS Admin]", e),
+    onMensaje: (msg) => {
+      if (msg.tipo === "ActualizarUbicacion") {
+        upsertMarcadorProveedor(
+          Number(msg.proveedorId),
+          Number(msg.lat),
+          Number(msg.lng),
+        );
+      }
+      if (msg.tipo === "ProveedorTerminoRuta") {
+        quitarMarcadorProveedor(Number(msg.proveedorId));
+      }
+    },
+  });
+
+  cliente.setDespuesDeAuth(() => {
+    cliente.enviar({ tipo: "UnirseComoAdmin" });
+  });
+
+  cliente.conectar();
+  window.addEventListener("beforeunload", () => cliente.cerrar());
+</script>

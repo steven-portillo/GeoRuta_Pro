@@ -68,14 +68,14 @@ export const editarCategoria = async (
       ctx.response.body = { success: false, message: "ID inválido" };
       return;
     }
-
+    console.log("ID de categoría a editar:", id_categoria + " para la empresa ID: " + usuario.idEmpresa);
     const body = await ctx.request.body.json();
     const nombre = body.nombre ? String(body.nombre).trim() : undefined;
     const descripcion =
       body.descripcion !== undefined
         ? String(body.descripcion).trim()
         : undefined;
-
+    console.log("Datos recibidos para editar:", { nombre, descripcion });
     const resultado = await Categoria.Editar(id_categoria, usuario.idEmpresa!, {
       nombre,
       descripcion,
@@ -135,7 +135,7 @@ export const obtenerCategoria = async (
   ctx: RouterContext<"/api/admin/categorias/:id">,
 ) => {
   try {
-    const usuario = ctx.state.user as { id_empresa: number };
+    const usuario = ctx.state.user as Sesion;
     const id_categoria = Number(ctx.params.id);
 
     if (Number.isNaN(id_categoria)) {
@@ -146,7 +146,7 @@ export const obtenerCategoria = async (
 
     const categoria = await Categoria.ObtenerPorId(
       id_categoria,
-      usuario.id_empresa,
+      usuario.idEmpresa!,
     );
     if (!categoria) {
       ctx.response.status = 404;
