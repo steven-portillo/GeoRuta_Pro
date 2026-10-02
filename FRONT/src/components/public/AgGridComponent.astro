@@ -12,7 +12,12 @@ const dataBase64 = utf8ToBase64(JSON.stringify(data));
 const columnasBase64 = utf8ToBase64(JSON.stringify(columnas));
 ---
 
-<div id="ag-grid-wrapper" data-rows={dataBase64} data-columnas={columnasBase64} style="margin-left: 2.5%; margin-right: 2.5%;">
+<div
+  id="ag-grid-wrapper"
+  data-rows={dataBase64}
+  data-columnas={columnasBase64}
+  style="margin-left: 2.5%; margin-right: 2.5%;"
+>
   <div
     id="tabla-generica"
     class="ag-theme-alpine ag-theme-georuta"
@@ -33,7 +38,7 @@ const columnasBase64 = utf8ToBase64(JSON.stringify(columnas));
 
   // base publica de la API para las fotos de la tabla
   const IMG_BASE = import.meta.env.PUBLIC_API_DENO;
-  
+
   document.addEventListener("DOMContentLoaded", () => {
     const wrapper = document.getElementById("ag-grid-wrapper") as HTMLElement;
     const rows = JSON.parse(base64ToUtf8(wrapper.dataset.rows ?? ""));
@@ -180,11 +185,15 @@ const columnasBase64 = utf8ToBase64(JSON.stringify(columnas));
       ) as HTMLElement | null;
       if (!btn) return;
 
+      const id = Number(btn.dataset.id);
+      const fila = rows.find((r: any) => r.id === id);
+
       const evento = new CustomEvent("accion-tabla", {
         detail: {
           accion: btn.dataset.accion,
-          id: Number(btn.dataset.id),
+          id,
           estado: btn.dataset.estado === "true",
+          fila,
         },
         bubbles: true,
       });

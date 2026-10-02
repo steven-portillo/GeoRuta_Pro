@@ -21,7 +21,7 @@ export const listarInventario = async (ctx: Context) => {
 /** POST /api/admin/inventario/agregar */
 export const agregarStock = async (ctx: Context) => {
   try {
-    const usuario = ctx.state.user as { id_empresa: number; sub: string };
+    const usuario = ctx.state.user as Sesion;
     const body = await ctx.request.body.json();
 
     const id_producto = Number(body.id_producto);
@@ -42,10 +42,10 @@ export const agregarStock = async (ctx: Context) => {
       return;
     }
 
-    const id_usuario = Number(usuario.sub);
+    const id_usuario = Number(usuario.id);
 
     const resultado = await Inventario.AgregarStock(
-      usuario.id_empresa,
+      usuario.idEmpresa!,
       id_usuario,
       {
         id_producto,
