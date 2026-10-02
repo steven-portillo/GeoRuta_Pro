@@ -49,7 +49,8 @@ const token = Astro.cookies.get("token")?.value;
 
   async function cargarDestinos() {
     try {
-      const res = await fetch(`${API_DENO}/proveedor/mapa/destinos`, {
+      
+      const res = await fetch(`${API_DENO}/proveedor/mapa/destinos-en-ruta`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
@@ -59,7 +60,7 @@ const token = Astro.cookies.get("token")?.value;
       const json = await res.json();
       const destinos = json.data ?? [];
       const grupo = L.featureGroup();
-
+      console.log("Destinos cargados", destinos.length);
       for (const d of destinos) {
         const lat = Number(d.lat);
         const lng = Number(d.lng);
@@ -122,8 +123,6 @@ const token = Astro.cookies.get("token")?.value;
   const cliente = new WsUbicacionCliente(WS_URL, token, {
     onEstado: (e) => console.log("[WS Proveedor]", e),
     onMensaje: (msg) => {
-      // El hub no suele devolverte tu propia ubicación;
-      // sirve para errores / confirmaciones
       if (msg.tipo === "Error") console.warn(msg.mensaje);
       if (msg.tipo === "ruta_iniciada") console.log("Ruta iniciada en servidor");
     },
@@ -141,11 +140,11 @@ const token = Astro.cookies.get("token")?.value;
   document.getElementById("btnIniciarRuta")?.addEventListener("click", () => {
     cliente.enviar({ tipo: "EmpezarRuta" });
     iniciarGps(enviarThrottled);
+    console.log("Iniciando GPS y enviando ubicaciones...");
   });
 
   document.getElementById("btnDescanso")?.addEventListener("click", () => {
     cliente.enviar({ tipo: "Descanso" });
-    // GPS sigue: el admin sigue viéndote; clientes no
   });
 
   document.getElementById("btnReanudar")?.addEventListener("click", () => {

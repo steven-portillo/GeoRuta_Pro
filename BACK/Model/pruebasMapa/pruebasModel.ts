@@ -76,7 +76,7 @@ export class repartidorModel {
   public async destinosRutaProveedor(
     idProveedor: number,
   ): Promise<DestinoRuta[]> {
-    const { rows } = await conexion.query(
+    const result = await conexion.query(
       `
     SELECT
       p.id_pedido,
@@ -95,6 +95,6 @@ export class repartidorModel {
     `,
       [idProveedor],
     );
-    return (rows ?? []) as DestinoRuta[];
+    return (result ?? []) as DestinoRuta[];
   }
 }
