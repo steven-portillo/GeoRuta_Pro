@@ -1,9 +1,14 @@
 import { Application, oakCors } from "./Dependencies/dependencias.ts";
 import { authRouter } from "./Router/Auth/authRouter.ts";
-import { superAdminRouter } from "./Router/SuperAdmin/superAdminRouter.ts";
+import { empresaRouter } from "./Router/SuperAdmin/empresaRouter.ts";
+import { clienteRouter } from "./Router/SuperAdmin/clienteRouter.ts";
 import { categoriaRouter } from "./Router/Admin/categoriaRouter.ts";
 import { productoRouter } from "./Router/Admin/productoRouter.ts";
 import { inventarioRouter } from "./Router/Admin/inventarioRouter.ts";
+import { proveedorRouter } from "./Router/Admin/proveedorRouter.ts";
+import { pedidoRouter } from "./Router/Admin/pedidoRouter.ts";
+import { perfilRouter } from "./Router/Perfil/perfilRouter.ts";
+import { empresaPerfilRouter } from "./Router/Admin/empresaPerfilRouter.ts";
 
 const app = new Application();
 
@@ -19,10 +24,15 @@ app.use(
 // Rutas
 const routers = [
   authRouter,
-  superAdminRouter,
+  empresaRouter,
+  clienteRouter,
   categoriaRouter,
   productoRouter,
   inventarioRouter,
+  proveedorRouter,
+  pedidoRouter,
+  perfilRouter,
+  empresaPerfilRouter,
 ];
 
 routers.forEach((router) => {

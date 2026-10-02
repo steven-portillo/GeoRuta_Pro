@@ -18,7 +18,7 @@ POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
 {
-	"email": "juan@gmail.com",
+	"email": "deivyd@gmail.com",
 	"password": "12345678"
 }
 
@@ -30,19 +30,19 @@ Content-Type: multipart/form-data; boundary=----GeoRutaBoundary
 ------GeoRutaBoundary
 Content-Disposition: form-data; name="nombreEmpresa"
 
-Distribuidora La Luna
+pepsi
 ------GeoRutaBoundary
 Content-Disposition: form-data; name="nombreAdmin"
 
-Juan
+Cristian
 ------GeoRutaBoundary
 Content-Disposition: form-data; name="apellidoAdmin"
 
-Mateus
+Torres
 ------GeoRutaBoundary
 Content-Disposition: form-data; name="emailAdmin"
 
-juan@gmail.com
+cristian@gmail.com
 ------GeoRutaBoundary
 Content-Disposition: form-data; name="passwordAdmin"
 

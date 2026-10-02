@@ -1,0 +1,158 @@
+@baseUrl = http://localhost:8005
+@token = PEGA_AQUI_EL_TOKEN
+
+### Listar categorías
+GET {{baseUrl}}/api/admin/categorias
+Authorization: Bearer {{token}}
+
+### Crear categoría
+POST {{baseUrl}}/api/admin/categorias
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nombre": "Bebidas",
+  "descripcion": "Gaseosas y jugos"
+}
+
+### Obtener categoría
+GET {{baseUrl}}/api/admin/categorias/1
+Authorization: Bearer {{token}}
+
+### Editar categoría
+PUT {{baseUrl}}/api/admin/categorias/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nombre": "Bebidas y snacks"
+}
+
+### Cambiar estado categoría
+PATCH {{baseUrl}}/api/admin/categorias/1/estado
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "estado": 0
+}
+
+
+### Listar productos
+GET {{baseUrl}}/api/admin/productos
+Authorization: Bearer {{token}}
+
+### Crear producto (con imágenes)
+POST {{baseUrl}}/api/admin/productos
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=----GeoRutaBoundary
+
+------GeoRutaBoundary
+Content-Disposition: form-data; name="id_categoria"
+
+1
+------GeoRutaBoundary
+Content-Disposition: form-data; name="nombre"
+
+Coca-Cola 400ml
+------GeoRutaBoundary
+Content-Disposition: form-data; name="descripcion"
+
+Botella personal
+------GeoRutaBoundary
+Content-Disposition: form-data; name="precio"
+
+2500
+------GeoRutaBoundary
+Content-Disposition: form-data; name="stock_minimo"
+
+10
+------GeoRutaBoundary
+Content-Disposition: form-data; name="imagenes"; filename="producto1.png"
+Content-Type: image/png
+
+< C:\Users\deivyd\Desktop\producto1.png
+------GeoRutaBoundary--
+
+### Obtener producto
+GET {{baseUrl}}/api/admin/productos/1
+Authorization: Bearer {{token}}
+
+### Editar producto
+PUT {{baseUrl}}/api/admin/productos/1
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=----GeoRutaBoundary
+
+------GeoRutaBoundary
+Content-Disposition: form-data; name="precio"
+
+2700
+------GeoRutaBoundary--
+
+### Cambiar estado producto
+PATCH {{baseUrl}}/api/admin/productos/1/estado
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "estado": 0
+}
+
+
+### Listar inventario
+GET {{baseUrl}}/api/admin/inventario
+Authorization: Bearer {{token}}
+
+### Agregar stock
+POST {{baseUrl}}/api/admin/inventario/agregar
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "id_producto": 1,
+  "cantidad": 50,
+  "motivo": "Reabastecimiento inicial"
+}
+
+### Historial de movimientos
+GET {{baseUrl}}/api/admin/inventario/1/historial
+Authorization: Bearer {{token}}
+
+
+### Listar proveedores
+GET {{baseUrl}}/api/admin/proveedores
+Authorization: Bearer {{token}}
+
+### Crear proveedor
+POST {{baseUrl}}/api/admin/proveedores
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nombre": "Carlos",
+  "apellido": "Ramírez",
+  "email": "carlos@georuta.com",
+  "password": "12345678"
+}
+
+### Obtener proveedor
+GET {{baseUrl}}/api/admin/proveedores/1
+Authorization: Bearer {{token}}
+
+### Editar proveedor
+PUT {{baseUrl}}/api/admin/proveedores/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "apellido": "Ramírez Gómez"
+}
+
+### Cambiar estado proveedor
+PATCH {{baseUrl}}/api/admin/proveedores/1/estado
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "estado": 0
+}

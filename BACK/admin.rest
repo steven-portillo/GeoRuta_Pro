@@ -1,0 +1,301 @@
+@baseUrl = http://localhost:8005
+@tokenSuperAdmin = PEGA_AQUI_TOKEN_SUPERADMIN
+@tokenAdmin = PEGA_AQUI_TOKEN_ADMIN
+
+### ============ AUTH ============
+
+### Login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "deivyd@gmail.com",
+  "password": "123456"
+}
+
+### Registrar cliente
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "nombre": "Deivyd",
+  "apellido": "Portillo",
+  "email": "cliente@gmail.com",
+  "password": "123456"
+}
+
+### Registrar empresa + admin (con logo)
+POST {{baseUrl}}/api/auth/register-empresa
+Content-Type: multipart/form-data; boundary=----GeoRutaBoundary
+
+------GeoRutaBoundary
+Content-Disposition: form-data; name="nombreEmpresa"
+
+Distribuidora El Sol
+------GeoRutaBoundary
+Content-Disposition: form-data; name="descripcionEmpresa"
+
+Distribuidora de abarrotes
+------GeoRutaBoundary
+Content-Disposition: form-data; name="nombreAdmin"
+
+Carlos
+------GeoRutaBoundary
+Content-Disposition: form-data; name="apellidoAdmin"
+
+Ramírez
+------GeoRutaBoundary
+Content-Disposition: form-data; name="emailAdmin"
+
+admin@elsol.com
+------GeoRutaBoundary
+Content-Disposition: form-data; name="passwordAdmin"
+
+12345678
+------GeoRutaBoundary
+Content-Disposition: form-data; name="logoEmpresa"; filename="logo.png"
+Content-Type: image/png
+
+< C:\Users\TU_USUARIO\Desktop\logo.png
+------GeoRutaBoundary--
+
+### Logout
+POST {{baseUrl}}/api/auth/logout
+
+
+### ============ SUPERADMIN ============
+
+### Listar empresas
+GET {{baseUrl}}/api/admin/superadmin/empresas
+Authorization: Bearer {{tokenSuperAdmin}}
+
+### Cambiar estado empresa
+PATCH {{baseUrl}}/api/admin/superadmin/empresas/1/estado
+Authorization: Bearer {{tokenSuperAdmin}}
+Content-Type: application/json
+
+{ "estado": 1 }
+
+### Listar clientes
+GET {{baseUrl}}/api/admin/superadmin/clientes
+Authorization: Bearer {{tokenSuperAdmin}}
+
+### Obtener cliente
+GET {{baseUrl}}/api/admin/superadmin/clientes/1
+Authorization: Bearer {{tokenSuperAdmin}}
+
+### Cambiar estado cliente
+PATCH {{baseUrl}}/api/admin/superadmin/clientes/1/estado
+Authorization: Bearer {{tokenSuperAdmin}}
+Content-Type: application/json
+
+{ "estado": 0 }
+
+### Editar cliente
+PUT {{baseUrl}}/api/admin/superadmin/clientes/1
+Authorization: Bearer {{tokenSuperAdmin}}
+Content-Type: multipart/form-data; boundary=----GeoRutaBoundary
+
+------GeoRutaBoundary
+Content-Disposition: form-data; name="nombre"
+
+Nuevo Nombre
+------GeoRutaBoundary--
+
+### Obtener perfil propio
+GET {{baseUrl}}/api/admin/superadmin/perfil
+Authorization: Bearer {{tokenSuperAdmin}}
+
+### Editar perfil propio
+PUT {{baseUrl}}/api/admin/superadmin/perfil
+Authorization: Bearer {{tokenSuperAdmin}}
+Content-Type: multipart/form-data; boundary=----GeoRutaBoundary
+
+------GeoRutaBoundary
+Content-Disposition: form-data; name="nombre"
+
+Deivyd
+------GeoRutaBoundary--
+
+### Cambiar password
+PATCH {{baseUrl}}/api/admin/superadmin/perfil/password
+Authorization: Bearer {{tokenSuperAdmin}}
+Content-Type: application/json
+
+{
+  "passwordActual": "123456",
+  "passwordNueva": "nuevaPass123"
+}
+
+
+### ============ ADMIN - CATEGORÍAS ============
+
+### Listar categorías
+GET {{baseUrl}}/api/admin/categorias
+Authorization: Bearer {{tokenAdmin}}
+
+### Crear categoría
+POST {{baseUrl}}/api/admin/categorias
+Authorization: Bearer {{tokenAdmin}}
+Content-Type: application/json
+
+{ "nombre": "Bebidas", "descripcion": "Gaseosas y jugos" }
+
+### Obtener categoría
+GET {{baseUrl}}/api/admin/categorias/1
+Authorization: Bearer {{tokenAdmin}}
+
+### Editar categoría
+PUT {{baseUrl}}/api/admin/categorias/1
+Authorization: Bearer {{tokenAdmin}}
+Content-Type: application/json
+
+{ "nombre": "Bebidas y snacks" }
+
+### Cambiar estado categoría
+PATCH {{baseUrl}}/api/admin/categorias/1/estado
+Authorization: Bearer {{tokenAdmin}}
+Content-Type: application/json
+
+{ "estado": 0 }
+
+
+### ============ ADMIN - PRODUCTOS ============
+
+### Listar productos
+GET {{baseUrl}}/api/admin/productos
+Authorization: Bearer {{tokenAdmin}}
+
+### Crear producto (con imágenes)
+POST {{baseUrl}}/api/admin/productos
+Authorization: Bearer {{tokenAdmin}}
+Content-Type: multipart/form-data; boundary=----GeoRutaBoundary
+
+------GeoRutaBoundary
+Content-Disposition: form-data; name="id_categoria"
+
+1
+------GeoRutaBoundary
+Content-Disposition: form-data; name="nombre"
+
+Coca-Cola 400ml
+------GeoRutaBoundary
+Content-Disposition: form-data; name="descripcion"
+
+Botella personal
+------GeoRutaBoundary
+Content-Disposition: form-data; name="precio"
+
+2500
+------GeoRutaBoundary
+Content-Disposition: form-data; name="stock_minimo"
+
+10
+------GeoRutaBoundary
+Content-Disposition: form-data; name="imagenes"; filename="producto1.png"
+Content-Type: image/png
+
+< C:\Users\TU_USUARIO\Desktop\producto1.png
+------GeoRutaBoundary--
+
+### Obtener producto
+GET {{baseUrl}}/api/admin/productos/1
+Authorization: Bearer {{tokenAdmin}}
+
+### Editar producto
+PUT {{baseUrl}}/api/admin/productos/1
+Authorization: Bearer {{tokenAdmin}}
+Content-Type: multipart/form-data; boundary=----GeoRutaBoundary
+
+------GeoRutaBoundary
+Content-Disposition: form-data; name="precio"
+
+2700
+------GeoRutaBoundary--
+
+### Cambiar estado producto
+PATCH {{baseUrl}}/api/admin/productos/1/estado
+Authorization: Bearer {{tokenAdmin}}
+Content-Type: application/json
+
+{ "estado": 0 }
+
+
+### ============ ADMIN - INVENTARIO ============
+
+### Listar inventario
+GET {{baseUrl}}/api/admin/inventario
+Authorization: Bearer {{tokenAdmin}}
+
+### Agregar stock
+POST {{baseUrl}}/api/admin/inventario/agregar
+Authorization: Bearer {{tokenAdmin}}
+Content-Type: application/json
+
+{ "id_producto": 1, "cantidad": 50, "motivo": "Reabastecimiento inicial" }
+
+### Historial de movimientos
+GET {{baseUrl}}/api/admin/inventario/1/historial
+Authorization: Bearer {{tokenAdmin}}
+
+
+### ============ ADMIN - PROVEEDORES ============
+
+### Listar proveedores
+GET {{baseUrl}}/api/admin/proveedores
+Authorization: Bearer {{tokenAdmin}}
+
+### Crear proveedor
+POST {{baseUrl}}/api/admin/proveedores
+Authorization: Bearer {{tokenAdmin}}
+Content-Type: application/json
+
+{
+  "nombre": "Carlos",
+  "apellido": "Ramírez",
+  "email": "proveedor@georuta.com",
+  "password": "12345678"
+}
+
+### Obtener proveedor
+GET {{baseUrl}}/api/admin/proveedores/1
+Authorization: Bearer {{tokenAdmin}}
+
+### Editar proveedor
+PUT {{baseUrl}}/api/admin/proveedores/1
+Authorization: Bearer {{tokenAdmin}}
+Content-Type: application/json
+
+{ "apellido": "Ramírez Gómez" }
+
+### Cambiar estado proveedor
+PATCH {{baseUrl}}/api/admin/proveedores/1/estado
+Authorization: Bearer {{tokenAdmin}}
+Content-Type: application/json
+
+{ "estado": 0 }
+
+
+### ============ ADMIN - PEDIDOS ============
+
+### Listar pedidos
+GET {{baseUrl}}/api/admin/pedidos
+Authorization: Bearer {{tokenAdmin}}
+
+### Obtener detalle de pedido
+GET {{baseUrl}}/api/admin/pedidos/1
+Authorization: Bearer {{tokenAdmin}}
+
+### Asignar proveedor
+PATCH {{baseUrl}}/api/admin/pedidos/1/asignar
+Authorization: Bearer {{tokenAdmin}}
+Content-Type: application/json
+
+{ "id_proveedor": 1, "notas": "Entregar en horario de la mañana" }
+
+### Cancelar pedido
+PATCH {{baseUrl}}/api/admin/pedidos/1/cancelar
+Authorization: Bearer {{tokenAdmin}}
+Content-Type: application/json
+
+{ "motivo": "Cliente canceló por teléfono" }
