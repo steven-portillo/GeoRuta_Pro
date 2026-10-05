@@ -1,0 +1,16 @@
+---
+// src/pages/superadmin/empresas.astro
+import SuperAdminLayout from '../../layouts/SuperAdminLayout.astro';
+import EmpresasSuperAdmin from '../../components/superadmin/EmpresasSuperAdmin.astro';
+import type { EmpresaSuperAdmin } from '../../components/superadmin/EmpresasSuperAdmin.astro';
+import { llamarBackend, obtenerToken } from '../../lib/Backend';
+
+const token = obtenerToken(Astro.cookies);
+
+const respuesta = await llamarBackend<EmpresaSuperAdmin[]>('/superadmin/empresas', { token });
+const empresas = respuesta.datos.data ?? [];
+---
+
+<SuperAdminLayout titulo="Empresas" vistaActual="empresas">
+  <EmpresasSuperAdmin empresas={empresas} />
+</SuperAdminLayout>

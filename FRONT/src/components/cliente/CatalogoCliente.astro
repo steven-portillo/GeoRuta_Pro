@@ -6,6 +6,7 @@ interface ProveedorCard {
   nombre: string;
   descripcion: string;
   logoUrl: string;
+  portadaUrl: string;
 }
 
 interface Props {
@@ -15,7 +16,7 @@ interface Props {
 const { proveedores } = Astro.props;
 ---
 
-<div class="dos-columnas">
+<div class="dos-columnas" id="dos-columnas">
   <!-- ── columna izquierda: proveedores/productos ── -->
   <div>
     <button class="boton-volver" id="btn-volver" style="display:none;">⬅ Volver</button>
@@ -30,8 +31,8 @@ const { proveedores } = Astro.props;
     <div class="grilla-productos" id="grilla-productos"></div>
   </div>
 
-  <!-- ── columna derecha: carrito ── -->
-  <div>
+  <!-- ── columna derecha: carrito (oculta mientras esta vacio) ── -->
+  <div class="columna-carrito" id="columna-carrito">
     <div class="panel-carrito">
       <div class="titulo-carrito">Carrito</div>
       <div id="contenido-carrito"></div>
@@ -121,8 +122,40 @@ const { proveedores } = Astro.props;
   // renderizar proveedores / productos
   // ══════════════════════════════════════════════════════════
 
+  // escapa texto de usuario (nombre/descripcion de empresa) antes de meterlo en innerHTML
+  function escaparHtml(texto) {
+    return String(texto ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // tarjeta de empresa: portada arriba (degradado si no tiene), logo sobrepuesto, nombre,
+  // descripcion y boton "Ver catalogo". toda la tarjeta es clickeable (data-accion)
+  function plantillaProveedor(p) {
+    const nombre = escaparHtml(p.nombre);
+    const inicial = escaparHtml((p.nombre || 'E').charAt(0).toUpperCase());
+    return `
+      <div class="tarjeta-proveedor" data-accion="ver-proveedor" data-id="${p.id}">
+        <div class="proveedor-portada">
+          ${p.portadaUrl ? `<img src="${escaparHtml(p.portadaUrl)}" class="proveedor-portada-img" alt="" data-fallback="portada" />` : ''}
+        </div>
+        <div class="proveedor-logo">
+          ${p.logoUrl ? `<img src="${escaparHtml(p.logoUrl)}" alt="${nombre}" data-fallback="logo" />` : ''}
+          <div class="logo-placeholder-cat" style="display:${p.logoUrl ? 'none' : 'flex'}">${inicial}</div>
+        </div>
+        <div class="proveedor-info">
+          <div class="proveedor-nombre">${nombre}</div>
+          <p class="proveedor-desc">${escaparHtml(p.descripcion)}</p>
+          <button type="button" class="boton-ver-catalogo" data-accion="ver-proveedor" data-id="${p.id}">Ver catálogo</button>
+        </div>
+      </div>`;
+  }
+
   function renderizarProveedores() {
     proveedorActual = null;
+    grilla.classList.remove('con-productos');
     if (btnVolver) { btnVolver.style.display = 'none'; btnVolver.style.opacity = '1'; }
     if (selectorCategoria) selectorCategoria.innerHTML = '<option value="">Todas las categorías</option>';
     if (campoBusqueda) campoBusqueda.value = '';
@@ -132,19 +165,7 @@ const { proveedores } = Astro.props;
       return;
     }
 
-    grilla.innerHTML = proveedoresData
-      .map(
-        (p) => `
-      <div class="tarjeta-proveedor" data-accion="ver-proveedor" data-id="${p.id}">
-        ${p.logoUrl ? `<img src="${p.logoUrl}" class="imagen-proveedor" alt="${p.nombre}" data-fallback="logo" />` : ''}
-        <div class="logo-placeholder-cat" style="display:${p.logoUrl ? 'none' : 'flex'}">
-          ${(p.nombre || 'E').charAt(0).toUpperCase()}
-        </div>
-        <div class="nombre-proveedor">${p.nombre}</div>
-        ${p.descripcion ? `<div class="desc-proveedor">${p.descripcion}</div>` : ''}
-      </div>`,
-      )
-      .join('');
+    grilla.innerHTML = proveedoresData.map(plantillaProveedor).join('');
   }
 
   function filtrarEmpresas() {
@@ -163,29 +184,18 @@ const { proveedores } = Astro.props;
       return;
     }
 
-    grilla.innerHTML = filtradas
-      .map(
-        (p) => `
-      <div class="tarjeta-proveedor" data-accion="ver-proveedor" data-id="${p.id}">
-        ${p.logoUrl ? `<img src="${p.logoUrl}" class="imagen-proveedor" alt="${p.nombre}" data-fallback="logo" />` : ''}
-        <div class="logo-placeholder-cat" style="display:${p.logoUrl ? 'none' : 'flex'}">
-          ${(p.nombre || 'E').charAt(0).toUpperCase()}
-        </div>
-        <div class="nombre-proveedor">${p.nombre}</div>
-        ${p.descripcion ? `<div class="desc-proveedor">${p.descripcion}</div>` : ''}
-      </div>`,
-      )
-      .join('');
+    grilla.innerHTML = filtradas.map(plantillaProveedor).join('');
   }
 
   async function verProductosProveedor(idEmpresa) {
     proveedorActual = proveedoresData.find((p) => Number(p.id) === Number(idEmpresa));
+    grilla.classList.add('con-productos');
     grilla.innerHTML = '<p style="color:#94a3b8;padding:2rem">Cargando productos...</p>';
     if (btnVolver) btnVolver.style.display = 'inline-flex';
 
     try {
       // llama al proxy BFF (archivo 12), nunca directo al backend deno
-      const res = await fetch(`/api/cliente/proveedores/${idEmpresa}/productos`);
+      const res = await fetch(`/api/auth/cliente/proveedores/${idEmpresa}/productos`);
       const data = await res.json();
 
       if (!data.success || !data.data?.length) {
@@ -349,8 +359,13 @@ const { proveedores } = Astro.props;
       btnVolver.title = ids.length > 0 ? 'Vacía el carrito para volver' : 'Volver a proveedores';
     }
 
+    // el carrito solo existe visualmente cuando hay al menos un producto: al agregar el
+    // primero aparece en la columna derecha y al quitar el ultimo desaparece, devolviendole
+    // todo el ancho a la grilla de productos
+    document.getElementById('dos-columnas')?.classList.toggle('con-carrito', ids.length > 0);
+
     if (!ids.length) {
-      contenido.innerHTML = `<div class="carrito-vacio"><p>Tu carrito está vacío.<br>Agrega productos del catálogo.</p></div>`;
+      contenido.innerHTML = '';
       if (resumen) resumen.style.display = 'none';
       return;
     }
@@ -483,13 +498,14 @@ const { proveedores } = Astro.props;
     }
   });
 
-  // fallback de imagen rota (proveedor y producto): reemplaza por el placeholder inicial
+  // fallback de imagen rota: logo/producto -> placeholder con inicial; portada -> degradado de fondo
   grilla.addEventListener(
     'error',
     (evento) => {
       const img = evento.target;
       if (!img.dataset?.fallback) return;
       img.style.display = 'none';
+      if (img.dataset.fallback === 'portada') return;
       const placeholder = img.nextElementSibling;
       if (placeholder) placeholder.style.display = 'flex';
     },
@@ -572,36 +588,49 @@ const { proveedores } = Astro.props;
   renderizarCarrito();
 </script>
 
-<style>
-  /* (todas las clases de esta seccion viven solo aqui — no se repiten en otras paginas) */
-  .dos-columnas { display: grid; grid-template-columns: 1fr 320px; gap: 1rem; align-items: start; }
+<style is:global>
+  /* is:global: tarjetas, imagenes y items del carrito se crean con innerHTML desde el script, y
+     astro solo aplica los estilos con alcance (scoped) a los elementos que renderiza el
+     servidor. sin esto, esas clases no tenian ningun estilo (imagenes a tamano original, botones
+     nativos). las clases son exclusivas de esta vista, asi que no chocan con otras paginas */
+  .dos-columnas { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; align-items: start; }
+  .dos-columnas.con-carrito { grid-template-columns: minmax(0, 1fr) 320px; }
+  .columna-carrito { display: none; }
+  .dos-columnas.con-carrito .columna-carrito { display: block; }
   .barra-busqueda { display: flex; gap: 8px; margin-bottom: 0.75rem; }
   .campo-busqueda { flex: 1; padding: 0.5rem 0.85rem; border: 1px solid var(--secondary-200); border-radius: 8px; font-size: 0.82rem; outline: none; }
   .campo-busqueda:focus { border-color: var(--primary-400); }
   .selector-categoria { padding: 0.5rem 0.85rem; border: 1px solid var(--secondary-200); border-radius: 8px; font-size: 0.82rem; outline: none; background: white; }
   .boton-volver { background: var(--primary-700); color: white; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; margin-bottom: 12px; font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; transition: background 0.15s; }
   .boton-volver:hover { background: var(--primary-800); }
-  .grilla-productos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .grilla-productos { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
 
-  .tarjeta-proveedor { background: white; border: 1px solid var(--secondary-200); border-radius: 14px; padding: 1.5rem; text-align: center; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .tarjeta-proveedor { background: white; border: 1px solid var(--secondary-200); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; cursor: pointer; transition: all 0.2s; }
   .tarjeta-proveedor:hover { border-color: var(--primary-500); box-shadow: 0 4px 20px rgba(59, 130, 246, 0.12); transform: translateY(-3px); }
-  .imagen-proveedor { width: 120px; height: 90px; object-fit: contain; }
-  .logo-placeholder-cat { width: 90px; height: 90px; border-radius: 12px; background: var(--primary-900); display: flex; align-items: center; justify-content: center; font-size: 2.5rem; font-weight: 700; color: white; }
-  .nombre-proveedor { font-weight: 700; font-size: 1rem; color: var(--secondary-800); }
-  .desc-proveedor { font-size: 0.78rem; color: var(--secondary-400); }
+  .proveedor-portada { height: 120px; background: linear-gradient(135deg, var(--primary-900), var(--primary-500)); }
+  .proveedor-portada-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .proveedor-logo { position: relative; width: 72px; height: 72px; margin: -36px 0 0 1.1rem; border-radius: 12px; background: white; border: 3px solid white; box-shadow: var(--shadow-sm); overflow: hidden; display: flex; align-items: center; justify-content: center; }
+  .proveedor-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .logo-placeholder-cat { width: 100%; height: 100%; background: var(--primary-900); display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 700; color: white; }
+  .proveedor-info { padding: 0.75rem 1.1rem 1.1rem; flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .proveedor-nombre { font-weight: 700; font-size: 1rem; color: var(--secondary-900); line-height: 1.3; }
+  .proveedor-desc { margin: 0; font-size: 0.85rem; color: var(--secondary-600); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: calc(1.4em * 2); }
+  .boton-ver-catalogo { margin-top: auto; padding: 0.55rem; border-radius: 8px; border: 1px solid var(--primary-700); background: white; color: var(--primary-700); font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: all 0.15s; }
+  .boton-ver-catalogo:hover, .tarjeta-proveedor:hover .boton-ver-catalogo { background: var(--primary-700); color: white; }
 
+  .grilla-productos.con-productos { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
   .tarjeta-producto { background: white; border: 1px solid var(--secondary-200); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; transition: all 0.2s; }
-  .tarjeta-producto:hover { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08); transform: translateY(-2px); }
-  .producto-imagen-wrap { background: var(--secondary-50); height: 160px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-  .producto-imagen { width: 100%; height: 100%; object-fit: contain; padding: 10px; }
+  .tarjeta-producto:hover { box-shadow: 0 6px 20px rgba(15, 23, 42, 0.1); transform: translateY(-2px); }
+  .producto-imagen-wrap { background: var(--secondary-50); height: 180px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .producto-imagen { width: 100%; height: 100%; object-fit: contain; padding: 10px; display: block; }
   .producto-imagen-placeholder { width: 80px; height: 80px; border-radius: 12px; background: var(--secondary-200); display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; color: var(--secondary-400); }
-  .producto-info { padding: 0.85rem 1rem 0; flex: 1; display: flex; flex-direction: column; gap: 4px; }
-  .nombre-producto { font-weight: 700; font-size: 0.9rem; color: var(--secondary-800); line-height: 1.3; }
-  .categoria-producto { font-size: 0.72rem; color: var(--secondary-400); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
-  .desc-producto { font-size: 0.78rem; color: var(--secondary-600); margin-top: 2px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; min-height: calc(1.4em * 2); }
-  .precio-producto { font-family: var(--font-display); font-size: 1.1rem; font-weight: 800; color: var(--primary-900); margin-top: 6px; }
-  .stock-producto { font-size: 0.72rem; color: var(--secondary-400); }
-  .boton-agregar-carrito { margin: 0.75rem 1rem 1rem; margin-top: auto; padding: 0.55rem; border-radius: 8px; background: var(--primary-900); color: white; border: none; font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: background 0.15s; }
+  .producto-info { padding: 1.1rem 1.25rem 0.5rem; flex: 1; display: flex; flex-direction: column; gap: 4px; }
+  .nombre-producto { font-weight: 700; font-size: 1.05rem; color: var(--secondary-900); line-height: 1.3; }
+  .categoria-producto { font-size: 0.8rem; color: var(--secondary-400); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .desc-producto { font-size: 0.9rem; color: var(--secondary-600); margin-top: 2px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; min-height: calc(1.4em * 2); }
+  .precio-producto { font-family: var(--font-display); font-size: 1.45rem; font-weight: 700; color: var(--primary-900); margin-top: 8px; }
+  .stock-producto { font-size: 0.8rem; color: var(--secondary-400); }
+  .boton-agregar-carrito { margin: 0.5rem 1.25rem 1.25rem; padding: 0.65rem; border-radius: 8px; background: var(--primary-900); color: white; border: none; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: background 0.15s; }
   .boton-agregar-carrito:hover:not(:disabled) { background: var(--primary-700); }
   .boton-agregar-carrito.agregado { background: #16a34a; }
   .boton-agregar-carrito:disabled { background: var(--secondary-200); color: var(--secondary-400); cursor: default; }
@@ -621,8 +650,6 @@ const { proveedores } = Astro.props;
   .valor-total.grande { font-family: var(--font-display); font-size: 1.2rem; color: var(--primary-700); }
   .boton-confirmar-pedido { width: 100%; padding: 0.7rem; border-radius: 8px; border: none; background: var(--primary-700); color: white; font-size: 0.88rem; font-weight: 700; cursor: pointer; margin-top: 0.75rem; transition: background 0.15s; }
   .boton-confirmar-pedido:hover { background: var(--primary-800); }
-  .carrito-vacio { text-align: center; padding: 1.5rem 0; }
-  .carrito-vacio p { font-size: 0.8rem; color: var(--secondary-400); margin-top: 6px; }
 
   .modal-producto-overlay { display: none; position: fixed; inset: 0; z-index: 9300; background: rgba(15, 23, 42, 0.55); align-items: center; justify-content: center; padding: 1rem; }
   .modal-producto-overlay.abierto { display: flex; }
@@ -649,8 +676,8 @@ const { proveedores } = Astro.props;
   .modal-producto-btn-agregar { margin-top: auto; padding: 1.05rem; border-radius: 10px; border: none; background: var(--primary-900); color: #fff; font-weight: 700; font-size: 1.05rem; cursor: pointer; transition: background 0.15s; }
 
   @media (max-width: 768px) {
-    .dos-columnas { grid-template-columns: 1fr; }
-    .grilla-productos { grid-template-columns: repeat(2, 1fr); }
+    .dos-columnas.con-carrito { grid-template-columns: minmax(0, 1fr); }
+    .grilla-productos, .grilla-productos.con-productos { grid-template-columns: repeat(2, 1fr); }
     .modal-producto-grid { grid-template-columns: 1fr; }
     .modal-producto-imagen-wrap { border-radius: 18px 18px 0 0; min-height: 240px; }
   }

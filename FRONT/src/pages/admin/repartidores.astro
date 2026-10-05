@@ -1,0 +1,27 @@
+---
+// src/pages/admin/repartidores.astro
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import RepartidoresAdmin from '../../components/admin/RepartidoresAdmin.astro';
+import { llamarBackend, obtenerToken } from '../../lib/Backend';
+
+const token = obtenerToken(Astro.cookies);
+
+const [respuestaPerfil, respuestaRepartidores] = await Promise.all([
+  llamarBackend('/admin/perfil', { token }),
+  llamarBackend('/admin/repartidores', { token }),
+]);
+
+const perfil = respuestaPerfil.datos.data as { nombre: string; apellido: string };
+const repartidores = (respuestaRepartidores.datos.data ?? []) as import('../../components/admin/RepartidoresAdmin.astro').RepartidorAdmin[];
+
+const iniciales = `${perfil.nombre?.[0] ?? ''}${perfil.apellido?.[0] ?? ''}`.toUpperCase();
+---
+
+<AdminLayout
+  titulo="Repartidores"
+  vistaActual="repartidores"
+  nombreAdmin={`${perfil.nombre} ${perfil.apellido}`}
+  inicialesAdmin={iniciales}
+>
+  <RepartidoresAdmin repartidoresIniciales={repartidores} token={token ?? ''} />
+</AdminLayout>

@@ -105,7 +105,7 @@ const fechaFormateada = perfil.fechaCreacion
     const email = (document.getElementById('campo-email') as HTMLInputElement).value.trim();
 
     try {
-      const res = await fetch('/api/cliente/perfil/datos', {
+      const res = await fetch('/api/auth/cliente/perfil/datos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nombre, apellido, email }),
@@ -150,7 +150,7 @@ const fechaFormateada = perfil.fechaCreacion
     formData.append('foto', archivo);
 
     try {
-      const res = await fetch('/api/cliente/perfil/foto', { method: 'POST', body: formData });
+      const res = await fetch('/api/auth/cliente/perfil/foto', { method: 'POST', body: formData });
       const data = await res.json();
 
       if (!data.success) {

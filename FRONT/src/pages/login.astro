@@ -1,13 +1,12 @@
 ---
-// src/pages/login.astro
+
 // publica: "/login" no matchea ningun prefijo de RUTAS_PROTEGIDAS en
 // middleware.ts, asi que pasa derecho sin necesidad de token.
 
+import 'bootstrap/dist/css/bootstrap.min.css'; // agrega d-none, d-flex, spinner-border, visually-hidden, etc.
 import LoginForm from '../components/auth/LoginForm.astro';
 
 // mismos codigos que ya manda middleware.ts al redirigir con ?error=...
-// (sin_permisos, sesion_expirada) — la pagina resuelve el texto, el
-// componente solo lo pinta
 const errorUrl = Astro.url.searchParams.get('error');
 
 const MENSAJES_ERROR: Record<string, string> = {
@@ -24,25 +23,9 @@ const mensajeError = errorUrl ? MENSAJES_ERROR[errorUrl] ?? 'Ocurrió un error, 
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Iniciar sesión — GeoRuta</title>
     <link rel="stylesheet" href="/src/styles/global.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
   </head>
-  <body class="login-body">
-    <main class="login-contenedor">
-      <LoginForm mensajeError={mensajeError} />
-    </main>
+  <body>
+    <LoginForm mensajeError={mensajeError} />
   </body>
 </html>
-
-<style>
-  .login-body {
-    margin: 0;
-  }
-
-  .login-contenedor {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--secondary-50, #f8fafc);
-    padding: 1rem;
-  }
-</style>

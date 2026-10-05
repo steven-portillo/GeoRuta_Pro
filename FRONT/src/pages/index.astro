@@ -1,0 +1,31 @@
+---
+// src/pages/index.astro
+// publica: "/" no matchea ningun prefijo de RUTAS_PROTEGIDAS en middleware.ts,
+// asi que pasa derecho sin necesidad de token (igual que /login).
+import Landing from '../components/home/Landing.astro';
+---
+
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GeoRuta — Gestión de pedidos con rastreo GPS en tiempo real</title>
+    <meta
+      name="description"
+      content="GeoRuta conecta administradores, clientes y proveedores en una sola plataforma de logística con rastreo GPS en tiempo real."
+    />
+
+    <!-- fuentes del sistema de diseño (fraunces + plus jakarta sans) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:wght@700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+    />
+
+    <link rel="stylesheet" href="/src/styles/global.css" />
+  </head>
+  <body>
+    <Landing />
+  </body>
+</html>

@@ -1,7 +1,7 @@
 import { RouterContext } from "../Dependencies/Dependencias.ts";
 import { Empresa } from "../Models/Empresa.model.ts";
 import { EsquemaRegistroEmpresa } from "../Helpers/EsquemasValidacion.ts";
-import { guardarLogoEmpresaAdmin } from "../Helpers/GestorArchivos.ts";
+import { guardarLogoEmpresa } from "../Helpers/GestorArchivos.ts";
 
 // registro publico de empresa + su admin inicial — equivalente a
 // POST /RegistroEmpresa/RegistrarEmpresa del original (llega como form-data, no json, por el logo)
@@ -38,9 +38,7 @@ export const registrarEmpresa = async (ctx: RouterContext<string>) => {
       return;
     }
 
-    const logoUrl = logo
-      ? await guardarLogoEmpresaAdmin(logo, Number(resultado.data.nombreEmpresa))
-      : null;
+    const logoUrl = logo ? await guardarLogoEmpresa(logo) : null;
 
     const ObjEmpresa = new Empresa(null, { ...resultado.data, logoUrl });
     const resultadoRegistro = await ObjEmpresa.CrearEmpresaConAdmin();

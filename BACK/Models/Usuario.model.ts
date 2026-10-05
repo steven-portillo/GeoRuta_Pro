@@ -42,6 +42,7 @@ interface PerfilUsuarioRow {
   empresa_nombre: string | null;
   empresa_desc: string | null;
   empresa_logo: string | null;
+  empresa_portada: string | null;
 }
 interface ActualizarPerfilProveedorData {
   nombre: string;
@@ -181,7 +182,7 @@ export class Usuario {
 
       const { rows } = await conexion.execute(
         `SELECT u.nombre, u.apellido, u.email, u.imagen_url,
-                e.nombre AS empresa_nombre, e.descripcion AS empresa_desc, e.logo_url AS empresa_logo
+                e.nombre AS empresa_nombre, e.descripcion AS empresa_desc, e.logo_url AS empresa_logo, e.portada_url AS empresa_portada
          FROM usuarios u
          LEFT JOIN empresas e ON u.id_empresa = e.id_empresa
          WHERE u.id_usuario = ?`,
@@ -205,6 +206,7 @@ export class Usuario {
           empresaNombre: fila.empresa_nombre ?? "",
           empresaDesc: fila.empresa_desc ?? "",
           empresaLogo: fila.empresa_logo ?? "",
+          empresaPortada: fila.empresa_portada ?? "",
         },
       };
     } catch (error) {

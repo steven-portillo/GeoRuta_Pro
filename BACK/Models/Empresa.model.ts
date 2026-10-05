@@ -95,11 +95,28 @@ export class Empresa {
       return { success: false, message: "No fue posible actualizar el logo" };
     }
   }
+
+  // actualiza la portada de la empresa (misma logica que el logo, columna portada_url)
+  public async ActualizarPortada(rutaPortada: string): Promise<{ success: boolean; message: string }> {
+    if (!this._idEmpresa) return { success: false, message: "Empresa no identificada" };
+
+    try {
+      await conexion.execute(`UPDATE empresas SET portada_url = ? WHERE id_empresa = ?`, [
+        rutaPortada,
+        this._idEmpresa,
+      ]);
+      return { success: true, message: "Portada actualizada" };
+    } catch (error) {
+      console.error(error);
+      return { success: false, message: "No fue posible actualizar la portada" };
+    }
+  }
+
     // listado publico de empresas activas, para el catalogo del cliente
   public async ObtenerActivas(): Promise<{ success: boolean; message: string; data?: unknown[] }> {
     try {
       const { rows } = await conexion.execute(
-        `SELECT id_empresa, nombre, descripcion, logo_url
+        `SELECT id_empresa, nombre, descripcion, logo_url, portada_url
          FROM empresas WHERE estado = 1 ORDER BY fecha_creacion DESC`,
       );
 
@@ -108,6 +125,7 @@ export class Empresa {
         nombre: fila.nombre,
         descripcion: fila.descripcion ?? "",
         logoUrl: fila.logo_url ?? "",
+        portadaUrl: fila.portada_url ?? "",
       }));
 
       return { success: true, message: "Empresas obtenidas", data: empresas };

@@ -2,7 +2,7 @@ import { RouterContext } from "../../Dependencies/Dependencias.ts";
 import { Usuario } from "../../Models/Usuario.model.ts";
 import { Empresa } from "../../Models/Empresa.model.ts";
 import { EsquemaActualizarPerfilAdmin } from "../../Helpers/EsquemasValidacion.ts";
-import { guardarFotoPerfil, guardarLogoEmpresaAdmin } from "../../Helpers/GestorArchivos.ts";
+import { guardarFotoPerfil, guardarLogoEmpresaAdmin, guardarPortadaEmpresaAdmin } from "../../Helpers/GestorArchivos.ts";
 
 // extrae idUsuario/idEmpresa del payload que VerificarAutenticacion dejo en ctx.state.usuario
 function obtenerUsuarioAutenticado(ctx: RouterContext<string>) {
@@ -128,6 +128,48 @@ export const subirLogoEmpresaAdmin = async (ctx: RouterContext<string>) => {
     response.body = {
       success: false,
       message: error instanceof Error ? error.message : "No fue posible subir el logo",
+    };
+  }
+};
+
+// POST /admin/perfil/portada-empresa (form-data, campo "portada")
+export const subirPortadaEmpresaAdmin = async (ctx: RouterContext<string>) => {
+  const { request, response } = ctx;
+  try {
+    const { idEmpresa } = obtenerUsuarioAutenticado(ctx);
+    if (!idEmpresa) {
+      response.status = 401;
+      response.body = { success: false, message: "Sin permisos" };
+      return;
+    }
+
+    const cuerpoFormData = await request.body.formData();
+    const portada = cuerpoFormData.get("portada");
+
+    if (!(portada instanceof File) || portada.size === 0) {
+      response.status = 400;
+      response.body = { success: false, message: "No se recibió ninguna imagen" };
+      return;
+    }
+
+    const portadaUrl = await guardarPortadaEmpresaAdmin(portada, idEmpresa);
+    const ObjEmpresa = new Empresa(idEmpresa);
+    const resultadoPortada = await ObjEmpresa.ActualizarPortada(portadaUrl);
+
+    if (!resultadoPortada.success) {
+      response.status = 500;
+      response.body = resultadoPortada;
+      return;
+    }
+
+    response.status = 200;
+    response.body = { success: true, message: "Portada actualizada", portadaUrl };
+  } catch (error) {
+    console.error(error);
+    response.status = 500;
+    response.body = {
+      success: false,
+      message: error instanceof Error ? error.message : "No fue posible subir la portada",
     };
   }
 };

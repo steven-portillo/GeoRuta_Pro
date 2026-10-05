@@ -259,7 +259,7 @@ function estrellas(calificacion: number): string {
     boton.textContent = 'Enviando...';
 
     try {
-      const res = await fetch('/api/cliente/resenas', {
+      const res = await fetch('/api/auth/cliente/resenas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -1,5 +1,6 @@
 @baseUrl = http://localhost:8000
 
+
 ### ════════════════════════════════════════════════════════════
 ### 1. REGISTRO DE EMPRESA + ADMIN
 ### crea empresa (estado = 0, inactiva) y su admin (activo = 0)
@@ -36,32 +37,33 @@ Password123
 ------geo-boundary--
 
 ### ⚠️ En este punto el admin queda con activo = 0 y la empresa con estado = 0.
-### No podrá iniciar sesión hasta que un SUPERADMIN active la empresa (sección 9, pendiente).
+### Corre la sección 0 (SQL directo) antes del siguiente paso, o usa la
+### sección 9 si ya tienes un SUPERADMIN sembrado.
 
 
 ### ════════════════════════════════════════════════════════════
 ### 2. LOGIN
-### ⚠️ ruta asumida "/login" según AuthController — confírmala
-### (revisa Routes/Auth_routes.ts, la última versión que tengas)
 ### ════════════════════════════════════════════════════════════
 
-### 2.1 Login SUPERADMIN (cuenta debe existir ya en la BD — sembrada manualmente)
+### 2.1 Login SUPERADMIN (cuenta debe existir ya en la BD — sembrada manualmente,
+### con password_hash generado con bcrypt; aquí se manda la contraseña en texto plano)
 # @name loginSuperAdmin
-POST {{baseUrl}}/login
+POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-  "email": "superadmin@example.com",
-  "password": "CAMBIA_ESTA_CLAVE"
+  "email": "superadmin@georuta.com",
+  "password": "SuperAdmin123"
 }
 
 ###
-@tokenSuperAdmin = {{loginSuperAdmin.response.body.data.token}}
+@tokenSuperAdmin = {{loginSuperAdmin.response.body.$.data.token}}
 
 
-### 2.2 Login ADMIN (fallará con 403/401 "usuario inactivo" hasta activar la empresa en la sección 9)
+### 2.2 Login ADMIN (funciona una vez ejecutada la sección 0, o tras aprobar
+### la empresa desde la sección 9 con un SUPERADMIN real)
 # @name loginAdmin
-POST {{baseUrl}}/login
+POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
@@ -70,7 +72,7 @@ Content-Type: application/json
 }
 
 ###
-@tokenAdmin = {{loginAdmin.response.body.data.token}}
+@tokenAdmin = {{loginAdmin.response.body.$.data.token}}
 
 
 ### ════════════════════════════════════════════════════════════
@@ -107,6 +109,8 @@ Content-Type: image/jpeg
 ------geo-boundary--
 
 ### 3.4 Subir logo de empresa desde el perfil del admin
+### (ruta confirmada contra AdminPerfilRoutes.ts: "/admin/perfil/logo-empresa";
+### el proxy BFF del FRONT se llama "logo.ts" pero apunta a esta misma ruta)
 POST {{baseUrl}}/admin/perfil/logo-empresa
 Authorization: Bearer {{tokenAdmin}}
 Content-Type: multipart/form-data; boundary=----geo-boundary
@@ -138,7 +142,7 @@ Content-Type: application/json
 }
 
 ###
-@idCategoriaNueva = {{crearCategoria.response.body.data.id}}
+@idCategoriaNueva = {{crearCategoria.response.body.$.data.id}}
 
 ### 4.3 Renombrar categoría
 POST {{baseUrl}}/admin/categorias/renombrar
@@ -265,7 +269,7 @@ Authorization: Bearer {{tokenAdmin}}
 GET {{baseUrl}}/admin/repartidores/1/pedidos
 Authorization: Bearer {{tokenAdmin}}
 
-### 6.5 Asignar repartidor a un pedido (ajusta idPedido — requiere un pedido creado por un cliente, sección pendiente)
+### 6.5 Asignar repartidor a un pedido (ajusta idPedido — requiere un pedido creado por un cliente)
 POST {{baseUrl}}/admin/repartidores/asignar
 Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
@@ -314,25 +318,59 @@ Authorization: Bearer {{tokenAdmin}}
 
 
 ### ════════════════════════════════════════════════════════════
-### 9. SUPERADMIN → ACTIVAR EMPRESA
-### ⚠️ RUTAS SIN CONFIRMAR — necesito Routes/SuperAdmin/*.ts para
-### completar esta sección con los paths y payloads reales.
-### Dejo esta forma como ejemplo tentativo, NO la ejecutes tal cual.
+### 9. SUPERADMIN → EMPRESAS Y PERFIL
+### ✅ Rutas confirmadas contra Routes/SuperAdmin/*.ts (ya no son tentativas).
+### El panel visual (frontend) aún no existe, pero el backend sí está
+### completo — puedes usar esta sección igual que la sección 0, con la
+### diferencia de que aquí queda un registro/flujo "real" en vez de un
+### UPDATE manual en la base de datos.
 ### ════════════════════════════════════════════════════════════
 
-### 9.1 [TENTATIVO] Listar empresas
-# GET {{baseUrl}}/superadmin/empresas
-# Authorization: Bearer {{tokenSuperAdmin}}
+### 9.1 Listar empresas (opcionalmente ?busqueda=texto)
+GET {{baseUrl}}/superadmin/empresas
+Authorization: Bearer {{tokenSuperAdmin}}
 
-### 9.2 [TENTATIVO] Cambiar estado de una empresa (activarla)
-# POST {{baseUrl}}/superadmin/empresas/cambiar-estado
-# Authorization: Bearer {{tokenSuperAdmin}}
-# Content-Type: application/json
-#
-# {
-#   "idEmpresa": 1,
-#   "nuevoEstado": 1
-# }
+### 9.2 Cambiar estado de una empresa (activarla o desactivarla)
+### nota: activa la empresa Y al usuario ADMIN de esa empresa en la misma transacción
+POST {{baseUrl}}/superadmin/empresas/cambiar-estado
+Authorization: Bearer {{tokenSuperAdmin}}
+Content-Type: application/json
+
+{
+  "idEmpresa": 1,
+  "activar": true
+}
+
+### 9.3 Total de usuarios registrados en la plataforma
+GET {{baseUrl}}/superadmin/usuarios/total
+Authorization: Bearer {{tokenSuperAdmin}}
+
+### 9.4 Perfil del SuperAdmin
+GET {{baseUrl}}/superadmin/perfil
+Authorization: Bearer {{tokenSuperAdmin}}
+
+### 9.5 Actualizar perfil del SuperAdmin
+POST {{baseUrl}}/superadmin/perfil
+Authorization: Bearer {{tokenSuperAdmin}}
+Content-Type: application/json
+
+{
+  "nombre": "Super",
+  "apellido": "Admin",
+  "email": "superadmin@georuta.com"
+}
+
+### 9.6 Subir foto de perfil del SuperAdmin
+POST {{baseUrl}}/superadmin/perfil/foto
+Authorization: Bearer {{tokenSuperAdmin}}
+Content-Type: multipart/form-data; boundary=----geo-boundary
+
+------geo-boundary
+Content-Disposition: form-data; name="foto"; filename="foto.jpg"
+Content-Type: image/jpeg
+
+< ./assets/foto.jpg
+------geo-boundary--
 
 
 ### ════════════════════════════════════════════════════════════
@@ -352,7 +390,7 @@ Content-Type: application/json
 
 ### 10.2 Login cliente
 # @name loginCliente
-POST {{baseUrl}}/login
+POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
@@ -361,6 +399,4 @@ Content-Type: application/json
 }
 
 ###
-@tokenCliente = {{loginCliente.response.body.data.token}}
-
-
+@tokenCliente = {{loginCliente.response.body.$.data.token}}

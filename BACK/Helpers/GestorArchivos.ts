@@ -37,6 +37,17 @@ export async function guardarFotoPerfil(archivo: File, idUsuario: number): Promi
 
 // guarda el logo que el admin sube desde su perfil (distinto del que se sube en el
 // registro publico de empresa, que usa uuid porque ahi todavia no existe idUsuario)
+export async function guardarLogoEmpresa(archivo: File): Promise<string> {
+  const extension = obtenerExtensionValida(archivo);
+  validarTamano(archivo, 2 * 1024 * 1024);
+
+  const nombreArchivo = `${crypto.randomUUID()}${extension}`;
+  await guardarArchivo(archivo, "./public/img/logos", nombreArchivo);
+
+  return `/img/logos/${nombreArchivo}`;
+}
+// guarda el logo que el admin sube desde su perfil (distinto del que se sube en el
+// registro publico de empresa, que usa uuid porque ahi todavia no existe idUsuario)
 export async function guardarLogoEmpresaAdmin(archivo: File, idUsuario: number): Promise<string> {
   const extension = obtenerExtensionValida(archivo);
   validarTamano(archivo, 2 * 1024 * 1024);
@@ -54,4 +65,14 @@ export async function guardarImagenProducto(archivo: File): Promise<string> {
   const nombreArchivo = `prod_${crypto.randomUUID()}${extension}`;
   await guardarArchivo(archivo, "./public/img/productos", nombreArchivo);
   return `/img/productos/${nombreArchivo}`;
+}
+// portada de la empresa (tarjeta del catalogo del cliente) — nombre fijo por empresa, sobrescribe la anterior
+export async function guardarPortadaEmpresaAdmin(archivo: File, idEmpresa: number): Promise<string> {
+  const extension = obtenerExtensionValida(archivo);
+  validarTamano(archivo, 3 * 1024 * 1024);
+
+  const nombreArchivo = `portada_empresa_${idEmpresa}${extension}`;
+  await guardarArchivo(archivo, "./public/img/portadas", nombreArchivo);
+
+  return `/img/portadas/${nombreArchivo}`;
 }

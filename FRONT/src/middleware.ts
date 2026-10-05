@@ -20,13 +20,13 @@ declare global {
 // src/middleware.ts — actualizar RUTAS_PROTEGIDAS para que tambien cubra las rutas api proxy
 const RUTAS_PROTEGIDAS: { prefijo: string; rol: string }[] = [
   { prefijo: '/cliente', rol: 'CLIENTE' },
-  { prefijo: '/api/cliente', rol: 'CLIENTE' },
+  { prefijo: '/api/auth/cliente', rol: 'CLIENTE' },
   { prefijo: '/admin', rol: 'ADMIN' },
-  { prefijo: '/api/admin', rol: 'ADMIN' },
+  { prefijo: '/api/auth/admin', rol: 'ADMIN' },
   { prefijo: '/proveedor', rol: 'PROVEEDOR' },
-  { prefijo: '/api/proveedor', rol: 'PROVEEDOR' },
+  { prefijo: '/api/auth/proveedor', rol: 'PROVEEDOR' },
   { prefijo: '/superadmin', rol: 'SUPERADMIN' },
-  { prefijo: '/api/superadmin', rol: 'SUPERADMIN' },
+  { prefijo: '/api/auth/superadmin', rol: 'SUPERADMIN' },
 ];
 
 async function obtenerClaveSecreta(): Promise<Uint8Array> {

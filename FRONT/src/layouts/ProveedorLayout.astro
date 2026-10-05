@@ -1,0 +1,229 @@
+---
+
+import '../styles/ProveedorPanel.css';
+import Sidebar from '../components/comunes/Sidebar.astro';
+import type { SidebarLink } from '../components/comunes/Sidebar.astro';
+import { llamarBackend, obtenerToken } from '../lib/Backend';
+
+interface Props {
+  titulo: string;
+  vistaActual: 'inicio' | 'pedidos' | 'perfil';
+  // si la pagina ya cargo el perfil, los manda y el layout no repite la peticion
+  nombreProveedor?: string;
+  imagenUrl?: string | null;
+  empresaNombre?: string;
+}
+
+const { titulo, vistaActual, nombreProveedor, imagenUrl, empresaNombre } = Astro.props;
+
+let nombreCompleto = nombreProveedor;
+let foto = imagenUrl;
+let empresa = empresaNombre;
+
+if (nombreCompleto === undefined) {
+  try {
+    const token = obtenerToken(Astro.cookies);
+    const respuesta = await llamarBackend<{
+      nombre?: string;
+      apellido?: string;
+      imagenUrl?: string;
+      empresaNombre?: string;
+    }>('/proveedor/perfil', { token });
+    const perfil = respuesta.datos.data ?? {};
+    nombreCompleto = `${perfil.nombre ?? ''} ${perfil.apellido ?? ''}`.trim();
+    foto = perfil.imagenUrl || null;
+    empresa = perfil.empresaNombre || undefined;
+  } catch (error) {
+    // si el backend no responde el sidebar igual se pinta, solo sin nombre/foto
+    console.error('ProveedorLayout: no se pudo cargar el perfil', error);
+  }
+}
+
+// mismas pestañas que tenia la navbar del c# (el perfil va en el footer del sidebar)
+const links: SidebarLink[] = [
+  { href: '/proveedor/inicio', label: 'Inicio', icon: 'bi-house-door' },
+  { href: '/proveedor/pedidos', label: 'Mis pedidos', icon: 'bi-truck' },
+];
+
+// la vista "perfil" no esta en la lista, asi que no marca ningun link como activo
+const activePath = `/proveedor/${vistaActual}`;
+---
+
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{titulo} — GeoRuta Repartidor</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
+  </head>
+  <body>
+    <Sidebar
+      activePath={activePath}
+      links={links}
+      perfilHref="/proveedor/perfil"
+      empresa={empresa ? { nombre: empresa } : undefined}
+      usuario={{ nombre: nombreCompleto || 'Repartidor', fotoUrl: foto || undefined }}
+    />
+
+    <!-- aplica el estado colapsado ANTES del primer pintado para que no haya parpadeo al navegar -->
+    <script is:inline>
+      if (localStorage.getItem('sidebar-collapsed') === 'true' && window.innerWidth >= 992) {
+        document.body.classList.add('sidebar-collapsed');
+        document.getElementById('appSidebar')?.classList.add('is-collapsed');
+      }
+    </script>
+
+    <!-- panel de notificaciones (se abre con la campana de la cabecera) -->
+    <div class="rep-notif-panel" id="rep-notif-panel">
+      <div class="rep-notif-header">
+        <span>Notificaciones</span>
+        <button type="button" class="rep-notif-marcar" id="rep-notif-marcar">Marcar todas</button>
+      </div>
+      <div id="rep-notif-lista">
+        <div class="rep-notif-vacia">Sin notificaciones</div>
+      </div>
+    </div>
+
+    <div class="sa-contenedor">
+      <main class="sa-main">
+        <div class="sa-page-header">
+          <div>
+            <h1 class="sa-page-titulo">{titulo}</h1>
+            <p class="sa-page-sub">
+              <span class="sa-badge-sistema">● SISTEMA ACTIVO</span>
+            </p>
+          </div>
+          <div class="sa-page-acciones">
+            <button
+              type="button"
+              class="rep-icon-btn"
+              id="rep-notif-btn"
+              title="Notificaciones"
+              aria-label="Notificaciones"
+            >
+              <i class="bi bi-bell"></i>
+              <span class="rep-notif-badge" id="rep-notif-count" style="display:none">0</span>
+            </button>
+            <span class="sa-fecha" id="rep-fecha-hoy"></span>
+          </div>
+        </div>
+        <div class="sa-zona-contenido">
+          <slot />
+        </div>
+      </main>
+    </div>
+
+    <script>
+      // ── fecha del dia  ──
+      const elFecha = document.getElementById('rep-fecha-hoy');
+      if (elFecha) {
+        elFecha.textContent =
+          '📅 ' +
+          new Date()
+            .toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric' })
+            .toUpperCase();
+      }
+
+      // ── notificaciones ──
+      interface Notificacion {
+        id: number;
+        mensaje: string;
+        leida: boolean;
+        fecha: string;
+      }
+
+      const panel = document.getElementById('rep-notif-panel');
+      const boton = document.getElementById('rep-notif-btn');
+      const insignia = document.getElementById('rep-notif-count');
+      const lista = document.getElementById('rep-notif-lista');
+      const botonMarcar = document.getElementById('rep-notif-marcar');
+
+      const formatoFecha = new Intl.DateTimeFormat('es-CO', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      });
+
+      function pintarListaVacia() {
+        if (!lista) return;
+        lista.innerHTML = '<div class="rep-notif-vacia">Sin notificaciones</div>';
+      }
+
+      async function cargarNotificaciones() {
+        try {
+          const respuesta = await fetch('/api/auth/proveedor/notificaciones');
+          const datos = await respuesta.json();
+          if (!datos.success) return;
+
+          const notificaciones: Notificacion[] = datos.data ?? [];
+          const noLeidas: number = datos.noLeidas ?? 0;
+
+          if (insignia) {
+            insignia.textContent = String(noLeidas);
+            insignia.style.display = noLeidas > 0 ? 'flex' : 'none';
+          }
+
+          if (!lista) return;
+          if (notificaciones.length === 0) {
+            pintarListaVacia();
+            return;
+          }
+
+          // se arma con el DOM y textContent para que un mensaje con html no se ejecute
+          lista.replaceChildren(
+            ...notificaciones.map((n) => {
+              const item = document.createElement('div');
+              item.className = `rep-notif-item${n.leida ? '' : ' no-leida'}`;
+
+              const mensaje = document.createElement('div');
+              mensaje.textContent = n.mensaje;
+
+              const tiempo = document.createElement('div');
+              tiempo.className = 'rep-notif-tiempo';
+              tiempo.textContent = formatoFecha.format(new Date(n.fecha));
+
+              item.append(mensaje, tiempo);
+              return item;
+            }),
+          );
+        } catch (error) {
+          console.error('error cargando notificaciones:', error);
+        }
+      }
+
+      async function marcarTodasLeidas() {
+        try {
+          await fetch('/api/auth/proveedor/notificaciones/marcar-leidas', { method: 'POST' });
+          await cargarNotificaciones();
+        } catch {
+          // silencioso, igual que en el original
+        }
+      }
+
+      boton?.addEventListener('click', () => {
+        panel?.classList.toggle('abierto');
+        if (panel?.classList.contains('abierto')) cargarNotificaciones();
+      });
+
+      botonMarcar?.addEventListener('click', marcarTodasLeidas);
+
+      // cierra el panel al hacer clic fuera
+      document.addEventListener('click', (e) => {
+        const objetivo = e.target as Node;
+        if (
+          panel?.classList.contains('abierto') &&
+          !panel.contains(objetivo) &&
+          !boton?.contains(objetivo)
+        ) {
+          panel.classList.remove('abierto');
+        }
+      });
+
+      // carga inicial para que el contador de no leidas aparezca sin abrir el panel
+      cargarNotificaciones();
+    </script>
+  </body>
+</html>

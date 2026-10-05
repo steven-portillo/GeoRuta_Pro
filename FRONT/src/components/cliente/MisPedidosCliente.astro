@@ -277,7 +277,7 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
     contenido.style.display = 'none';
 
     try {
-      const res = await fetch(`/api/cliente/pedidos/${id}`);
+      const res = await fetch(`/api/auth/cliente/pedidos/${id}`);
       const data = await res.json();
 
       if (!data.success) {
@@ -816,7 +816,7 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
     margin-bottom: 1rem;
   }
 
-  .mped-item {
+  :global(.mped-item) {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -824,8 +824,8 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
     border-bottom: 1px solid var(--secondary-100);
   }
 
-  .mped-item-imagen,
-  .mped-item-placeholder {
+  :global(.mped-item-imagen),
+  :global(.mped-item-placeholder) {
     width: 38px;
     height: 38px;
     border-radius: 8px;
@@ -834,7 +834,7 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
     border: 1px solid var(--secondary-100);
   }
 
-  .mped-item-placeholder {
+  :global(.mped-item-placeholder) {
     background: var(--secondary-100);
     display: flex;
     align-items: center;
@@ -843,23 +843,23 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
     color: var(--secondary-400);
   }
 
-  .mped-item-info {
+  :global(.mped-item-info) {
     flex: 1;
     min-width: 0;
   }
 
-  .mped-item-nombre {
+  :global(.mped-item-nombre) {
     font-size: 0.82rem;
     font-weight: 600;
     color: var(--secondary-800);
   }
 
-  .mped-item-detalle {
+  :global(.mped-item-detalle) {
     font-size: 0.72rem;
     color: var(--secondary-400);
   }
 
-  .mped-item-subtotal {
+  :global(.mped-item-subtotal) {
     font-size: 0.82rem;
     font-weight: 700;
     color: var(--secondary-800);

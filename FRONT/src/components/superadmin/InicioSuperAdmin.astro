@@ -1,0 +1,180 @@
+---
+// src/components/superadmin/InicioSuperAdmin.astro
+// panel de inicio del superadmin: saludo, metricas globales, empresas por aprobar y accesos rapidos.
+// todo llega resuelto por ssr desde pages/superadmin/inicio.astro, no hay fetch del lado del cliente
+
+export interface MetricasSuperAdmin {
+  totalEmpresas: number;
+  empresasActivas: number;
+  empresasInactivas: number;
+  totalUsuarios: number;
+}
+
+export interface EmpresaPendiente {
+  idEmpresa: number;
+  nombre: string;
+  logoUrl: string | null;
+  fechaCreacion: string | null;
+  adminNombre: string;
+  adminEmail: string;
+}
+
+interface Props {
+  nombre: string;
+  apellido: string;
+  metricas: MetricasSuperAdmin;
+  // empresas inactivas, de la mas reciente a la mas antigua (ya recortadas por la pagina)
+  pendientes: EmpresaPendiente[];
+}
+
+const { nombre, apellido, metricas, pendientes } = Astro.props;
+
+function formatearFecha(valor: string | null): string {
+  if (!valor) return '—';
+  const fecha = new Date(valor);
+  if (Number.isNaN(fecha.getTime())) return '—';
+  return fecha.toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+---
+
+<!-- saludo personalizado -->
+<div class="admin-saludo-banner">
+  <div>
+    <p class="admin-saludo-hora" id="saludo-superadmin">¡Hola!</p>
+    <h1 class="admin-saludo-nombre">
+      <span>{nombre}</span> <span style="opacity:0.7">{apellido}</span> 👋
+    </h1>
+    <p class="admin-saludo-sub">
+      Supervisa la plataforma: aprueba empresas nuevas y controla quién puede operar.
+    </p>
+  </div>
+</div>
+
+<!-- metricas globales -->
+<div class="grilla-metricas">
+  <div class="metrica-card">
+    <div class="metrica-label">Empresas registradas</div>
+    <div class="metrica-valor">{metricas.totalEmpresas}</div>
+    <div class="metrica-sub">en la plataforma</div>
+  </div>
+  <div class="metrica-card accent-azul">
+    <div class="metrica-label">Empresas activas</div>
+    <div class="metrica-valor">{metricas.empresasActivas}</div>
+    <div class="metrica-sub">visibles para clientes</div>
+  </div>
+  <div class="metrica-card accent-amber">
+    <div class="metrica-label">Inactivas</div>
+    <div class="metrica-valor">{metricas.empresasInactivas}</div>
+    <div class="metrica-sub">por aprobar o desactivadas</div>
+  </div>
+  <div class="metrica-card accent-violeta">
+    <div class="metrica-label">Usuarios</div>
+    <div class="metrica-valor">{metricas.totalUsuarios}</div>
+    <div class="metrica-sub">sin contar superadmins</div>
+  </div>
+</div>
+
+<!-- empresas inactivas: la cola de aprobacion -->
+<div class="panel-card" style="margin-top:1rem">
+  <div class="panel-card-header">
+    <span class="titulo-sec">Empresas inactivas</span>
+    {
+      metricas.empresasInactivas > 0 && (
+        <a class="btn-secundario" href="/superadmin/empresas?estado=0" style="text-decoration:none">
+          Ver todas ({metricas.empresasInactivas})
+        </a>
+      )
+    }
+  </div>
+  <div class="panel-card-body">
+    {
+      pendientes.length === 0 ? (
+        <p style="color:#94a3b8;font-size:0.85rem;text-align:center;padding:1rem">
+          No hay empresas esperando aprobación. ✅
+        </p>
+      ) : (
+        <table class="tabla-admin">
+          <thead>
+            <tr>
+              <th>Empresa</th>
+              <th>Administrador</th>
+              <th>Registro</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pendientes.map((e) => (
+              <tr>
+                <td>
+                  <div class="ini-celda">
+                    <div class="ini-logo">
+                      {e.logoUrl ? <img src={e.logoUrl} alt={e.nombre} /> : e.nombre.charAt(0).toUpperCase()}
+                    </div>
+                    <span class="ini-nombre">{e.nombre}</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="ini-nombre">{e.adminNombre}</div>
+                  <div class="ini-sub">{e.adminEmail}</div>
+                </td>
+                <td>{formatearFecha(e.fechaCreacion)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )
+    }
+  </div>
+</div>
+
+<!-- accesos rapidos -->
+<div class="admin-accesos-grid" style="margin-top:1rem">
+  <a class="admin-acceso-card" href="/superadmin/empresas">
+    <div class="admin-acceso-icono azul">
+      <svg viewBox="0 0 24 24">
+        <path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z" />
+      </svg>
+    </div>
+    <div>
+      <div class="admin-acceso-titulo">Gestionar empresas</div>
+      <div class="admin-acceso-sub">Aprueba, activa o desactiva empresas y a sus administradores</div>
+    </div>
+    <svg class="admin-acceso-flecha" viewBox="0 0 24 24">
+      <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
+    </svg>
+  </a>
+
+  <a class="admin-acceso-card" href="/superadmin/perfil">
+    <div class="admin-acceso-icono morado">
+      <svg viewBox="0 0 24 24">
+        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+      </svg>
+    </div>
+    <div>
+      <div class="admin-acceso-titulo">Mi perfil</div>
+      <div class="admin-acceso-sub">Edita tus datos y tu foto</div>
+    </div>
+    <svg class="admin-acceso-flecha" viewBox="0 0 24 24">
+      <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
+    </svg>
+  </a>
+</div>
+
+<script>
+  // saludo segun la hora local del navegador (el nombre y las metricas ya vienen de ssr)
+  const elSaludo = document.getElementById('saludo-superadmin');
+  if (elSaludo) {
+    const hora = new Date().getHours();
+    elSaludo.textContent =
+      hora >= 5 && hora < 12 ? '¡Buenos días,' :
+      hora >= 12 && hora < 18 ? '¡Buenas tardes,' :
+      '¡Buenas noches,';
+  }
+</script>
+
+<style>
+  .ini-celda { display: flex; align-items: center; gap: 10px; }
+  .ini-logo { width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(135deg, var(--azul-600), var(--violeta-600)); color: white; font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+  .ini-logo img { width: 100%; height: 100%; object-fit: contain; background: white; }
+  .ini-nombre { font-weight: 700; color: var(--gris-800); }
+  .ini-sub { font-size: 0.75rem; color: var(--gris-500); }
+</style>

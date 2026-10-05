@@ -1,0 +1,494 @@
+---
+// src/components/admin/ProductosAdmin.astro
+// panel de productos del admin — puerto de Views/Admin/Productos.cshtml + la parte de
+// productos de Script_Admin.js, adaptado a los campos reales que devuelve el backend deno
+// (id_producto, imagen_url, id_categoria, categoria, activo) en vez de los que usaba el c#
+// original (id, imagenUrl, idCategoria, activo booleano)
+
+export interface ProductoAdmin {
+  id_producto: number;
+  nombre: string;
+  descripcion: string | null;
+  categoria: string;
+  id_categoria: number;
+  precio: number;
+  imagen_url: string | null;
+  activo: number; // 0 o 1, tal como sale de mysql
+  stock: number;
+}
+
+export interface CategoriaAdmin {
+  id_categoria: number;
+  nombre: string;
+}
+
+interface Props {
+  productosIniciales: ProductoAdmin[];
+  categoriasIniciales: CategoriaAdmin[];
+}
+
+const { productosIniciales, categoriasIniciales } = Astro.props;
+---
+
+<div class="encabezado-sec">
+  <span class="titulo-sec">Catálogo de productos</span>
+  <button class="btn-primario" id="btn-abrir-modal-producto">
+    <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" /></svg>
+    Agregar producto
+  </button>
+</div>
+
+<!-- pestanas de estado -->
+<div class="tabs-productos">
+  <button id="tab-activos" class="tab-producto tab-activo" data-tab="activos">
+    ✅ Activos <span id="count-activos" class="tab-contador tab-contador-activo">0</span>
+  </button>
+  <button id="tab-inactivos" class="tab-producto" data-tab="inactivos">
+    ❌ Inactivos <span id="count-inactivos" class="tab-contador">0</span>
+  </button>
+</div>
+
+<!-- busqueda y filtro -->
+<div class="barra-filtros">
+  <input class="input-busqueda" type="text" placeholder="Buscar producto..." id="buscar-producto" style="width:260px" />
+  <select class="input-busqueda" id="filtro-categoria" style="width:180px">
+    <option value="">Todas las categorías</option>
+    {categoriasIniciales.map((c) => (
+      <option value={c.nombre}>{c.nombre}</option>
+    ))}
+  </select>
+</div>
+
+<!-- tabla -->
+<div class="panel-card">
+  <table class="tabla-admin">
+    <thead>
+      <tr>
+        <th>Imagen</th>
+        <th>Producto</th>
+        <th>Categoría</th>
+        <th>Precio</th>
+        <th>Stock</th>
+        <th>Estado</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody id="tbody-productos">
+      <tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:2rem">Cargando productos...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- modal agregar / editar -->
+<div class="modal-overlay" id="modal-producto" style="display:none">
+  <div class="modal-box" style="max-width:560px">
+    <div class="modal-header">
+      <h2 class="modal-titulo" id="modal-titulo-txt">Agregar producto</h2>
+      <button class="modal-cerrar" id="btn-cerrar-modal-producto">
+        <svg viewBox="0 0 24 24">
+          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+        </svg>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <div class="prod-imagen-zona" id="prod-imagen-zona">
+        <div class="prod-imagen-preview" id="prod-imagen-preview">
+          <svg viewBox="0 0 24 24" style="width:36px;height:36px;fill:#94a3b8">
+            <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" />
+          </svg>
+          <span>Haz clic para agregar imagen</span>
+          <span style="font-size:0.72rem;color:#cbd5e1">JPG, PNG, WEBP — máx. 3MB</span>
+        </div>
+        <input type="file" id="prod-imagen" accept="image/jpeg,image/png,image/webp" style="display:none" />
+      </div>
+
+      <input type="hidden" id="prod-id" value="" />
+
+      <div class="form-fila">
+        <div class="form-grupo">
+          <label class="form-label">Nombre del producto</label>
+          <input class="form-input" id="prod-nombre" placeholder="Ej: Arroz Diana 500g" />
+        </div>
+        <div class="form-grupo">
+          <label class="form-label">Categoría</label>
+          <select class="form-input" id="prod-categoria">
+            <option value="">Cargando categorías...</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-fila">
+        <div class="form-grupo">
+          <label class="form-label">Precio (COP)</label>
+          <input class="form-input" id="prod-precio" type="number" placeholder="0" min="0" />
+        </div>
+        <div class="form-grupo">
+          <label class="form-label">Stock</label>
+          <input class="form-input" id="prod-stock" type="number" placeholder="0" min="0" />
+        </div>
+      </div>
+
+      <div class="form-grupo">
+        <label class="form-label">Descripción (opcional)</label>
+        <textarea class="form-input" id="prod-desc" rows="2" placeholder="Descripción breve..."></textarea>
+      </div>
+
+      <div id="msg-producto" style="display:none"></div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secundario" id="btn-cancelar-producto">Cancelar</button>
+      <button class="btn-primario" id="btn-guardar-prod">Guardar producto</button>
+    </div>
+  </div>
+</div>
+
+<script define:vars={{ productosIniciales, categoriasIniciales }}>
+  // ============================================================
+  // estado local del componente (arranca con lo que trajo el ssr)
+  // ============================================================
+  let productos = productosIniciales;
+  let categorias = categoriasIniciales;
+  let tabActual = 'activos';
+
+  const svgSinImagen = `
+    <svg viewBox="0 0 24 24" style="width:36px;height:36px;fill:#94a3b8">
+      <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0
+      1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5
+      12l4.5 6H5l3.5-4.5z"/></svg>`;
+
+  // ============================================================
+  // llamadas al backend (via proxies bff en /api/auth/admin/*)
+  // ============================================================
+  async function refrescarProductos() {
+    const res = await fetch('/api/auth/admin/productos');
+    const data = await res.json();
+    if (data.success) {
+      productos = data.data;
+      renderProductos();
+    }
+    return data;
+  }
+
+  async function refrescarCategoriasSelect() {
+    const res = await fetch('/api/auth/admin/categorias');
+    const data = await res.json();
+    if (!data.success) return;
+    categorias = data.data;
+    const select = document.getElementById('prod-categoria');
+    if (select) {
+      select.innerHTML = categorias
+        .map((c) => `<option value="${c.id_categoria}">${c.nombre}</option>`)
+        .join('');
+    }
+  }
+
+  // ============================================================
+  // render de la tabla
+  // ============================================================
+  function renderProductos() {
+    const tbody = document.getElementById('tbody-productos');
+    if (!tbody) return;
+
+    const activos = productos.filter((p) => p.activo);
+    const inactivos = productos.filter((p) => !p.activo);
+    const elCA = document.getElementById('count-activos');
+    const elCI = document.getElementById('count-inactivos');
+    if (elCA) elCA.textContent = String(activos.length);
+    if (elCI) elCI.textContent = String(inactivos.length);
+
+    const texto = document.getElementById('buscar-producto')?.value.toLowerCase() ?? '';
+    const catFiltro = document.getElementById('filtro-categoria')?.value ?? '';
+
+    const filtrados = productos.filter(
+      (p) =>
+        (tabActual === 'activos' ? p.activo : !p.activo) &&
+        p.nombre.toLowerCase().includes(texto) &&
+        (!catFiltro || p.categoria === catFiltro),
+    );
+
+    if (!filtrados.length) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:2rem">
+        No hay productos en esta categoría.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = filtrados
+      .map((p) => {
+        const imagen = p.imagen_url
+          ? `<img src="${p.imagen_url}" style="width:44px;height:44px;object-fit:contain;border-radius:6px;border:1px solid #e2e8f0">`
+          : `<div style="width:44px;height:44px;border-radius:6px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;margin:0 auto">${svgSinImagen}</div>`;
+
+        const colorStock = p.stock === 0 ? 'var(--rojo-500)' : p.stock < 10 ? '#d97706' : 'var(--slate-700)';
+        const iconoStock = p.stock === 0 ? '⚠' : p.stock < 10 ? '↓' : '';
+
+        return `
+        <tr style="opacity:${p.activo ? '1' : '0.65'}">
+          <td style="text-align:center">${imagen}</td>
+          <td>
+            <div style="font-weight:600;color:var(--slate-800)">${p.nombre}</div>
+            ${p.descripcion ? `<div style="font-size:0.72rem;color:var(--slate-400);margin-top:2px">${p.descripcion}</div>` : ''}
+          </td>
+          <td>${p.categoria}</td>
+          <td style="font-weight:600">$${Number(p.precio).toLocaleString('es-CO')}</td>
+          <td><span style="font-weight:600;color:${colorStock}">${p.stock} uds ${iconoStock}</span></td>
+          <td><span class="badge ${p.activo ? 'badge-verde' : 'badge-slate'}">${p.activo ? 'Activo' : 'Inactivo'}</span></td>
+          <td>
+            <div style="display:flex;gap:6px">
+              <button class="btn-secundario" data-accion="editar" data-id="${p.id_producto}">Editar</button>
+              <button class="${p.activo ? 'btn-peligro' : 'btn-primario'}" data-accion="toggle" data-id="${p.id_producto}">
+                ${p.activo ? 'Desactivar' : 'Activar'}</button>
+            </div>
+          </td>
+        </tr>`;
+      })
+      .join('');
+  }
+
+  // ============================================================
+  // pestanas activos / inactivos
+  // ============================================================
+  function cambiarTab(tab) {
+    tabActual = tab;
+    document.getElementById('tab-activos')?.classList.toggle('tab-activo', tab === 'activos');
+    document.getElementById('tab-inactivos')?.classList.toggle('tab-activo', tab === 'inactivos');
+    document.getElementById('count-activos')?.classList.toggle('tab-contador-activo', tab === 'activos');
+    document.getElementById('count-inactivos')?.classList.toggle('tab-contador-activo', tab === 'inactivos');
+    renderProductos();
+  }
+
+  // ============================================================
+  // modal: abrir / cerrar / editar / previsualizar imagen
+  // ============================================================
+  function limpiarPreview() {
+    const preview = document.getElementById('prod-imagen-preview');
+    if (preview) {
+      preview.innerHTML = `${svgSinImagen}<span>Haz clic para agregar imagen</span>
+        <span style="font-size:0.72rem;color:#cbd5e1">JPG, PNG, WEBP — máx. 3MB</span>`;
+    }
+  }
+
+  async function abrirModalCrear() {
+    document.getElementById('modal-titulo-txt').textContent = 'Agregar producto';
+    ['prod-id', 'prod-nombre', 'prod-precio', 'prod-stock', 'prod-desc'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    document.getElementById('prod-imagen').value = '';
+    limpiarPreview();
+    await refrescarCategoriasSelect();
+    ocultarMensaje();
+    document.getElementById('modal-producto').style.display = 'flex';
+  }
+
+  async function abrirModalEditar(id) {
+    const p = productos.find((x) => x.id_producto === id);
+    if (!p) return;
+
+    document.getElementById('modal-titulo-txt').textContent = 'Editar producto';
+    document.getElementById('prod-id').value = String(p.id_producto);
+    document.getElementById('prod-nombre').value = p.nombre;
+    document.getElementById('prod-precio').value = String(p.precio);
+    document.getElementById('prod-stock').value = String(p.stock);
+    document.getElementById('prod-desc').value = p.descripcion ?? '';
+    document.getElementById('prod-imagen').value = '';
+
+    await refrescarCategoriasSelect();
+    const select = document.getElementById('prod-categoria');
+    if (select) select.value = String(p.id_categoria);
+
+    const preview = document.getElementById('prod-imagen-preview');
+    if (preview) {
+      preview.innerHTML = p.imagen_url
+        ? `<img src="${p.imagen_url}" style="max-height:140px;object-fit:contain">
+           <span style="font-size:0.75rem;color:#94a3b8">Haz clic para cambiar</span>`
+        : `${svgSinImagen}<span>Haz clic para cambiar imagen</span>`;
+    }
+
+    ocultarMensaje();
+    document.getElementById('modal-producto').style.display = 'flex';
+  }
+
+  function cerrarModal() {
+    document.getElementById('modal-producto').style.display = 'none';
+  }
+
+  function previsualizarImagen(input) {
+    if (!input.files || !input.files[0]) return;
+    const archivo = input.files[0];
+    if (archivo.size > 3 * 1024 * 1024) {
+      alert('La imagen no puede superar 3MB.');
+      input.value = '';
+      return;
+    }
+    const lector = new FileReader();
+    lector.onload = (e) => {
+      const preview = document.getElementById('prod-imagen-preview');
+      if (preview) {
+        preview.innerHTML = `<img src="${e.target.result}" style="max-height:140px;object-fit:contain;border-radius:6px">
+          <span style="font-size:0.75rem;color:#94a3b8;margin-top:4px">Haz clic para cambiar</span>`;
+      }
+    };
+    lector.readAsDataURL(archivo);
+  }
+
+  // ============================================================
+  // mensajes de resultado dentro del modal
+  // ============================================================
+  function mostrarMensaje(texto, ok) {
+    const el = document.getElementById('msg-producto');
+    if (!el) return;
+    el.textContent = texto;
+    el.className = ok ? 'admin-msg-ok' : 'admin-msg-err';
+    el.style.display = 'block';
+  }
+
+  function ocultarMensaje() {
+    const el = document.getElementById('msg-producto');
+    if (el) el.style.display = 'none';
+  }
+
+  // ============================================================
+  // guardar (crear o editar) — form-data por la imagen opcional
+  // ============================================================
+  async function guardarProducto() {
+    const nombre = document.getElementById('prod-nombre')?.value.trim() ?? '';
+    const idCategoria = document.getElementById('prod-categoria')?.value ?? '';
+    const precio = document.getElementById('prod-precio')?.value ?? '';
+    const stock = document.getElementById('prod-stock')?.value ?? '';
+    const desc = document.getElementById('prod-desc')?.value.trim() ?? '';
+    const idProd = document.getElementById('prod-id')?.value ?? '';
+    const archivo = document.getElementById('prod-imagen')?.files[0];
+    const btn = document.getElementById('btn-guardar-prod');
+
+    if (!nombre) return mostrarMensaje('El nombre es obligatorio.', false);
+    if (!precio || Number(precio) < 0) return mostrarMensaje('Ingresa un precio válido.', false);
+    if (!stock || Number(stock) < 0) return mostrarMensaje('Ingresa un stock válido.', false);
+    if (!idCategoria) return mostrarMensaje('Selecciona una categoría.', false);
+
+    const textoOrig = btn.innerHTML;
+    btn.innerHTML = 'Guardando...';
+    btn.disabled = true;
+
+    try {
+      const formData = new FormData();
+      formData.append('nombre', nombre);
+      formData.append('idCategoria', idCategoria);
+      formData.append('precio', precio);
+      formData.append('stock', stock);
+      formData.append('descripcion', desc);
+      if (idProd) formData.append('idProducto', idProd);
+      if (archivo) formData.append('imagen', archivo);
+
+      const res = await fetch('/api/auth/admin/productos', { method: 'POST', body: formData });
+      const data = await res.json();
+
+      if (data.success) {
+        mostrarMensaje('✓ ' + data.message, true);
+        await refrescarProductos();
+        setTimeout(cerrarModal, 900);
+      } else {
+        mostrarMensaje('✗ ' + data.message, false);
+      }
+    } catch {
+      mostrarMensaje('✗ Error de conexión.', false);
+    } finally {
+      btn.innerHTML = textoOrig;
+      btn.disabled = false;
+    }
+  }
+
+  // ============================================================
+  // activar / desactivar
+  // ============================================================
+  async function toggleProducto(id) {
+    const producto = productos.find((x) => x.id_producto === id);
+    if (!producto) return;
+    const accion = producto.activo ? 'desactivar' : 'activar';
+    if (!confirm(`¿Deseas ${accion} este producto?`)) return;
+
+    try {
+      const res = await fetch('/api/auth/admin/productos/toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idProducto: id }),
+      });
+      const data = await res.json();
+      if (data.success) await refrescarProductos();
+      else alert('Error: ' + data.message);
+    } catch {
+      alert('Error de conexión.');
+    }
+  }
+
+  // ============================================================
+  // listeners
+  // ============================================================
+  document.getElementById('btn-abrir-modal-producto')?.addEventListener('click', abrirModalCrear);
+  document.getElementById('btn-cerrar-modal-producto')?.addEventListener('click', cerrarModal);
+  document.getElementById('btn-cancelar-producto')?.addEventListener('click', cerrarModal);
+  document.getElementById('btn-guardar-prod')?.addEventListener('click', guardarProducto);
+  document.getElementById('prod-imagen-zona')?.addEventListener('click', () => document.getElementById('prod-imagen')?.click());
+  document.getElementById('prod-imagen')?.addEventListener('change', (e) => previsualizarImagen(e.target));
+  document.getElementById('buscar-producto')?.addEventListener('input', renderProductos);
+  document.getElementById('filtro-categoria')?.addEventListener('change', renderProductos);
+  document.getElementById('tab-activos')?.addEventListener('click', () => cambiarTab('activos'));
+  document.getElementById('tab-inactivos')?.addEventListener('click', () => cambiarTab('inactivos'));
+
+  document.getElementById('modal-producto')?.addEventListener('click', function (e) {
+    if (e.target === this) cerrarModal();
+  });
+
+  // delegacion de eventos para los botones editar/toggle que se regeneran en cada render
+  document.getElementById('tbody-productos')?.addEventListener('click', (e) => {
+    const boton = e.target.closest('button[data-accion]');
+    if (!boton) return;
+    const id = Number(boton.dataset.id);
+    if (boton.dataset.accion === 'editar') abrirModalEditar(id);
+    if (boton.dataset.accion === 'toggle') toggleProducto(id);
+  });
+
+  renderProductos();
+</script>
+
+<style>
+  .tabs-productos {
+    display: flex;
+    gap: 0;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid #e2e8f0;
+  }
+
+  .tab-producto {
+    padding: 0.6rem 1.4rem;
+    font-weight: 600;
+    font-size: 0.88rem;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    color: #94a3b8;
+    font-family: var(--fuente);
+  }
+
+  .tab-producto.tab-activo {
+    border-bottom-color: #3b82f6;
+    color: #3b82f6;
+  }
+
+  .tab-contador {
+    font-size: 0.78rem;
+    background: #f1f5f9;
+    color: #64748b;
+    border-radius: 999px;
+    padding: 1px 8px;
+    margin-left: 4px;
+  }
+
+  .tab-contador-activo {
+    background: #dbeafe;
+    color: #1d4ed8;
+  }
+</style>
