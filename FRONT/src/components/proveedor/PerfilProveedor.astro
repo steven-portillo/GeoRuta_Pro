@@ -1,0 +1,267 @@
+---
+// src/components/proveedor/PerfilProveedor.astro
+// vista "perfil" del repartidor (puerto de Views/Proveedor/Perfil.cshtml): cabecera con foto,
+// formulario de datos personales y tarjeta de estadisticas. los datos llegan ya cargados desde
+// el servidor, asi que no hay "cargando..." ni el fetch inicial que hacia Script_Repartidor.js
+
+export interface PerfilProveedor {
+  nombre: string;
+  apellido: string;
+  email: string;
+  telefono: string;
+  imagenUrl: string;
+  empresaNombre: string;
+}
+
+export interface MetricasPerfil {
+  total: number;
+  enTransito: number;
+  entregados: number;
+  pendientes: number;
+}
+
+interface Props {
+  perfilInicial: PerfilProveedor;
+  // si el backend fallo llega undefined y las estadisticas muestran "—"
+  metricas?: MetricasPerfil;
+}
+
+const { perfilInicial: p, metricas } = Astro.props;
+
+const iniciales = `${p.nombre?.[0] ?? 'R'}${p.apellido?.[0] ?? ''}`.toUpperCase();
+const valor = (n?: number) => (metricas ? String(n ?? 0) : '—');
+---
+
+<!-- cabecera -->
+<div class="rep-perfil-header">
+  <div class="rep-perfil-avatar-wrap">
+    <div class="rep-perfil-avatar" id="rep-avatar-grande">
+      {
+        p.imagenUrl ? (
+          <img src={p.imagenUrl} alt="Foto de perfil" />
+        ) : (
+          <span id="rep-iniciales-perfil">{iniciales}</span>
+        )
+      }
+    </div>
+    <label class="rep-perfil-cam" for="input-foto-rep" title="Cambiar foto">
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M12 15.2A3.2 3.2 0 1 1 15.2 12 3.2 3.2 0 0 1 12 15.2zm0-14.2A10 10 0 1 0 22 12 10 10 0 0 0 12 1zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"
+        ></path>
+      </svg>
+    </label>
+    <input type="file" id="input-foto-rep" accept="image/jpeg,image/png,image/webp" style="display:none" />
+  </div>
+  <div style="position:relative;z-index:1">
+    <div class="rep-nombre-display" id="rep-nombre-display">
+      {`${p.nombre} ${p.apellido}`.trim() || 'Repartidor'}
+    </div>
+    <div class="rep-perfil-rol">REPARTIDOR</div>
+    <div class="rep-email-display" id="rep-email-display">{p.email}</div>
+  </div>
+</div>
+
+<div class="rep-perfil-grid">
+  <!-- datos personales -->
+  <div class="rep-perfil-card">
+    <div class="rep-perfil-card-titulo">
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+        ></path>
+      </svg>
+      Datos personales
+    </div>
+    <div class="rep-perfil-fila">
+      <div class="rep-perfil-grupo">
+        <label class="rep-perfil-label" for="rep-input-nombre">Nombre</label>
+        <input class="rep-perfil-input" id="rep-input-nombre" placeholder="Tu nombre" value={p.nombre} />
+      </div>
+      <div class="rep-perfil-grupo">
+        <label class="rep-perfil-label" for="rep-input-apellido">Apellido</label>
+        <input class="rep-perfil-input" id="rep-input-apellido" placeholder="Tu apellido" value={p.apellido} />
+      </div>
+    </div>
+    <div class="rep-perfil-grupo">
+      <label class="rep-perfil-label" for="rep-input-email">Correo electrónico</label>
+      <input class="rep-perfil-input" id="rep-input-email" type="email" value={p.email} />
+    </div>
+    <div class="rep-perfil-grupo">
+      <label class="rep-perfil-label" for="rep-input-telefono">Teléfono</label>
+      <input
+        class="rep-perfil-input"
+        id="rep-input-telefono"
+        placeholder="+57 300 000 0000"
+        maxlength="20"
+        value={p.telefono}
+      />
+    </div>
+    <div id="msg-datos-rep" style="display:none"></div>
+    <button type="button" class="rep-btn-guardar" id="btn-guardar-rep">Guardar cambios</button>
+  </div>
+
+  <!-- estadisticas -->
+  <div class="rep-perfil-card">
+    <div class="rep-perfil-card-titulo">
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"
+        ></path>
+      </svg>
+      Mis estadísticas
+    </div>
+    <div class="rep-stats-lista">
+      <div class="rep-stat-fila rep-stat-gris">
+        <span class="rep-stat-label">Total asignados</span>
+        <span class="rep-stat-valor" id="stat-total">{valor(metricas?.total)}</span>
+      </div>
+      <div class="rep-stat-fila rep-stat-verde">
+        <span class="rep-stat-label">Entregados</span>
+        <span class="rep-stat-valor" id="stat-entregados">{valor(metricas?.entregados)}</span>
+      </div>
+      <div class="rep-stat-fila rep-stat-azul">
+        <span class="rep-stat-label">En tránsito</span>
+        <span class="rep-stat-valor" id="stat-transito">{valor(metricas?.enTransito)}</span>
+      </div>
+      <div class="rep-stat-fila rep-stat-amber">
+        <span class="rep-stat-label">Pendientes</span>
+        <span class="rep-stat-valor" id="stat-pendientes">{valor(metricas?.pendientes)}</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const LIMITE_FOTO = 2 * 1024 * 1024; // mismo tope de 2mb que valida el backend
+
+  function mostrarMsg(el: HTMLElement | null, texto: string, ok: boolean) {
+    if (!el) return;
+    el.textContent = texto;
+    el.className = ok ? 'rep-msg-ok' : 'rep-msg-err';
+    el.style.display = 'block';
+    setTimeout(() => {
+      el.style.display = 'none';
+    }, 4000);
+  }
+
+  // el backend responde rutas relativas ("/img/...") que sirve deno, no astro
+  function urlAbsolutaBackend(url: string): string {
+    if (/^(https?:|data:|blob:)/.test(url)) return url;
+    return `${import.meta.env.PUBLIC_BACKEND_URL ?? ''}${url}`;
+  }
+
+  // cambia la foto grande y la del footer del sidebar a la vez
+  function actualizarAvatarTodos(url: string) {
+    const urlFinal = urlAbsolutaBackend(url);
+    const avatar = document.getElementById('rep-avatar-grande');
+    if (avatar) avatar.innerHTML = `<img src="${urlFinal}" alt="Foto de perfil">`;
+
+    const avatarSidebar = document.querySelector('.sidebar-profile-avatar');
+    if (avatarSidebar) avatarSidebar.innerHTML = `<img src="${urlFinal}" alt="Foto de perfil">`;
+  }
+
+  // ── guardar datos personales ──
+  document.getElementById('btn-guardar-rep')?.addEventListener('click', async () => {
+    const valorDe = (id: string) =>
+      (document.getElementById(id) as HTMLInputElement | null)?.value.trim() ?? '';
+
+    const nombre = valorDe('rep-input-nombre');
+    const apellido = valorDe('rep-input-apellido');
+    const email = valorDe('rep-input-email');
+    const telefono = valorDe('rep-input-telefono');
+    const msg = document.getElementById('msg-datos-rep');
+    const btn = document.getElementById('btn-guardar-rep');
+    if (!(btn instanceof HTMLButtonElement)) return;
+
+    // el backend exige minimo 2 caracteres en el nombre
+    if (nombre.length < 2) {
+      mostrarMsg(msg, 'El nombre debe tener al menos 2 caracteres.', false);
+      return;
+    }
+    if (!email || !email.includes('@')) {
+      mostrarMsg(msg, 'Correo inválido.', false);
+      return;
+    }
+
+    const textoOriginal = btn.textContent;
+    btn.textContent = 'Guardando...';
+    btn.disabled = true;
+
+    try {
+      const res = await fetch('/api/auth/proveedor/perfil/datos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // un telefono vacio no se manda para que quede null en la base, no una cadena vacia
+        body: JSON.stringify({ nombre, apellido, email, telefono: telefono || undefined }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        mostrarMsg(msg, '✅ ' + data.message, true);
+        const nombreCompleto = `${nombre} ${apellido}`.trim();
+        const elNombre = document.getElementById('rep-nombre-display');
+        if (elNombre) elNombre.textContent = nombreCompleto;
+        const elEmail = document.getElementById('rep-email-display');
+        if (elEmail) elEmail.textContent = email;
+        const elSidebar = document.querySelector('.sidebar-profile-name');
+        if (elSidebar) elSidebar.textContent = nombreCompleto;
+      } else {
+        mostrarMsg(msg, '❌ ' + (data.message ?? 'No fue posible guardar.'), false);
+      }
+    } catch {
+      mostrarMsg(msg, '❌ Error de conexión.', false);
+    } finally {
+      btn.textContent = textoOriginal;
+      btn.disabled = false;
+    }
+  });
+
+  // ── foto de perfil ──
+  document.getElementById('input-foto-rep')?.addEventListener('change', async (e) => {
+    const input = e.target as HTMLInputElement;
+    const archivo = input.files?.[0];
+    if (!archivo) return;
+
+    if (archivo.size > LIMITE_FOTO) {
+      alert('La imagen no puede superar 2MB.');
+      input.value = '';
+      return;
+    }
+
+    // guarda lo que habia para volver atras si la subida falla
+    const avatar = document.getElementById('rep-avatar-grande');
+    const htmlPrevio = avatar?.innerHTML ?? '';
+
+    // vista previa inmediata mientras sube
+    const lector = new FileReader();
+    lector.onload = () => {
+      if (avatar && typeof lector.result === 'string') {
+        avatar.innerHTML = `<img src="${lector.result}" alt="Foto de perfil">`;
+      }
+    };
+    lector.readAsDataURL(archivo);
+
+    const formData = new FormData();
+    formData.append('foto', archivo);
+
+    try {
+      const res = await fetch('/api/auth/proveedor/perfil/foto', { method: 'POST', body: formData });
+      const data = await res.json();
+
+      if (data.success) {
+        // "?t=" evita que el navegador muestre la foto vieja (el nombre del archivo no cambia)
+        actualizarAvatarTodos(`${data.imagenUrl}?t=${Date.now()}`);
+      } else {
+        if (avatar) avatar.innerHTML = htmlPrevio;
+        alert(data.message ?? 'No fue posible subir la foto.');
+      }
+    } catch (error) {
+      console.error('error subiendo foto:', error);
+      if (avatar) avatar.innerHTML = htmlPrevio;
+      alert('Error de conexión al subir la foto.');
+    } finally {
+      input.value = '';
+    }
+  });
+</script>

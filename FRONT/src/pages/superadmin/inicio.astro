@@ -1,0 +1,46 @@
+---
+// src/pages/superadmin/inicio.astro
+import SuperAdminLayout from '../../layouts/SuperAdminLayout.astro';
+import InicioSuperAdmin from '../../components/superadmin/InicioSuperAdmin.astro';
+import type { MetricasSuperAdmin, EmpresaPendiente } from '../../components/superadmin/InicioSuperAdmin.astro';
+import type { EmpresaSuperAdmin } from '../../components/superadmin/EmpresasSuperAdmin.astro';
+import { llamarBackend, obtenerToken } from '../../lib/Backend';
+
+const token = obtenerToken(Astro.cookies);
+
+const [respuestaPerfil, respuestaEmpresas, respuestaUsuarios] = await Promise.all([
+  llamarBackend<{ nombre: string; apellido: string; imagenUrl?: string }>('/superadmin/perfil', { token }),
+  llamarBackend<EmpresaSuperAdmin[]>('/superadmin/empresas', { token }),
+  llamarBackend<{ total: number }>('/superadmin/usuarios/total', { token }),
+]);
+
+const perfil = respuestaPerfil.datos.data ?? { nombre: '', apellido: '' };
+const empresas = respuestaEmpresas.datos.data ?? [];
+
+// el backend ya devuelve las empresas de la mas reciente a la mas antigua
+const inactivas = empresas.filter((e) => !e.estado);
+
+const metricas: MetricasSuperAdmin = {
+  totalEmpresas: empresas.length,
+  empresasActivas: empresas.length - inactivas.length,
+  empresasInactivas: inactivas.length,
+  totalUsuarios: respuestaUsuarios.datos.data?.total ?? 0,
+};
+
+// solo las 5 mas recientes; el resto se ve en la pagina de empresas
+const pendientes: EmpresaPendiente[] = inactivas.slice(0, 5);
+---
+
+<SuperAdminLayout
+  titulo="Inicio"
+  vistaActual="inicio"
+  nombreAdmin={`${perfil.nombre} ${perfil.apellido}`.trim()}
+  imagenUrl={perfil.imagenUrl || null}
+>
+  <InicioSuperAdmin
+    nombre={perfil.nombre}
+    apellido={perfil.apellido}
+    metricas={metricas}
+    pendientes={pendientes}
+  />
+</SuperAdminLayout>

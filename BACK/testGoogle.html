@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Google Login Test</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+  <h2>Login con Google</h2>
+
+  <div id="g_id_onload"
+       data-client_id="326172460152-tf164aeq7s3p3nqotj1ml221dgsrl6i0.apps.googleusercontent.com"
+       data-callback="handleCredentialResponse">
+  </div>
+
+  <div class="g_id_signin"
+       data-type="standard"
+       data-size="large"
+       data-theme="outline"
+       data-text="signin_with">
+  </div>
+
+  <h3>Tu credential (id_token):</h3>
+  <textarea id="token" rows="8" cols="80"></textarea>
+
+  <script>
+    function handleCredentialResponse(response) {
+      // Aquí está el token que necesitas
+      document.getElementById("token").value = response.credential;
+      console.log("Credential:", response.credential);
+    }
+  </script>
+</body>
+</html>

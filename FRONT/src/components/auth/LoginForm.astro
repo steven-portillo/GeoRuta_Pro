@@ -1,0 +1,324 @@
+---
+// src/components/auth/LoginForm.astro
+// componente de presentacion + logica de submit. el proceso de login
+// (endpoint, contrato de respuesta, redireccion por rol) es el mismo que
+// ya funcionaba; lo unico que cambio es la UI/validacion.
+
+import './auth.css';
+import '../../styles/Forms.css';
+
+interface Props {
+  mensajeError: string | null;
+}
+
+const { mensajeError } = Astro.props;
+---
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<div class="login-page-wrapper">
+  <!-- PANEL IZQUIERDO -->
+  <div class="login-visual">
+    <div class="login-visual-inner">
+      <div class="lv-brand">
+        <div class="lv-brand-icon">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"
+            ></path>
+          </svg>
+        </div>
+        <span class="lv-brand-name">GeoRuta</span>
+      </div>
+
+      <div class="lv-tagline">
+        Tu plataforma<br />de logística<br /><span>inteligente</span>
+      </div>
+
+      <ul class="lv-features">
+        <li>
+          <div class="lv-feat-icon">
+            <svg viewBox="0 0 24 24"
+              ><path
+                d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+              ></path></svg
+            >
+          </div>
+          Rastreo GPS en tiempo real
+        </li>
+        <li>
+          <div class="lv-feat-icon">
+            <svg viewBox="0 0 24 24"
+              ><path
+                d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45C5.16 12.37 5 12.82 5 13.3 5 15.1 6.9 18 9 18h12v-2H9.42a.25.25 0 01-.25-.25l.03-.12.9-1.63H19c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1 1 0 0023.44 6H5.21l-.94-2H1z"
+              ></path></svg
+            >
+          </div>
+          Gestión completa de pedidos
+        </li>
+        <li>
+          <div class="lv-feat-icon">
+            <svg viewBox="0 0 24 24"
+              ><path
+                d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"
+              ></path></svg
+            >
+          </div>
+          Control de inventario automático
+        </li>
+        <li>
+          <div class="lv-feat-icon">
+            <svg viewBox="0 0 24 24"
+              ><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"></path></svg
+            >
+          </div>
+          Acceso seguro por rol
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- PANEL DERECHO -->
+  <div class="login-form-side">
+    <div class="login-card-container">
+      <div class="login-card">
+        <a href="/" class="login-back">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"></path>
+          </svg>
+          Volver al inicio
+        </a>
+
+        <div class="login-head">
+          <h1>Bienvenido de vuelta</h1>
+          <p>Ingresa tus credenciales para acceder a tu panel</p>
+        </div>
+
+        <div
+          id="formAlert"
+          class={`alert-custom alert-custom-danger ${mensajeError ? 'd-flex' : 'd-none'}`}
+          role="alert"
+        >
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <span id="formAlertMessage">{mensajeError ?? 'Por favor corrige los errores antes de continuar.'}</span>
+        </div>
+
+        <form id="loginForm" class="login-form" novalidate>
+          <div class="input-group-custom mb-3">
+            <label for="emailInput" class="form-label-custom">Correo electrónico</label>
+            <div class="input-field-wrapper">
+              <i class="bi bi-envelope field-icon"></i>
+              <input
+                type="text"
+                id="emailInput"
+                name="email"
+                class="form-control-custom"
+                placeholder="usuario@correo.com"
+                required
+                autocomplete="email"
+              />
+            </div>
+            <div class="error-feedback" id="emailError"></div>
+          </div>
+
+          <div class="input-group-custom mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <label for="passwordInput" class="form-label-custom mb-0">Contraseña</label>
+              <a href="/password" class="forgot-link">¿Olvidaste tu contraseña?</a>
+            </div>
+            <div class="input-field-wrapper">
+              <i class="bi bi-key field-icon"></i>
+              <input
+                type="password"
+                id="passwordInput"
+                name="password"
+                class="form-control-custom"
+                placeholder="••••••••••••"
+                required
+                autocomplete="current-password"
+              />
+              <button type="button" class="toggle-password-btn" id="togglePassword" aria-label="Mostrar u ocultar contraseña">
+                <i class="bi bi-eye" id="togglePasswordIcon"></i>
+              </button>
+            </div>
+            <div class="error-feedback" id="passwordError"></div>
+          </div>
+
+          <button type="submit" class="btn-submit-gradient" id="submitBtn">
+            <span class="btn-text">Iniciar Sesión</span>
+            <i class="bi bi-arrow-right btn-icon"></i>
+            <div class="btn-spinner spinner-border spinner-border-sm text-light d-none" role="status">
+              <span class="visually-hidden">Cargando...</span>
+            </div>
+          </button>
+
+          <div class="text-center my-3">
+            <span class="text-muted"> </span>
+          </div>
+
+          <div id="g_id_onload"
+            data-client_id="326172460152-tf164aeq7s3p3nqotj1ml221dgsrl6i0.apps.googleusercontent.com"
+            data-callback="handleCredentialResponse">
+          </div>
+
+          <div class="g_id_signin"
+            data-type="standard"
+            data-size="large"
+            data-theme="outline"
+            data-text="signin_with">
+          </div>
+
+          <div class="text-center">
+            <p class="register-prompt mb-0">
+              ¿No tienes una cuenta? <a href="/registro" class="forgot-link">Regístrate aquí</a>
+            </p>
+            <p class="register-prompt mb-1">
+              ¿Eres una empresa distribuidora? <a href="/registro-empresa" class="forgot-link">Regístrate aquí</a>
+            </p>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  import { validarFormatoEmail, validarPassword, attachFieldValidation } from '../../utils/validaciones';
+
+  // redirige segun el rol que devuelve el backend — solo CLIENTE esta migrado
+  // en Astro por ahora; los demas roles quedan listos para cuando se migren
+  // sus vistas (mismo mapa de prefijos que usa middleware.ts)
+  const RUTA_POR_ROL: Record<string, string> = {
+    CLIENTE: '/cliente/inicio',
+    ADMIN: '/admin/inicio',
+    PROVEEDOR: '/proveedor/inicio',
+    SUPERADMIN: '/superadmin/inicio',
+  };
+
+  const togglePasswordBtn = document.getElementById('togglePassword');
+  const passwordInput = document.getElementById('passwordInput') as HTMLInputElement | null;
+  const togglePasswordIcon = document.getElementById('togglePasswordIcon');
+  const emailInput = document.getElementById('emailInput') as HTMLInputElement | null;
+  const emailError = document.getElementById('emailError');
+  const passwordError = document.getElementById('passwordError');
+  const formAlert = document.getElementById('formAlert');
+  const formAlertMessage = document.getElementById('formAlertMessage');
+  const loginForm = document.getElementById('loginForm') as HTMLFormElement | null;
+  const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement | null;
+
+  if (togglePasswordBtn && passwordInput && togglePasswordIcon) {
+    togglePasswordBtn.addEventListener('click', () => {
+      const esPassword = passwordInput.type === 'password';
+      passwordInput.type = esPassword ? 'text' : 'password';
+      togglePasswordIcon.classList.toggle('bi-eye', !esPassword);
+      togglePasswordIcon.classList.toggle('bi-eye-slash', esPassword);
+    });
+  }
+
+  const validarEmail = attachFieldValidation(emailInput, emailError, validarFormatoEmail);
+  const validarPasswordCampo = attachFieldValidation(passwordInput, passwordError, (valor) => validarPassword(valor));
+
+  if (loginForm && submitBtn && emailInput && passwordInput && formAlert && formAlertMessage) {
+    loginForm.addEventListener('submit', async (evento) => {
+      evento.preventDefault();
+
+      const emailOk = validarEmail?.();
+      const passwordOk = validarPasswordCampo?.();
+
+      if (!emailOk?.isValid || !passwordOk?.isValid) {
+        formAlertMessage.textContent = 'Por favor completa todos los campos requeridos correctamente.';
+        formAlert.className = 'alert-custom alert-custom-danger d-flex';
+
+        if (!emailOk?.isValid) emailInput.focus();
+        else if (!passwordOk?.isValid) passwordInput.focus();
+        return;
+      }
+
+      formAlert.classList.add('d-none');
+
+      const btnText = submitBtn.querySelector('.btn-text');
+      const btnIcon = submitBtn.querySelector('.btn-icon');
+      const btnSpinner = submitBtn.querySelector('.btn-spinner');
+      if (!btnText || !btnIcon || !btnSpinner) return;
+
+      btnText.textContent = 'Autenticando...';
+      btnIcon.classList.add('d-none');
+      btnSpinner.classList.remove('d-none');
+      submitBtn.disabled = true;
+
+      try {
+        // mismo endpoint y mismo cuerpo que ya usaba el formulario anterior
+        const respuesta = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: emailInput.value, password: passwordInput.value }),
+        });
+        const resultado = await respuesta.json();
+
+        // mismo contrato de respuesta que ya manejaba el formulario anterior:
+        // { success: boolean, message?: string, usuario?: { rol: string } }
+        if (!resultado.success) {
+          btnText.textContent = 'Iniciar Sesión';
+          btnSpinner.classList.add('d-none');
+          btnIcon.className = 'bi bi-arrow-right btn-icon';
+          btnIcon.classList.remove('d-none');
+          submitBtn.disabled = false;
+
+          formAlertMessage.textContent = resultado.message ?? 'Email o contraseña incorrectos';
+          formAlert.className = 'alert-custom alert-custom-danger d-flex';
+          return;
+        }
+
+        btnText.textContent = '¡Bienvenido!';
+        btnSpinner.classList.add('d-none');
+        btnIcon.className = 'bi bi-check-lg btn-icon';
+        btnIcon.classList.remove('d-none');
+
+        formAlertMessage.textContent = 'Inicio de sesión exitoso. Redirigiendo a tu panel...';
+        formAlert.className = 'alert-custom alert-custom-success d-flex';
+
+        const destino = RUTA_POR_ROL[resultado.usuario.rol] ?? '/';
+        setTimeout(() => {
+          window.location.href = destino;
+        }, 1200);
+      } catch {
+        btnText.textContent = 'Iniciar Sesión';
+        btnSpinner.classList.add('d-none');
+        btnIcon.className = 'bi bi-arrow-right btn-icon';
+        btnIcon.classList.remove('d-none');
+        submitBtn.disabled = false;
+
+        formAlertMessage.textContent = 'No fue posible conectar con el servidor';
+        formAlert.className = 'alert-custom alert-custom-danger d-flex';
+      }
+    });
+
+    (window as any).handleCredentialResponse = async (response: any) => {
+      try {
+        const respuesta = await fetch('/api/auth/google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ credential: response.credential }),
+        });
+
+        const resultado = await respuesta.json();
+
+        if (!resultado.success) {
+          formAlertMessage!.textContent = resultado.message ?? 'Error al iniciar sesión con Google';
+          formAlert!.className = 'alert-custom alert-custom-danger d-flex';
+          return;
+        }
+
+        formAlertMessage!.textContent = 'Inicio de sesión exitoso. Redirigiendo...';
+        formAlert!.className = 'alert-custom alert-custom-success d-flex';
+
+        const destino = RUTA_POR_ROL[resultado.usuario.rol] ?? '/';
+        setTimeout(() => {
+          window.location.href = destino;
+        }, 1000);
+      } catch (error) {
+        formAlertMessage!.textContent = 'No fue posible conectar con el servidor';
+        formAlert!.className = 'alert-custom alert-custom-danger d-flex';
+      }
+    };
+  }
+</script>

@@ -1,0 +1,27 @@
+---
+// src/pages/superadmin/perfil.astro
+import SuperAdminLayout from '../../layouts/SuperAdminLayout.astro';
+import PerfilSuperAdmin from '../../components/superadmin/PerfilSuperAdmin.astro';
+import type { PerfilSuperAdmin as DatosPerfil } from '../../components/superadmin/PerfilSuperAdmin.astro';
+import { llamarBackend, obtenerToken } from '../../lib/Backend';
+
+const token = obtenerToken(Astro.cookies);
+
+const respuesta = await llamarBackend<DatosPerfil>('/superadmin/perfil', { token });
+
+const perfil: DatosPerfil = respuesta.datos.data ?? {
+  nombre: '',
+  apellido: '',
+  email: '',
+  imagenUrl: '',
+};
+---
+
+<SuperAdminLayout
+  titulo="Mi perfil"
+  vistaActual="perfil"
+  nombreAdmin={`${perfil.nombre} ${perfil.apellido}`.trim()}
+  imagenUrl={perfil.imagenUrl || null}
+>
+  <PerfilSuperAdmin perfilInicial={perfil} />
+</SuperAdminLayout>

@@ -1,0 +1,121 @@
+---
+// src/layouts/AdminLayout.astro
+import '../styles/AdminPanel.css';
+import Sidebar from '../components/comunes/Sidebar.astro';
+import type { SidebarLink } from '../components/comunes/Sidebar.astro';
+import { llamarBackend, obtenerToken } from '../lib/Backend';
+
+interface Props {
+  // titulo que se muestra en el h1 de la pagina y en el <title>
+  titulo: string;
+  // que link del sidebar se marca como activo
+  vistaActual: 'inicio' | 'categorias' | 'productos' | 'pedidos' | 'pagos' | 'repartidores' | 'perfil';
+  // opcionales: si la pagina no los manda, el layout los saca del perfil del backend
+  nombreAdmin?: string;
+  inicialesAdmin?: string;
+  imagenUrl?: string | null;
+}
+
+const { titulo, vistaActual, nombreAdmin, imagenUrl } = Astro.props;
+
+// ── datos del admin y de su empresa para el sidebar ──
+interface PerfilSidebar {
+  nombre?: string;
+  apellido?: string;
+  imagenUrl?: string;
+  empresaNombre?: string;
+  empresaLogo?: string;
+}
+
+let perfil: PerfilSidebar = {};
+try {
+  const token = obtenerToken(Astro.cookies);
+  const respuesta = await llamarBackend<PerfilSidebar>('/admin/perfil', { token });
+  perfil = respuesta.datos.data ?? {};
+} catch (error) {
+  // si el backend no responde el sidebar igual se pinta, solo sin nombre/logo
+  console.error('AdminLayout: no se pudo cargar el perfil', error);
+}
+
+// llamarBackend ya convierte las rutas "/img/..." del backend en urls absolutas
+
+const nombreCompleto =
+  nombreAdmin ?? (`${perfil.nombre ?? ''} ${perfil.apellido ?? ''}`.trim() || 'Administrador');
+
+// links del sidebar: mismas vistas que tenia la navbar de pestanas (el perfil va en el footer)
+const links: SidebarLink[] = [
+  { href: '/admin/inicio', label: 'Inicio', icon: 'bi-house-door' },
+  { href: '/admin/categorias', label: 'Categorías', icon: 'bi-tags' },
+  { href: '/admin/productos', label: 'Productos', icon: 'bi-box-seam' },
+  { href: '/admin/pedidos', label: 'Pedidos', icon: 'bi-cart3' },
+  { href: '/admin/pagos', label: 'Pagos', icon: 'bi-credit-card' },
+  { href: '/admin/repartidores', label: 'Repartidores', icon: 'bi-truck' },
+];
+
+// la vista "perfil" no esta en la lista, asi que no marca ningun link como activo
+const activePath = `/admin/${vistaActual}`;
+---
+
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{titulo} — GeoRuta Admin</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
+  </head>
+  <body>
+    <Sidebar
+      activePath={activePath}
+      links={links}
+      perfilHref="/admin/perfil"
+      empresa={perfil.empresaNombre
+        ? { nombre: perfil.empresaNombre, logoUrl: perfil.empresaLogo || undefined }
+        : undefined}
+      usuario={{ nombre: nombreCompleto, fotoUrl: imagenUrl || perfil.imagenUrl || undefined }}
+    />
+
+    <!-- aplica el estado colapsado ANTES del primer pintado para que no haya parpadeo al navegar -->
+    <script is:inline>
+      if (localStorage.getItem('sidebar-collapsed') === 'true' && window.innerWidth >= 992) {
+        document.body.classList.add('sidebar-collapsed');
+        document.getElementById('appSidebar')?.classList.add('is-collapsed');
+      }
+    </script>
+
+    <div class="sa-contenedor">
+      <main class="sa-main">
+        <div class="sa-page-header">
+          <div>
+            <h1 class="sa-page-titulo">{titulo}</h1>
+            <p class="sa-page-sub">
+              <span class="sa-badge-sistema">● SISTEMA ACTIVO</span>
+            </p>
+          </div>
+          <div class="sa-page-acciones">
+            <span class="sa-fecha" id="admin-fecha-hoy"></span>
+          </div>
+        </div>
+        <div class="sa-zona-contenido">
+          <slot />
+        </div>
+      </main>
+    </div>
+
+    <script>
+      // fecha del dia en la esquina superior derecha (mismo formato que Script_Admin.js)
+      const elFecha = document.getElementById('admin-fecha-hoy');
+      if (elFecha) {
+        const ahora = new Date();
+        elFecha.textContent =
+          '📅 ' +
+          ahora
+            .toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric' })
+            .toUpperCase();
+      }
+    </script>
+  </body>
+</html>

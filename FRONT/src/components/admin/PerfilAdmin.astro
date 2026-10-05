@@ -1,0 +1,366 @@
+---
+// src/components/admin/PerfilAdmin.astro
+// perfil del admin — puerto de Views/Admin/Perfil.cshtml + la parte de perfil de
+// Script_Admin.js (datos personales, datos de empresa, foto de perfil, logo de empresa)
+
+export interface PerfilAdmin {
+  nombre: string;
+  apellido: string;
+  email: string;
+  imagenUrl: string;
+  empresaNombre: string;
+  empresaDesc: string;
+  empresaLogo: string;
+  empresaPortada: string;
+}
+
+interface Props {
+  perfilInicial: PerfilAdmin;
+}
+
+const { perfilInicial: p } = Astro.props;
+
+const inicialesIniciales = `${p.nombre?.[0] ?? 'A'}${p.apellido?.[0] ?? 'D'}`.toUpperCase();
+const inicialEmpresaInicial = (p.empresaNombre || 'E').charAt(0).toUpperCase();
+---
+
+<div class="admin-perfil-wrap">
+
+  <!-- cabecera -->
+  <div class="admin-perfil-header">
+    <div class="admin-perfil-avatar-wrap">
+      <div class="admin-perfil-avatar" id="admin-avatar-grande">
+        {p.imagenUrl ? (
+          <img src={p.imagenUrl} alt="Foto de perfil" style="width:100%;height:100%;object-fit:cover;border-radius:50%" />
+        ) : (
+          inicialesIniciales
+        )}
+      </div>
+      <label class="admin-perfil-avatar-btn" for="admin-input-foto" title="Cambiar foto">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 15.2A3.2 3.2 0 0 1 8.8 12 3.2 3.2 0 0 1 12 8.8 3.2 3.2 0 0 1 15.2 12 3.2 3.2 0 0 1 12 15.2M12 7a5 5 0 0 0-5 5 5 5 0 0 0 5 5 5 5 0 0 0 5-5 5 5 0 0 0-5-5m-7-1h2.5l1.83-2h5.34l1.83 2H19c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2V8c0-1.1.9-2 2-2z" />
+        </svg>
+      </label>
+      <input type="file" id="admin-input-foto" accept="image/jpeg,image/png,image/webp" style="display:none" />
+    </div>
+    <div class="admin-perfil-header-info">
+      <div class="admin-perfil-nombre-display" id="admin-perfil-nombre-display">
+        {`${p.nombre} ${p.apellido}`.trim() || 'Administrador'}
+      </div>
+      <div class="admin-perfil-rol-badge">ADMINISTRADOR</div>
+      <div class="admin-perfil-email-display" id="admin-email-display">{p.email}</div>
+    </div>
+  </div>
+
+  <div class="admin-perfil-grid">
+
+    <!-- datos personales -->
+    <div class="admin-perfil-card">
+      <div class="admin-perfil-card-titulo">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+        </svg>
+        Datos personales
+      </div>
+
+      <div id="msg-datos-admin" style="display:none;"></div>
+
+      <div class="admin-perfil-fila">
+        <div class="admin-perfil-grupo">
+          <label class="admin-perfil-label">Nombre</label>
+          <input class="admin-perfil-input" id="admin-input-nombre" placeholder="Tu nombre" value={p.nombre} />
+        </div>
+        <div class="admin-perfil-grupo">
+          <label class="admin-perfil-label">Apellido</label>
+          <input class="admin-perfil-input" id="admin-input-apellido" placeholder="Tu apellido" value={p.apellido} />
+        </div>
+      </div>
+
+      <div class="admin-perfil-grupo">
+        <label class="admin-perfil-label">Correo electrónico</label>
+        <input class="admin-perfil-input" id="admin-input-email" type="email" placeholder="correo@ejemplo.com" value={p.email} />
+      </div>
+
+      <button class="admin-perfil-btn-guardar" id="btn-guardar-admin">
+        <svg viewBox="0 0 24 24">
+          <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z" />
+        </svg>
+        Guardar datos personales
+      </button>
+    </div>
+
+    <!-- datos de la empresa -->
+    <div class="admin-perfil-card">
+      <div class="admin-perfil-card-titulo">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z" />
+        </svg>
+        Datos de la empresa
+      </div>
+
+      <div id="msg-empresa-admin" style="display:none;"></div>
+
+      <!-- logo de la empresa -->
+      <div class="admin-empresa-logo-wrap">
+        <div class="admin-empresa-logo" id="admin-empresa-logo-preview">
+          {p.empresaLogo ? (
+            <img src={p.empresaLogo} alt="Logo de la empresa" style="width:100%;height:100%;object-fit:contain;border-radius:10px" />
+          ) : (
+            <span id="admin-empresa-inicial">{inicialEmpresaInicial}</span>
+          )}
+        </div>
+        <div>
+          <label class="admin-perfil-btn-logo" for="admin-input-logo">
+            <svg viewBox="0 0 24 24">
+              <path d="M19.35 10.04A7.49 7.49 0 0012 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 000 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z" />
+            </svg>
+            Cambiar logo
+          </label>
+          <input type="file" id="admin-input-logo" accept="image/jpeg,image/png,image/webp" style="display:none" />
+          <p style="font-size:0.72rem;color:#94a3b8;margin-top:4px">JPG, PNG, WEBP — máx. 2MB</p>
+        </div>
+      </div>
+
+      <!-- portada de la empresa: se muestra arriba de la tarjeta en el catalogo del cliente -->
+      <div class="admin-empresa-portada-wrap">
+        <div class="admin-empresa-portada" id="admin-empresa-portada-preview">
+          {p.empresaPortada ? (
+            <img src={p.empresaPortada} alt="Portada de la empresa" style="width:100%;height:100%;object-fit:cover" />
+          ) : (
+            <span>Sin portada</span>
+          )}
+        </div>
+        <div>
+          <label class="admin-perfil-btn-logo" for="admin-input-portada">
+            <svg viewBox="0 0 24 24">
+              <path d="M19.35 10.04A7.49 7.49 0 0012 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 000 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z" />
+            </svg>
+            Cambiar portada
+          </label>
+          <input type="file" id="admin-input-portada" accept="image/jpeg,image/png,image/webp" style="display:none" />
+          <p style="font-size:0.72rem;color:#94a3b8;margin-top:4px">JPG, PNG, WEBP — máx. 3MB. Usa una imagen horizontal (proporción 16:6).</p>
+        </div>
+      </div>
+
+      <div class="admin-perfil-grupo">
+        <label class="admin-perfil-label">Nombre de la empresa</label>
+        <input class="admin-perfil-input" id="admin-empresa-nombre" placeholder="Nombre de tu empresa" value={p.empresaNombre} />
+      </div>
+
+      <div class="admin-perfil-grupo">
+        <label class="admin-perfil-label">Descripción</label>
+        <textarea class="admin-perfil-input" id="admin-empresa-desc" rows="3" placeholder="Describe brevemente tu empresa..." style="resize:vertical;">{p.empresaDesc}</textarea>
+      </div>
+
+      <button class="admin-perfil-btn-guardar" id="btn-guardar-empresa">
+        <svg viewBox="0 0 24 24">
+          <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z" />
+        </svg>
+        Guardar datos empresa
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // mismo flujo que cargarPerfilAdmin/guardarPerfilAdmin/guardarEmpresaAdmin/subirFotoAdmin/
+  // subirLogoEmpresa del original, pero contra los proxies bff propios en vez de /Admin/*.
+  // los datos iniciales ya vienen renderizados por ssr, asi que aqui no hay carga inicial,
+  // solo los handlers de guardar/subir
+
+  const inicialesActuales = document.getElementById('admin-perfil-nombre-display')
+    ?.textContent?.trim().split(' ').map((s) => s[0]).join('').toUpperCase().slice(0, 2) || 'AD';
+
+  function mostrarMsgAdmin(el: HTMLElement | null, texto: string, ok: boolean) {
+    if (!el) return;
+    el.textContent = texto;
+    el.className = ok ? 'admin-msg-ok' : 'admin-msg-err';
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 4000);
+  }
+
+  // el backend responde rutas relativas ("/img/...") que sirve deno, no astro
+  function urlAbsolutaBackend(url: string): string {
+    if (/^(https?:|data:|blob:)/.test(url)) return url;
+    return `${import.meta.env.PUBLIC_BACKEND_URL ?? ''}${url}`;
+  }
+
+  function actualizarAvatarAdmin(urlFoto: string | null) {
+    const avatar = document.getElementById('admin-avatar-grande');
+    const urlFinal = urlFoto ? urlAbsolutaBackend(urlFoto) : null;
+    if (avatar) {
+      avatar.innerHTML = urlFinal
+        ? `<img src="${urlFinal}" alt="Foto de perfil" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+        : inicialesActuales;
+    }
+
+    // el avatar del footer del sidebar tambien cambia al instante
+    const avatarSidebar = document.querySelector('.sidebar-profile-avatar');
+    if (avatarSidebar) {
+      avatarSidebar.innerHTML = urlFinal
+        ? `<img src="${urlFinal}" alt="Foto de perfil">`
+        : `<span>${inicialesActuales}</span>`;
+    }
+  }
+
+  function actualizarLogoEmpresa(url: string | null, nombreEmpresa: string) {
+    const el = document.getElementById('admin-empresa-logo-preview');
+    if (!el) return;
+    const inicial = (nombreEmpresa || 'E').charAt(0).toUpperCase();
+    const urlFinal = url ? urlAbsolutaBackend(url) : null;
+    el.innerHTML = urlFinal
+      ? `<img src="${urlFinal}" alt="Logo de la empresa" style="width:100%;height:100%;object-fit:contain;border-radius:10px">`
+      : `<span id="admin-empresa-inicial">${inicial}</span>`;
+
+    // logo de la empresa en el sidebar
+    const logoSidebar = document.querySelector('.sidebar-subbrand-icon');
+    if (logoSidebar && urlFinal) {
+      logoSidebar.innerHTML = `<img src="${urlFinal}" alt="Logo de la empresa">`;
+    }
+  }
+
+  function actualizarPortadaEmpresa(url: string) {
+    const el = document.getElementById('admin-empresa-portada-preview');
+    if (!el) return;
+    el.innerHTML = `<img src="${urlAbsolutaBackend(url)}" alt="Portada de la empresa" style="width:100%;height:100%;object-fit:cover">`;
+  }
+
+  // ── guardar datos personales ──
+  document.getElementById('btn-guardar-admin')?.addEventListener('click', async () => {
+    const nombre = (document.getElementById('admin-input-nombre') as HTMLInputElement | null)?.value.trim() ?? '';
+    const apellido = (document.getElementById('admin-input-apellido') as HTMLInputElement | null)?.value.trim() ?? '';
+    const email = (document.getElementById('admin-input-email') as HTMLInputElement | null)?.value.trim() ?? '';
+    const msg = document.getElementById('msg-datos-admin');
+    const btn = document.getElementById('btn-guardar-admin');
+    if (!(btn instanceof HTMLButtonElement)) return;
+
+    if (!nombre) { mostrarMsgAdmin(msg, 'El nombre es obligatorio.', false); return; }
+    if (!email || !email.includes('@')) { mostrarMsgAdmin(msg, 'Ingresa un correo válido.', false); return; }
+
+    const textoOrig = btn.innerHTML;
+    btn.innerHTML = 'Guardando...';
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/auth/admin/perfil/datos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre, apellido, email, empresaNombre: '', empresaDesc: '' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        mostrarMsgAdmin(msg, '✓ ' + data.message, true);
+        const elDisplay = document.getElementById('admin-perfil-nombre-display');
+        if (elDisplay) elDisplay.textContent = `${nombre} ${apellido}`.trim();
+      } else {
+        mostrarMsgAdmin(msg, '✗ ' + data.message, false);
+      }
+    } catch {
+      mostrarMsgAdmin(msg, '✗ Error de conexión.', false);
+    } finally {
+      btn.innerHTML = textoOrig;
+      btn.disabled = false;
+    }
+  });
+
+  // ── guardar datos de la empresa ──
+  document.getElementById('btn-guardar-empresa')?.addEventListener('click', async () => {
+    const empresaNombre = (document.getElementById('admin-empresa-nombre') as HTMLInputElement | null)?.value.trim() ?? '';
+    const empresaDesc = (document.getElementById('admin-empresa-desc') as HTMLTextAreaElement | null)?.value.trim() ?? '';
+    const msg = document.getElementById('msg-empresa-admin');
+    const btn = document.getElementById('btn-guardar-empresa') as HTMLButtonElement | null;
+
+    if (!empresaNombre) { mostrarMsgAdmin(msg, 'El nombre de la empresa es obligatorio.', false); return; }
+    if (!btn) return;
+
+    // el mismo endpoint /admin/perfil exige tambien nombre/apellido/email, por eso se
+    // reenvian los valores actuales de esos inputs junto con los de empresa
+    const nombre = (document.getElementById('admin-input-nombre') as HTMLInputElement | null)?.value.trim() ?? '';
+    const apellido = (document.getElementById('admin-input-apellido') as HTMLInputElement | null)?.value.trim() ?? '';
+    const email = (document.getElementById('admin-input-email') as HTMLInputElement | null)?.value.trim() ?? '';
+
+    const textoOrig = btn.innerHTML;
+    btn.innerHTML = 'Guardando...';
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/auth/admin/perfil/datos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre, apellido, email, empresaNombre, empresaDesc }),
+      });
+      const data = await res.json();
+      if (data.success) mostrarMsgAdmin(msg, '✓ Datos de la empresa actualizados.', true);
+      else mostrarMsgAdmin(msg, '✗ ' + data.message, false);
+    } catch {
+      mostrarMsgAdmin(msg, '✗ Error de conexión.', false);
+    } finally {
+      btn.innerHTML = textoOrig;
+      btn.disabled = false;
+    }
+  });
+
+  // ── foto de perfil ──
+  document.getElementById('admin-input-foto')?.addEventListener('change', async (e) => {
+    const input = e.target as HTMLInputElement | null;
+    if (!input) return;
+    if (!input.files?.[0]) return;
+    const archivo = input.files[0];
+    if (archivo.size > 2 * 1024 * 1024) { alert('La imagen no puede superar 2MB.'); return; }
+
+    // preview inmediata con el archivo local, antes de que responda el backend
+    const lector = new FileReader();
+    lector.onload = (ev) => {
+      const resultado = ev.target?.result;
+      actualizarAvatarAdmin(typeof resultado === 'string' ? resultado : null);
+    };
+    lector.readAsDataURL(archivo);
+
+    const formData = new FormData();
+    formData.append('foto', archivo);
+    try {
+      const res = await fetch('/api/auth/admin/perfil/foto', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.success) actualizarAvatarAdmin(data.imagenUrl + '?t=' + Date.now());
+    } catch (err) {
+      console.error('Error subiendo foto:', err);
+    }
+  });
+
+  // ── logo de la empresa ──
+  document.getElementById('admin-input-logo')?.addEventListener('change', async (e) => {
+    const input = e.target as HTMLInputElement | null;
+    if (!input) return;
+    if (!input.files?.[0]) return;
+    const archivo = input.files[0];
+    if (archivo.size > 2 * 1024 * 1024) { alert('La imagen no puede superar 2MB.'); return; }
+
+    const formData = new FormData();
+    formData.append('logo', archivo);
+    try {
+      const res = await fetch('/api/auth/admin/perfil/logo', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.success) actualizarLogoEmpresa(data.logoUrl + '?t=' + Date.now(), '');
+    } catch (err) {
+      console.error('Error subiendo logo:', err);
+    }
+  });
+
+  // ── portada de la empresa ──
+  document.getElementById('admin-input-portada')?.addEventListener('change', async (e) => {
+    const input = e.target as HTMLInputElement | null;
+    const archivo = input?.files?.[0];
+    if (!archivo) return;
+    if (archivo.size > 3 * 1024 * 1024) { alert('La imagen no puede superar 3MB.'); return; }
+
+    const formData = new FormData();
+    formData.append('portada', archivo);
+    try {
+      const res = await fetch('/api/auth/admin/perfil/portada', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.success) actualizarPortadaEmpresa(data.portadaUrl + '?t=' + Date.now());
+      else alert(data.message ?? 'No fue posible subir la portada.');
+    } catch (err) {
+      console.error('Error subiendo portada:', err);
+    }
+  });
+</script>

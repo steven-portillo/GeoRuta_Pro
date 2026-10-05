@@ -1,0 +1,106 @@
+---
+// src/layouts/SuperAdminLayout.astro
+// mismo shell que AdminLayout (sidebar + cabecera), pero contra /superadmin/* y sin marca de empresa:
+// el superadmin es un rol de plataforma, no pertenece a ninguna empresa
+import '../styles/AdminPanel.css';
+import Sidebar from '../components/comunes/Sidebar.astro';
+import type { SidebarLink } from '../components/comunes/Sidebar.astro';
+import { llamarBackend, obtenerToken } from '../lib/Backend';
+
+interface Props {
+  titulo: string;
+  vistaActual: 'inicio' | 'empresas' | 'perfil';
+  // si la pagina ya cargo el perfil, los manda y el layout no repite la peticion
+  nombreAdmin?: string;
+  imagenUrl?: string | null;
+}
+
+const { titulo, vistaActual, nombreAdmin, imagenUrl } = Astro.props;
+
+let nombreCompleto = nombreAdmin;
+let foto = imagenUrl;
+
+if (nombreCompleto === undefined) {
+  try {
+    const token = obtenerToken(Astro.cookies);
+    const respuesta = await llamarBackend<{ nombre?: string; apellido?: string; imagenUrl?: string }>(
+      '/superadmin/perfil',
+      { token },
+    );
+    const perfil = respuesta.datos.data ?? {};
+    nombreCompleto = `${perfil.nombre ?? ''} ${perfil.apellido ?? ''}`.trim();
+    foto = perfil.imagenUrl || null;
+  } catch (error) {
+    // si el backend no responde el sidebar igual se pinta, solo sin nombre/foto
+    console.error('SuperAdminLayout: no se pudo cargar el perfil', error);
+  }
+}
+
+const links: SidebarLink[] = [
+  { href: '/superadmin/inicio', label: 'Inicio', icon: 'bi-house-door' },
+  { href: '/superadmin/empresas', label: 'Empresas', icon: 'bi-buildings' },
+];
+
+// la vista "perfil" no esta en la lista, asi que no marca ningun link como activo
+const activePath = `/superadmin/${vistaActual}`;
+---
+
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{titulo} — GeoRuta SuperAdmin</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
+  </head>
+  <body>
+    <Sidebar
+      activePath={activePath}
+      links={links}
+      perfilHref="/superadmin/perfil"
+      usuario={{ nombre: nombreCompleto || 'Superadministrador', fotoUrl: foto || undefined }}
+    />
+
+    <!-- aplica el estado colapsado ANTES del primer pintado para que no haya parpadeo al navegar -->
+    <script is:inline>
+      if (localStorage.getItem('sidebar-collapsed') === 'true' && window.innerWidth >= 992) {
+        document.body.classList.add('sidebar-collapsed');
+        document.getElementById('appSidebar')?.classList.add('is-collapsed');
+      }
+    </script>
+
+    <div class="sa-contenedor">
+      <main class="sa-main">
+        <div class="sa-page-header">
+          <div>
+            <h1 class="sa-page-titulo">{titulo}</h1>
+            <p class="sa-page-sub">
+              <span class="sa-badge-sistema">● SISTEMA ACTIVO</span>
+            </p>
+          </div>
+          <div class="sa-page-acciones">
+            <span class="sa-fecha" id="admin-fecha-hoy"></span>
+          </div>
+        </div>
+        <div class="sa-zona-contenido">
+          <slot />
+        </div>
+      </main>
+    </div>
+
+    <script>
+      const elFecha = document.getElementById('admin-fecha-hoy');
+      if (elFecha) {
+        const ahora = new Date();
+        elFecha.textContent =
+          '📅 ' +
+          ahora
+            .toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric' })
+            .toUpperCase();
+      }
+    </script>
+  </body>
+</html>

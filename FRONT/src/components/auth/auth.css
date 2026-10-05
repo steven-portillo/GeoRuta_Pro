@@ -1,0 +1,205 @@
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* Evita que el layout del proyecto interfiera */
+.login-page-wrapper {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #fff;
+    z-index: 9999;
+}
+
+/* ── Panel izquierdo azul ── */
+.login-visual {
+    width: 55%;
+    background: linear-gradient(135deg,var(--primary-800) 0%, var(--primary-600) 50%, var(--primary-700) 100%);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    padding: 3rem;
+}
+
+    /* Grid decorativo de fondo */
+    .login-visual::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image: linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.07) 1px, transparent 1px);
+        background-size: 48px 48px;
+    }
+
+    /* Círculo decorativo */
+    .login-visual::after {
+        content: '';
+        position: absolute;
+        bottom: -120px;
+        right: -120px;
+        width: 420px;
+        height: 420px;
+        border-radius: 50%;
+        background: rgba(255,255,255,.05);
+    }
+
+.login-visual-inner {
+    position: relative;
+    z-index: 1;
+    color: #fff;
+}
+
+/* Brand */
+.lv-brand {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    margin-bottom: 3.5rem;
+}
+
+.lv-brand-icon {
+    width: 44px;
+    height: 44px;
+    background: rgba(255,255,255,.2);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+    .lv-brand-icon svg {
+        width: 24px;
+        height: 24px;
+        fill: #fff;
+    }
+
+.lv-brand-name {
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: -.3px;
+}
+
+/* Tagline */
+.lv-tagline {
+    font-size: 2.6rem;
+    font-weight: 800;
+    line-height: 1.15;
+    margin-bottom: 2.5rem;
+}
+    .lv-tagline span {
+        color: rgba(255,255,255,.55);
+        font-style: italic;
+    }
+
+/* Features list */
+.lv-features {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+    .lv-features li {
+        display: flex;
+        align-items: center;
+        gap: .85rem;
+        font-size: .95rem;
+        font-weight: 500;
+        opacity: .92;
+    }
+
+.lv-feat-icon {
+    width: 34px;
+    height: 34px;
+    background: rgba(255,255,255,.18);
+    border-radius: 8px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+    .lv-feat-icon svg {
+        width: 18px;
+        height: 18px;
+        fill: #fff;
+    }
+
+/*
+    PANEL DERECHO
+*/
+.login-form-side {
+    flex: 1;
+    display: flex;
+    background-color: var(--primary-50);
+    align-items: flex-start;
+    justify-content: center;
+    padding: 2rem 3rem;
+    overflow-y: auto;
+}
+
+.login-card-container {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 440px;
+}
+.login-card {
+  background: var(--primary-50);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  padding: 2.75rem 2.25rem;
+}
+
+/* Volver al inicio */
+.login-back {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    font-size: .85rem;
+    color: #555;
+    text-decoration: none;
+    margin-bottom: 2.5rem;
+    transition: color .2s;
+}
+
+    .login-back:hover {
+        color: var(--primary-700);
+    }
+.login-head {
+    margin-bottom: 2rem;
+}
+
+    .login-head h1 {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--primary-900);
+        letter-spacing: -.5px;
+        margin-bottom: .4rem;
+    }
+
+    .login-head p {
+        color: var(--secondary-600);
+        font-size: .95rem;
+    }
+
+.forgot-link {
+  font-size: 0.825rem;
+  color: var(--primary-600);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease, text-shadow 0.2s ease;
+}
+.forgot-link:hover {
+  color: var(--primary-900);
+  text-shadow: 0 0 8px rgba(var(--primary-600-rgb), 0.4);
+}
+
+@media (max-width: 768px) {
+    .login-visual {
+        display: none;
+    }
+}

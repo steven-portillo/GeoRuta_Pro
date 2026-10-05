@@ -1,0 +1,65 @@
+---
+// src/pages/cliente/pedidos.astro
+import ClienteLayout from '../../layouts/ClienteLayout.astro';
+import MisPedidosCliente from '../../components/cliente/MisPedidosCliente.astro';
+import { llamarBackend, obtenerToken } from '../../lib/Backend';
+
+const token = obtenerToken(Astro.cookies);
+
+// perfil (para el navbar) y pedidos (metricas + historial + pedido activo) en paralelo
+const [respuestaCuenta, respuestaPedidos] = await Promise.all([
+  llamarBackend('/cliente/perfil/cuenta', { token }),
+  llamarBackend('/cliente/pedidos', { token }),
+]);
+
+const perfil = respuestaCuenta.datos.data as {
+  nombre: string;
+  apellido: string;
+  imagenUrl: string;
+};
+
+const { metricas, pedidos, pedidoActivo } = respuestaPedidos.datos as unknown as {
+  metricas: {
+    total: number;
+    enTransito: number;
+    entregados: number;
+    cancelados: number;
+    pendientes: number;
+    totalGastado: number;
+    esteMes: number;
+  };
+  pedidos: {
+    id: number;
+    total: number;
+    fecha: string;
+    estado: string;
+    empresa: string;
+    empresaLogo: string;
+    direccion: string;
+    metodoPago: string;
+    pagoConfirmado: boolean;
+    totalItems: number;
+  }[];
+  pedidoActivo: {
+    id: number;
+    estado: string;
+    empresa: string;
+    total: number;
+    direccion: string;
+    productosLista: string;
+    totalItems: number;
+  } | null;
+};
+
+const iniciales = `${perfil.nombre?.[0] ?? ''}${perfil.apellido?.[0] ?? ''}`.toUpperCase();
+---
+
+<ClienteLayout
+  titulo="Mis pedidos"
+  vistaActual="pedidos"
+  nombreUsuario={`${perfil.nombre} ${perfil.apellido}`}
+  inicialesUsuario={iniciales}
+  imagenUrl={perfil.imagenUrl || null}
+>
+  <MisPedidosCliente metricas={metricas} pedidos={pedidos} pedidoActivo={pedidoActivo} />
+</ClienteLayout>

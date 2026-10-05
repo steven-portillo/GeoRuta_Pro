@@ -1,0 +1,32 @@
+---
+// src/pages/admin/inicio.astro
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import InicioAdmin from '../../components/admin/InicioAdmin.astro';
+import { llamarBackend, obtenerToken } from '../../lib/Backend';
+
+const token = obtenerToken(Astro.cookies);
+
+const [respuestaPerfil, respuestaMetricas] = await Promise.all([
+  llamarBackend('/admin/perfil', { token }),
+  llamarBackend('/admin/inicio/metricas', { token }),
+]);
+
+const perfil = respuestaPerfil.datos.data as { nombre: string; apellido: string };
+const metricas = (respuestaMetricas.datos.data ?? {
+  productos: 0,
+  pendientes: 0,
+  enTransito: 0,
+  repartidores: 0,
+}) as import('../../components/admin/InicioAdmin.astro').MetricasInicio;
+
+const iniciales = `${perfil.nombre?.[0] ?? ''}${perfil.apellido?.[0] ?? ''}`.toUpperCase();
+---
+
+<AdminLayout
+  titulo="Inicio"
+  vistaActual="inicio"
+  nombreAdmin={`${perfil.nombre} ${perfil.apellido}`}
+  inicialesAdmin={iniciales}
+>
+  <InicioAdmin nombre={perfil.nombre} apellido={perfil.apellido} metricas={metricas} />
+</AdminLayout>

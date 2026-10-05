@@ -1,0 +1,32 @@
+---
+// src/pages/admin/perfil.astro
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import PerfilAdmin from '../../components/admin/PerfilAdmin.astro';
+import { llamarBackend, obtenerToken } from '../../lib/Backend';
+
+const token = obtenerToken(Astro.cookies);
+
+const respuestaPerfil = await llamarBackend('/admin/perfil', { token });
+
+const perfil = (respuestaPerfil.datos.data ?? {
+  nombre: '',
+  apellido: '',
+  email: '',
+  imagenUrl: '',
+  empresaNombre: '',
+  empresaDesc: '',
+  empresaLogo: '',
+}) as import('../../components/admin/PerfilAdmin.astro').PerfilAdmin;
+
+const iniciales = `${perfil.nombre?.[0] ?? ''}${perfil.apellido?.[0] ?? ''}`.toUpperCase();
+---
+
+<AdminLayout
+  titulo="Mi perfil"
+  vistaActual="perfil"
+  nombreAdmin={`${perfil.nombre} ${perfil.apellido}`}
+  inicialesAdmin={iniciales}
+  imagenUrl={perfil.imagenUrl || null}
+>
+  <PerfilAdmin perfilInicial={perfil} />
+</AdminLayout>

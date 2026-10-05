@@ -1,0 +1,175 @@
+---
+// src/components/superadmin/PerfilSuperAdmin.astro
+// perfil del superadmin: foto y datos personales. mismo markup/estilos que PerfilAdmin,
+// sin la parte de empresa (el superadmin no pertenece a ninguna)
+
+export interface PerfilSuperAdmin {
+  nombre: string;
+  apellido: string;
+  email: string;
+  imagenUrl: string;
+}
+
+interface Props {
+  perfilInicial: PerfilSuperAdmin;
+}
+
+const { perfilInicial: p } = Astro.props;
+
+const iniciales = `${p.nombre?.[0] ?? 'S'}${p.apellido?.[0] ?? 'A'}`.toUpperCase();
+---
+
+<div class="admin-perfil-wrap">
+  <!-- cabecera -->
+  <div class="admin-perfil-header">
+    <div class="admin-perfil-avatar-wrap">
+      <div class="admin-perfil-avatar" id="admin-avatar-grande">
+        {
+          p.imagenUrl ? (
+            <img src={p.imagenUrl} alt="Foto de perfil" style="width:100%;height:100%;object-fit:cover;border-radius:50%" />
+          ) : (
+            iniciales
+          )
+        }
+      </div>
+      <label class="admin-perfil-avatar-btn" for="admin-input-foto" title="Cambiar foto">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 15.2A3.2 3.2 0 0 1 8.8 12 3.2 3.2 0 0 1 12 8.8 3.2 3.2 0 0 1 15.2 12 3.2 3.2 0 0 1 12 15.2M12 7a5 5 0 0 0-5 5 5 5 0 0 0 5 5 5 5 0 0 0 5-5 5 5 0 0 0-5-5m-7-1h2.5l1.83-2h5.34l1.83 2H19c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2V8c0-1.1.9-2 2-2z" />
+        </svg>
+      </label>
+      <input type="file" id="admin-input-foto" accept="image/jpeg,image/png,image/webp" style="display:none" />
+    </div>
+    <div class="admin-perfil-header-info">
+      <div class="admin-perfil-nombre-display" id="admin-perfil-nombre-display">
+        {`${p.nombre} ${p.apellido}`.trim() || 'Superadministrador'}
+      </div>
+      <div class="admin-perfil-rol-badge">SUPERADMINISTRADOR</div>
+      <div class="admin-perfil-email-display" id="admin-email-display">{p.email}</div>
+    </div>
+  </div>
+
+  <!-- datos personales -->
+  <div class="admin-perfil-card" style="max-width:640px">
+    <div class="admin-perfil-card-titulo">
+      <svg viewBox="0 0 24 24">
+        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+      </svg>
+      Datos personales
+    </div>
+
+    <div id="msg-datos-superadmin" style="display:none;"></div>
+
+    <div class="admin-perfil-fila">
+      <div class="admin-perfil-grupo">
+        <label class="admin-perfil-label">Nombre</label>
+        <input class="admin-perfil-input" id="admin-input-nombre" placeholder="Tu nombre" value={p.nombre} />
+      </div>
+      <div class="admin-perfil-grupo">
+        <label class="admin-perfil-label">Apellido</label>
+        <input class="admin-perfil-input" id="admin-input-apellido" placeholder="Tu apellido" value={p.apellido} />
+      </div>
+    </div>
+
+    <div class="admin-perfil-grupo">
+      <label class="admin-perfil-label">Correo electrónico</label>
+      <input class="admin-perfil-input" id="admin-input-email" type="email" placeholder="correo@ejemplo.com" value={p.email} />
+    </div>
+
+    <button class="admin-perfil-btn-guardar" id="btn-guardar-superadmin">
+      <svg viewBox="0 0 24 24">
+        <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z" />
+      </svg>
+      Guardar datos personales
+    </button>
+  </div>
+</div>
+
+<script>
+  function mostrarMsg(el: HTMLElement | null, texto: string, ok: boolean) {
+    if (!el) return;
+    el.textContent = texto;
+    el.className = ok ? 'admin-msg-ok' : 'admin-msg-err';
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 4000);
+  }
+
+  // el backend responde rutas relativas ("/img/...") que sirve deno, no astro
+  function urlAbsolutaBackend(url: string): string {
+    if (/^(https?:|data:|blob:)/.test(url)) return url;
+    return `${import.meta.env.PUBLIC_BACKEND_URL ?? ''}${url}`;
+  }
+
+  function actualizarAvatar(urlFoto: string) {
+    const urlFinal = urlAbsolutaBackend(urlFoto);
+    const avatar = document.getElementById('admin-avatar-grande');
+    if (avatar) {
+      avatar.innerHTML = `<img src="${urlFinal}" alt="Foto de perfil" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+    }
+    // el avatar del footer del sidebar tambien cambia al instante
+    const avatarSidebar = document.querySelector('.sidebar-profile-avatar');
+    if (avatarSidebar) avatarSidebar.innerHTML = `<img src="${urlFinal}" alt="Foto de perfil">`;
+  }
+
+  // ── guardar datos personales ──
+  document.getElementById('btn-guardar-superadmin')?.addEventListener('click', async () => {
+    const nombre = (document.getElementById('admin-input-nombre') as HTMLInputElement | null)?.value.trim() ?? '';
+    const apellido = (document.getElementById('admin-input-apellido') as HTMLInputElement | null)?.value.trim() ?? '';
+    const email = (document.getElementById('admin-input-email') as HTMLInputElement | null)?.value.trim() ?? '';
+    const msg = document.getElementById('msg-datos-superadmin');
+    const btn = document.getElementById('btn-guardar-superadmin');
+    if (!(btn instanceof HTMLButtonElement)) return;
+
+    // el backend exige minimo 2 caracteres en nombre y apellido
+    if (nombre.length < 2) { mostrarMsg(msg, 'El nombre debe tener al menos 2 caracteres.', false); return; }
+    if (apellido.length < 2) { mostrarMsg(msg, 'El apellido debe tener al menos 2 caracteres.', false); return; }
+    if (!email || !email.includes('@')) { mostrarMsg(msg, 'Ingresa un correo válido.', false); return; }
+
+    const textoOrig = btn.innerHTML;
+    btn.innerHTML = 'Guardando...';
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/auth/superadmin/perfil/datos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre, apellido, email }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        mostrarMsg(msg, '✓ ' + data.message, true);
+        const nombreCompleto = `${nombre} ${apellido}`.trim();
+        const elDisplay = document.getElementById('admin-perfil-nombre-display');
+        if (elDisplay) elDisplay.textContent = nombreCompleto;
+        const elEmail = document.getElementById('admin-email-display');
+        if (elEmail) elEmail.textContent = email;
+        const elSidebar = document.querySelector('.sidebar-profile-name');
+        if (elSidebar) elSidebar.textContent = nombreCompleto;
+      } else {
+        mostrarMsg(msg, '✗ ' + (data.message ?? 'No fue posible guardar.'), false);
+      }
+    } catch {
+      mostrarMsg(msg, '✗ Error de conexión.', false);
+    } finally {
+      btn.innerHTML = textoOrig;
+      btn.disabled = false;
+    }
+  });
+
+  // ── foto de perfil ──
+  document.getElementById('admin-input-foto')?.addEventListener('change', async (e) => {
+    const archivo = (e.target as HTMLInputElement | null)?.files?.[0];
+    if (!archivo) return;
+    if (archivo.size > 2 * 1024 * 1024) { alert('La imagen no puede superar 2MB.'); return; }
+
+    const formData = new FormData();
+    formData.append('foto', archivo);
+    try {
+      const res = await fetch('/api/auth/superadmin/perfil/foto', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.success) actualizarAvatar(data.imagenUrl + '?t=' + Date.now());
+      else alert(data.message ?? 'No fue posible subir la foto.');
+    } catch (err) {
+      console.error('Error subiendo foto:', err);
+    }
+  });
+
+</script>

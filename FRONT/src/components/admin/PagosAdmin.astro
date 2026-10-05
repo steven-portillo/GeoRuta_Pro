@@ -1,0 +1,256 @@
+---
+// src/components/admin/PagosAdmin.astro
+// panel de pagos del admin — puerto de Views/Admin/Pagos.cshtml + la parte de pagos de
+
+export interface PagoAdmin {
+  id: number;
+  idPedido: number;
+  cliente: string;
+  pasarela: string;
+  referencia: string;
+  monto: number;
+  estadoPago: string;
+  metodoPago: string;
+  fecha: string | null;
+}
+
+export interface MetricasPagos {
+  saldoTotal: number;
+  pagosMes: number;
+  pagosPendientes: number;
+  ticketPromedio: number;
+  totalAprobados: number;
+  totalRechazados: number;
+}
+
+export interface PuntoSerieIngresos {
+  fecha: string;
+  total: number;
+}
+
+interface Props {
+  pagosIniciales: PagoAdmin[];
+  metricasIniciales: MetricasPagos;
+  serieDiariaInicial: PuntoSerieIngresos[];
+}
+
+const { pagosIniciales, metricasIniciales: m, serieDiariaInicial } = Astro.props;
+
+// formatea moneda igual que el resto del panel admin (es-CO, sin decimales)
+const fmt = (n: number) => '$' + Math.round(Number(n)).toLocaleString('es-CO');
+
+// mes actual en español — reemplaza el DateTime.Now con CultureInfo("es-ES") del original
+const mesActual = new Date().toLocaleDateString('es-CO', { month: 'long' });
+
+// si no hay ningun pago todavia, se muestra el mensaje vacio en vez del resumen
+const totalPagos = m.totalAprobados + m.totalRechazados + m.pagosPendientes;
+
+// ── grafico de barras (ultimos 14 dias) — mismo calculo que renderGraficoIngresos() del
+// original, resuelto aqui en el servidor en vez de con js en el navegador
+const ANCHO = 700;
+const ALTO = 140;
+const PAD_INFERIOR = 24;
+const PAD_SUPERIOR = 10;
+const maxSerie = Math.max(...serieDiariaInicial.map((d) => d.total), 1);
+const anchoBarra = ANCHO / (serieDiariaInicial.length || 1);
+const espacio = anchoBarra * 0.28;
+
+const barras = serieDiariaInicial.map((d, i) => {
+  const alturaMax = ALTO - PAD_INFERIOR - PAD_SUPERIOR;
+  const altura = d.total > 0 ? Math.max((d.total / maxSerie) * alturaMax, 3) : 2;
+  const x = i * anchoBarra + espacio / 2;
+  const y = ALTO - PAD_INFERIOR - altura;
+  const anchoRect = anchoBarra - espacio;
+  const esHoy = i === serieDiariaInicial.length - 1;
+  // la fecha llega como "YYYY-MM-DD" desde Pago.model.ObtenerSerieDiaria — la paso a "DD/MM"
+  const [anio, mes, dia] = d.fecha.split('-');
+  return { x, y, anchoRect, altura, esHoy, valor: fmt(d.total), etiqueta: `${dia}/${mes}`, fecha: d.fecha };
+});
+---
+
+<div class="encabezado-sec" style="margin-bottom:1rem">
+  <div>
+    <h1 style="font-size:1.3rem;font-weight:800;color:var(--gris-900)">💳 Pagos</h1>
+    <p style="font-size:0.82rem;color:var(--gris-500);margin-top:2px">
+      Ingresos en línea recibidos vía Stripe
+    </p>
+  </div>
+</div>
+
+<!-- metricas -->
+<div class="grilla-metricas">
+  <div class="metrica-card accent-verde">
+    <div class="metrica-label">Saldo total recibido</div>
+    <div class="metrica-valor">{fmt(m.saldoTotal)}</div>
+    <div class="metrica-sub">pagos aprobados</div>
+  </div>
+  <div class="metrica-card accent-azul">
+    <div class="metrica-label">Pagos del mes</div>
+    <div class="metrica-valor">{fmt(m.pagosMes)}</div>
+    <div class="metrica-sub">{mesActual}</div>
+  </div>
+  <div class="metrica-card accent-amber">
+    <div class="metrica-label">Pagos pendientes</div>
+    <div class="metrica-valor">{m.pagosPendientes}</div>
+    <div class="metrica-sub">por confirmar</div>
+  </div>
+  <div class="metrica-card accent-violeta">
+    <div class="metrica-label">Ticket promedio</div>
+    <div class="metrica-valor">{fmt(m.ticketPromedio)}</div>
+    <div class="metrica-sub">por transacción</div>
+  </div>
+</div>
+
+<!-- resumen de pagos -->
+<div class="panel-card" style="margin-top:1rem">
+  <div class="panel-card-header">
+    <span class="titulo-sec">Resumen de pagos con Stripe</span>
+  </div>
+  <div class="panel-card-body">
+    {totalPagos === 0 ? (
+      <p style="color:#94a3b8;font-size:0.85rem;text-align:center;padding:1rem">
+        Aún no se han registrado pagos.
+      </p>
+    ) : (
+      <div style="display:flex;gap:2rem;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="badge badge-verde" style="font-size:.75rem">✅ {m.totalAprobados}</span>
+          <span style="font-size:.82rem;color:var(--gris-500)">aprobados</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="badge badge-amber" style="font-size:.75rem">⏳ {m.pagosPendientes}</span>
+          <span style="font-size:.82rem;color:var(--gris-500)">pendientes</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="badge badge-rojo" style="font-size:.75rem">❌ {m.totalRechazados}</span>
+          <span style="font-size:.82rem;color:var(--gris-500)">rechazados</span>
+        </div>
+      </div>
+    )}
+  </div>
+</div>
+
+<!-- mini grafico de ingresos -->
+<div class="panel-card" style="margin-top:1rem">
+  <div class="panel-card-header">
+    <span class="titulo-sec">Ingresos — últimos 14 días</span>
+  </div>
+  <div class="panel-card-body">
+    <div style="height:140px">
+      {serieDiariaInicial.length === 0 ? (
+        <p style="color:#94a3b8;font-size:0.85rem;text-align:center">Sin datos aún.</p>
+      ) : (
+        <svg viewBox={`0 0 ${ANCHO} ${ALTO}`} style="width:100%;height:100%" preserveAspectRatio="none">
+          {barras.map((b) => (
+            <g>
+              <rect
+                x={b.x} y={b.y} width={b.anchoRect} height={b.altura} rx="3"
+                fill={b.esHoy ? 'var(--violeta-600)' : 'var(--azul-500)'}
+                opacity={b.altura > 2 ? '0.9' : '0.25'}
+              >
+                <title>{b.fecha}: {b.valor}</title>
+              </rect>
+              <text
+                x={b.x + b.anchoRect / 2} y={ALTO - 6} text-anchor="middle"
+                font-size="9" fill="var(--gris-400)" font-family="var(--mono)"
+              >
+                {b.etiqueta}
+              </text>
+            </g>
+          ))}
+        </svg>
+      )}
+    </div>
+  </div>
+</div>
+
+<!-- tabla de pagos recientes -->
+<div class="panel-card" style="margin-top:1rem">
+  <div class="panel-card-header" style="flex-wrap:wrap;gap:10px">
+    <span class="titulo-sec">Pagos recientes</span>
+    <div class="barra-filtros">
+      <input class="input-busqueda" id="buscar-pago" placeholder="Cliente o #pedido..." />
+      <select class="input-busqueda" id="filtro-pasarela" style="width:160px">
+        <option value="stripe">Stripe</option>
+      </select>
+      <select class="input-busqueda" id="filtro-estado-pago" style="width:150px">
+        <option value="">Todos los estados</option>
+        <option value="aprobado">Aprobado</option>
+        <option value="pendiente">Pendiente</option>
+        <option value="rechazado">Rechazado</option>
+      </select>
+    </div>
+  </div>
+  <div class="panel-card-body" style="padding:0">
+    <table class="tabla-admin">
+      <thead>
+        <tr>
+          <th>Pedido</th>
+          <th>Cliente</th>
+          <th>Pasarela</th>
+          <th>Referencia</th>
+          <th>Monto</th>
+          <th>Estado</th>
+          <th>Fecha</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-pagos"></tbody>
+    </table>
+  </div>
+</div>
+
+<script define:vars={{ pagosIniciales }}>
+  // los pagos ya vienen resueltos por ssr; este script solo filtra en memoria,
+  // no vuelve a pedirle nada al backend (esta vista es de solo lectura)
+  const pagos = pagosIniciales;
+
+  const badgeEstadoPago = {
+    aprobado: { clase: 'badge-verde', icono: '✅', texto: 'Aprobado' },
+    pendiente: { clase: 'badge-amber', icono: '⏳', texto: 'Pendiente' },
+    rechazado: { clase: 'badge-rojo', icono: '❌', texto: 'Rechazado' },
+    contra_entrega: { clase: 'badge-slate', icono: '💵', texto: 'Contra entrega' },
+  };
+
+  const fmtMonto = (n) => '$' + Number(n).toLocaleString('es-CO');
+
+  function renderPagos(lista) {
+    const tbody = document.getElementById('tbody-pagos');
+    if (!tbody) return;
+    if (!lista.length) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:2rem">Aún no se han registrado pagos.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = lista
+      .map((p) => {
+        const est = badgeEstadoPago[p.estadoPago] || { clase: 'badge-slate', icono: '📋', texto: p.estadoPago };
+        const fechaTxt = p.fecha ? new Date(p.fecha).toLocaleString('es-CO') : '—';
+        return `<tr>
+          <td class="celda-mono">#PED-${p.idPedido}</td>
+          <td style="font-weight:600">${p.cliente}</td>
+          <td style="font-size:.82rem">💳 Stripe</td>
+          <td style="font-size:.78rem;color:var(--gris-500)">${p.referencia || '—'}</td>
+          <td style="font-weight:700">${fmtMonto(p.monto)}</td>
+          <td><span class="badge ${est.clase}">${est.icono} ${est.texto}</span></td>
+          <td style="font-size:.75rem;color:#94a3b8">${fechaTxt}</td>
+        </tr>`;
+      })
+      .join('');
+  }
+
+  function filtrarPagos() {
+    const texto = document.getElementById('buscar-pago')?.value.toLowerCase() ?? '';
+    const estado = document.getElementById('filtro-estado-pago')?.value ?? '';
+    renderPagos(
+      pagos.filter(
+        (p) =>
+          (p.cliente.toLowerCase().includes(texto) || String(p.idPedido).includes(texto)) &&
+          (!estado || p.estadoPago === estado),
+      ),
+    );
+  }
+
+  document.getElementById('buscar-pago')?.addEventListener('input', filtrarPagos);
+  document.getElementById('filtro-estado-pago')?.addEventListener('change', filtrarPagos);
+
+  renderPagos(pagos); // render inicial (unica pasarela activa hoy es stripe, igual que el original)
+</script>
