@@ -1,0 +1,837 @@
+---
+// src/components/proveedor/PedidosProveedor.astro
+// vista "Mis pedidos" del repartidor: tarjetas, mapa de entregas, detalle con mapa y rastreo gps en vivo
+
+export interface PedidoProveedor {
+  id: number;
+  total: number;
+  fecha: string;
+  estado: string;
+  cliente: string;
+  clienteEmail: string;
+  direccion: string;
+  latitud: number | string | null;
+  longitud: number | string | null;
+  empresa: string;
+  productos: string;
+  totalItems: number;
+  metodoPago: string;
+  observaciones: string;
+}
+
+interface Props {
+  pedidosIniciales: PedidoProveedor[];
+  // mensaje si el backend no pudo devolver los pedidos al renderizar la pagina
+  error?: string;
+}
+
+const { pedidosIniciales, error } = Astro.props;
+
+// se escapa "<" para que un texto con "</script>" no rompa la etiqueta que lleva el json
+const datosJson = JSON.stringify({ pedidos: pedidosIniciales, error: error ?? null }).replace(
+  /</g,
+  '\\u003c',
+);
+---
+
+<!-- leaflet: mapa de entregas y mini-mapa del detalle -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<div class="rep-tabs">
+  <button type="button" class="rep-tab activo" id="tab-btn-pedidos" data-tab="pedidos">
+    📦 Pedidos asignados
+  </button>
+  <button type="button" class="rep-tab" id="tab-btn-mapa" data-tab="mapa">🗺️ Mapa de entregas</button>
+</div>
+
+<!-- ══ panel: pedidos asignados ══ -->
+<div id="panel-tab-pedidos">
+  <div class="rep-toolbar">
+    <span class="rep-toolbar-titulo">Pedidos asignados</span>
+    <div class="rep-toolbar-filtros">
+      <input
+        type="text"
+        class="rep-input-filtro"
+        id="buscar-pedido-rep"
+        placeholder="Buscar pedido..."
+      />
+      <select class="rep-input-filtro" id="filtro-estado-rep">
+        <option value="">Todos los estados</option>
+        <option value="Pendiente">Pendiente</option>
+        <option value="En preparacion">En preparación</option>
+        <option value="En transito">En tránsito</option>
+        <option value="Entregado">Entregado</option>
+      </select>
+    </div>
+  </div>
+  <div class="rep-pedidos-grid" id="grilla-pedidos-rep"></div>
+</div>
+
+<!-- ══ panel: mapa de entregas ══ -->
+<div id="panel-tab-mapa" style="display:none">
+  <div class="rep-toolbar">
+    <span class="rep-toolbar-titulo">Mapa de entregas</span>
+    <div class="rep-mapa-estado" id="mapa-entregas-estado">Cargando...</div>
+  </div>
+  <div class="rep-mapa-entregas" id="mapa-entregas-rep"></div>
+</div>
+
+<!-- ══ modal: detalle con mapa ══ -->
+<div class="rep-modal-overlay" id="modal-detalle-rep" style="display:none">
+  <div class="rep-modal rep-modal-detalle">
+    <div class="rep-modal-header">
+      <h2 class="rep-modal-titulo" id="modal-det-titulo">Detalle del pedido</h2>
+      <button type="button" class="rep-modal-cerrar" id="modal-det-cerrar" aria-label="Cerrar">
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+          ></path>
+        </svg>
+      </button>
+    </div>
+    <div class="rep-modal-body">
+      <div class="rep-det-info" id="modal-det-info"></div>
+      <div class="rep-mapa-detalle" id="mapa-detalle-rep"></div>
+      <div id="modal-det-msg" style="display:none"></div>
+    </div>
+    <div class="rep-modal-footer">
+      <button type="button" class="rep-btn-s" id="modal-det-cerrar-2">Cerrar</button>
+      <button type="button" class="rep-btn-p" id="btn-cambiar-estado-rep">Actualizar estado</button>
+    </div>
+  </div>
+</div>
+
+<script is:inline type="application/json" id="datos-pedidos-iniciales" set:html={datosJson} />
+
+<script>
+  // ══════════════════════════════════════════════════════════
+  // tipos y constantes
+  // ══════════════════════════════════════════════════════════
+  interface Pedido {
+    id: number;
+    total: number;
+    estado: string;
+    cliente: string;
+    direccion: string;
+    latitud: number | string | null;
+    longitud: number | string | null;
+    empresa: string;
+    productos: string;
+    metodoPago: string;
+  }
+
+  interface EstiloEstado {
+    badge: string;
+    icono: string;
+  }
+
+  // las llaves van sin tilde: clave() normaliza el estado, asi sirve "En transito" y "En tránsito"
+  const COLOR_ESTADO: Record<string, EstiloEstado> = {
+    Pendiente: { badge: 'badge-amber', icono: '⏳' },
+    'En preparacion': { badge: 'badge-azul', icono: '📦' },
+    'En transito': { badge: 'badge-azul', icono: '🚚' },
+    Entregado: { badge: 'badge-verde', icono: '✅' },
+    Cancelado: { badge: 'badge-slate', icono: '❌' },
+  };
+
+  const SIGUIENTE_ESTADO: Record<string, string> = {
+    Pendiente: 'En transito',
+    'En preparacion': 'En transito',
+    'En transito': 'Entregado',
+  };
+
+  const COLOR_MAPA: Record<string, { fondo: string; borde: string }> = {
+    Pendiente: { fondo: '#f59e0b', borde: '#d97706' },
+    'En preparacion': { fondo: '#3b82f6', borde: '#2563eb' },
+    'En transito': { fondo: '#8b5cf6', borde: '#7c3aed' },
+    Entregado: { fondo: '#22c55e', borde: '#16a34a' },
+    Cancelado: { fondo: '#94a3b8', borde: '#64748b' },
+  };
+
+  // centro por defecto del mapa (el mismo del original)
+  const CENTRO_POR_DEFECTO: [number, number] = [5.5353, -73.3678];
+  const URL_TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+  const INTERVALO_GPS_MS = 5000;
+  const REINTENTO_WS_MS = 3000;
+
+  // ══════════════════════════════════════════════════════════
+  // utilidades
+  // ══════════════════════════════════════════════════════════
+  function obtener<T extends HTMLElement = HTMLElement>(id: string): T | null {
+    return document.getElementById(id) as T | null;
+  }
+
+  // escapa texto antes de insertarlo con innerHTML (el original no lo hacia)
+  function esc(valor: unknown): string {
+    return String(valor ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // quita tildes para comparar estados sin importar como se guardaron en la base
+  function clave(estado: string): string {
+    return estado.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  function esTransito(p: Pedido): boolean {
+    return clave(p.estado) === 'En transito';
+  }
+
+  function formatoMoneda(valor: number): string {
+    return `$${Number(valor).toLocaleString('es-CO')}`;
+  }
+
+  function textoPago(metodo: string): string {
+    return metodo === 'online' ? '💳 Online' : '💵 Contra entrega';
+  }
+
+  function textoBotonAvance(siguiente: string): string {
+    return siguiente === 'En transito' ? '🚚 Iniciar entrega' : '✅ Marcar entregado';
+  }
+
+  // leaflet viene del <script is:inline> de arriba, que corre antes que este modulo
+  function leaflet(): any {
+    return (window as any).L;
+  }
+
+  function mostrarMensaje(el: HTMLElement | null, texto: string, ok: boolean) {
+    if (!el) return;
+    el.textContent = texto;
+    el.className = ok ? 'rep-msg-ok' : 'rep-msg-err';
+    el.style.display = 'block';
+    setTimeout(() => {
+      el.style.display = 'none';
+    }, 4000);
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // estado de la vista
+  // ══════════════════════════════════════════════════════════
+  let pedidos: Pedido[] = [];
+  let pedidoSeleccionado: Pedido | null = null;
+
+  let mapaDetalle: any = null;
+  let marcadorDetalle: any = null;
+  let mapaEntregas: any = null;
+  let marcadoresEntregas: any[] = [];
+
+  // ══════════════════════════════════════════════════════════
+  // lista de pedidos (tarjetas)
+  // ══════════════════════════════════════════════════════════
+  function tarjetaPedido(p: Pedido): string {
+    const est = COLOR_ESTADO[clave(p.estado)] ?? { badge: 'badge-slate', icono: '📋' };
+    const siguiente = SIGUIENTE_ESTADO[clave(p.estado)];
+
+    return `
+      <div class="rep-pedido-card${esTransito(p) ? ' activo' : ''}">
+        <div class="rep-pedido-header">
+          <span class="rep-pedido-id">#PED-${p.id}</span>
+          <span class="badge ${est.badge}">${est.icono} ${esc(p.estado)}</span>
+        </div>
+        <div class="rep-pedido-body">
+          <div class="rep-pedido-fila"><strong>Cliente</strong>${esc(p.cliente)}</div>
+          <div class="rep-pedido-fila"><strong>Empresa</strong>${esc(p.empresa)}</div>
+          <div class="rep-pedido-fila">
+            <strong>Total</strong><span class="rep-total">${formatoMoneda(p.total)}</span>
+          </div>
+          <div class="rep-pedido-fila"><strong>Pago</strong>${textoPago(p.metodoPago)}</div>
+          <div class="rep-pedido-fila rep-pedido-fila-col">
+            <strong>Dirección</strong>
+            <span class="rep-pedido-direccion">📍 ${esc(p.direccion || 'No disponible')}</span>
+          </div>
+          ${p.productos ? `<div class="rep-pedido-productos">📦 ${esc(p.productos)}</div>` : ''}
+        </div>
+        <div class="rep-pedido-footer">
+          <button type="button" class="rep-btn-s" data-accion="detalle" data-id="${p.id}">Ver mapa</button>
+          ${
+            siguiente
+              ? `<button type="button" class="rep-btn-p" data-accion="avanzar" data-id="${p.id}" data-estado="${siguiente}">${textoBotonAvance(siguiente)}</button>`
+              : ''
+          }
+        </div>
+      </div>`;
+  }
+
+  function renderPedidos(lista: Pedido[]) {
+    const grilla = obtener('grilla-pedidos-rep');
+    if (!grilla) return;
+
+    if (lista.length === 0) {
+      grilla.innerHTML = '<p class="rep-vacio">No tienes pedidos asignados.</p>';
+      return;
+    }
+    grilla.innerHTML = lista.map(tarjetaPedido).join('');
+  }
+
+  function filtrarPedidos() {
+    const texto = (obtener<HTMLInputElement>('buscar-pedido-rep')?.value ?? '').toLowerCase();
+    const estado = obtener<HTMLSelectElement>('filtro-estado-rep')?.value ?? '';
+
+    renderPedidos(
+      pedidos.filter(
+        (p) =>
+          (p.cliente.toLowerCase().includes(texto) || String(p.id).includes(texto)) &&
+          (!estado || clave(p.estado) === estado),
+      ),
+    );
+  }
+
+  // vuelve a pedir los pedidos al backend (via proxy) y refresca tarjetas, banner y mapa
+  async function cargarPedidos() {
+    try {
+      const respuesta = await fetch('/api/auth/proveedor/pedidos');
+      const datos = await respuesta.json();
+
+      if (!datos.success) {
+        const grilla = obtener('grilla-pedidos-rep');
+        if (grilla) {
+          grilla.innerHTML = `<p class="rep-vacio error">Error: ${esc(datos.message)}</p>`;
+        }
+        return;
+      }
+
+      pedidos = datos.data ?? [];
+      filtrarPedidos();
+      sincronizarRastreo();
+
+      if (obtener('panel-tab-mapa')?.style.display !== 'none') pintarMapaEntregas();
+    } catch (error) {
+      console.error('error cargando pedidos:', error);
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // cambio de estado
+  // ══════════════════════════════════════════════════════════
+  async function llamarCambiarEstado(idPedido: number, nuevoEstado: string): Promise<boolean> {
+    try {
+      const respuesta = await fetch('/api/auth/proveedor/pedidos/cambiar-estado', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idPedido, nuevoEstado }),
+      });
+      const datos = await respuesta.json();
+      if (!datos.success) console.warn('cambiar estado:', datos.message);
+      return Boolean(datos.success);
+    } catch {
+      return false;
+    }
+  }
+
+  // boton de la tarjeta: confirma, cambia el estado y arranca o detiene el rastreo segun corresponda
+  async function accionRapida(id: number, nuevoEstado: string) {
+    if (!confirm(`¿Cambiar el pedido #PED-${id} a "${nuevoEstado}"?`)) return;
+
+    const ok = await llamarCambiarEstado(id, nuevoEstado);
+    if (!ok) {
+      alert('No fue posible actualizar el estado del pedido.');
+      return;
+    }
+
+    if (nuevoEstado === 'Entregado') detenerRastreo();
+    await cargarPedidos();
+    if (nuevoEstado === 'En transito') await activarRastreo(id);
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // modal de detalle con mapa
+  // ══════════════════════════════════════════════════════════
+  function abrirDetalle(id: number) {
+    const p = pedidos.find((x) => x.id === id);
+    if (!p) return;
+
+    pedidoSeleccionado = p;
+    const est = COLOR_ESTADO[clave(p.estado)] ?? { badge: 'badge-slate', icono: '📋' };
+    const siguiente = SIGUIENTE_ESTADO[clave(p.estado)];
+
+    const titulo = obtener('modal-det-titulo');
+    if (titulo) titulo.textContent = `Pedido #PED-${p.id}`;
+
+    const info = obtener('modal-det-info');
+    if (info) {
+      info.innerHTML = `
+        <div class="rep-det-lista">
+          <div class="rep-det-estado">
+            <span>Estado actual</span>
+            <span class="badge ${est.badge}">${est.icono} ${esc(p.estado)}</span>
+          </div>
+          <div><strong>Cliente:</strong> ${esc(p.cliente)}</div>
+          <div><strong>Empresa:</strong> ${esc(p.empresa)}</div>
+          <div><strong>Total:</strong> <span class="rep-total">${formatoMoneda(p.total)}</span></div>
+          <div><strong>Pago:</strong> ${textoPago(p.metodoPago)}</div>
+          <div class="rep-det-direccion">📍 ${esc(p.direccion || 'Dirección no disponible')}</div>
+        </div>`;
+    }
+
+    const botonAccion = obtener<HTMLButtonElement>('btn-cambiar-estado-rep');
+    if (botonAccion) {
+      botonAccion.disabled = false;
+      if (siguiente) {
+        botonAccion.style.display = 'inline-flex';
+        botonAccion.textContent = textoBotonAvance(siguiente);
+      } else {
+        botonAccion.style.display = 'none';
+      }
+    }
+
+    const mensaje = obtener('modal-det-msg');
+    if (mensaje) mensaje.style.display = 'none';
+
+    const modal = obtener('modal-detalle-rep');
+    if (modal) modal.style.display = 'flex';
+
+    // el contenedor del mapa necesita estar visible antes de inicializar leaflet
+    setTimeout(() => pintarMapaDetalle(p), 150);
+  }
+
+  function cerrarDetalle() {
+    const modal = obtener('modal-detalle-rep');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function pintarMapaDetalle(p: Pedido) {
+    const L = leaflet();
+    if (!L) return;
+
+    const lat = p.latitud ? Number(p.latitud) : CENTRO_POR_DEFECTO[0];
+    const lng = p.longitud ? Number(p.longitud) : CENTRO_POR_DEFECTO[1];
+
+    if (!mapaDetalle) {
+      mapaDetalle = L.map('mapa-detalle-rep').setView([lat, lng], 15);
+      L.tileLayer(URL_TILES, { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(mapaDetalle);
+
+      marcadorDetalle = L.marker([lat, lng], {
+        icon: L.divIcon({
+          className: '',
+          html: `<div style="width:32px;height:32px;background:#16a34a;border:3px solid white;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 2px 8px rgba(0,0,0,.3)"></div>`,
+          iconSize: [32, 32],
+          iconAnchor: [16, 32],
+        }),
+      }).addTo(mapaDetalle);
+    } else {
+      mapaDetalle.setView([lat, lng], 15);
+      marcadorDetalle.setLatLng([lat, lng]);
+      mapaDetalle.invalidateSize();
+    }
+
+    marcadorDetalle.bindPopup(`📍 ${esc(p.direccion || 'Destino')}`).openPopup();
+  }
+
+  // boton "actualizar estado" del modal
+  async function cambiarEstadoDesdeModal() {
+    if (!pedidoSeleccionado) return;
+    const siguiente = SIGUIENTE_ESTADO[clave(pedidoSeleccionado.estado)];
+    if (!siguiente) return;
+
+    const boton = obtener<HTMLButtonElement>('btn-cambiar-estado-rep');
+    const mensaje = obtener('modal-det-msg');
+    if (boton) {
+      boton.textContent = 'Actualizando...';
+      boton.disabled = true;
+    }
+
+    const idPedido = pedidoSeleccionado.id;
+    const ok = await llamarCambiarEstado(idPedido, siguiente);
+
+    if (!ok) {
+      mostrarMensaje(mensaje, '❌ Error al actualizar el estado.', false);
+      if (boton) {
+        boton.textContent = 'Actualizar estado';
+        boton.disabled = false;
+      }
+      return;
+    }
+
+    mostrarMensaje(mensaje, `✅ Estado actualizado a "${siguiente}"`, true);
+    if (siguiente === 'Entregado') detenerRastreo();
+
+    setTimeout(async () => {
+      cerrarDetalle();
+      await cargarPedidos();
+      if (siguiente === 'En transito') await activarRastreo(idPedido);
+    }, 1200);
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // pestañas y mapa de entregas
+  // ══════════════════════════════════════════════════════════
+  function cambiarTab(tab: 'pedidos' | 'mapa') {
+    const panelPedidos = obtener('panel-tab-pedidos');
+    const panelMapa = obtener('panel-tab-mapa');
+    if (!panelPedidos || !panelMapa) return;
+
+    const esPedidos = tab === 'pedidos';
+    panelPedidos.style.display = esPedidos ? 'block' : 'none';
+    panelMapa.style.display = esPedidos ? 'none' : 'block';
+    obtener('tab-btn-pedidos')?.classList.toggle('activo', esPedidos);
+    obtener('tab-btn-mapa')?.classList.toggle('activo', !esPedidos);
+
+    if (!esPedidos) setTimeout(pintarMapaEntregas, 150);
+  }
+
+  function pintarMapaEntregas() {
+    const L = leaflet();
+    const contenedor = obtener('mapa-entregas-rep');
+    const estado = obtener('mapa-entregas-estado');
+    if (!L || !contenedor || !estado) return;
+
+    // el mapa se crea solo la primera vez; despues solo se limpian los marcadores
+    if (!mapaEntregas) {
+      mapaEntregas = L.map('mapa-entregas-rep', {
+        zoomControl: true,
+        dragging: true,
+        scrollWheelZoom: true,
+      }).setView(CENTRO_POR_DEFECTO, 13);
+      L.tileLayer(URL_TILES, { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(mapaEntregas);
+    } else {
+      marcadoresEntregas.forEach((m) => mapaEntregas.removeLayer(m));
+      marcadoresEntregas = [];
+      mapaEntregas.invalidateSize();
+    }
+
+    if (pedidos.length === 0) {
+      estado.textContent = '⚠️ Sin pedidos asignados';
+      estado.classList.add('aviso');
+      return;
+    }
+
+    // solo pedidos abiertos y con coordenadas
+    const conUbicacion = pedidos.filter(
+      (p) =>
+        p.latitud && p.longitud && clave(p.estado) !== 'Entregado' && clave(p.estado) !== 'Cancelado',
+    );
+
+    if (conUbicacion.length === 0) {
+      estado.textContent = '⚠️ Los pedidos no tienen coordenadas registradas';
+      estado.classList.add('aviso');
+      return;
+    }
+
+    const limites: [number, number][] = [];
+
+    conUbicacion.forEach((p) => {
+      const lat = parseFloat(String(p.latitud));
+      const lng = parseFloat(String(p.longitud));
+      const color = COLOR_MAPA[clave(p.estado)] ?? { fondo: '#64748b', borde: '#475569' };
+      const direccionCorta = p.direccion
+        ? p.direccion.length > 26
+          ? p.direccion.substring(0, 26) + '…'
+          : p.direccion
+        : 'Sin dirección';
+
+      const icono = L.divIcon({
+        className: '',
+        iconSize: [170, 70],
+        iconAnchor: [85, 68],
+        html: `
+          <div style="display:flex;flex-direction:column;align-items:center;pointer-events:none">
+            <div style="background:white;border:2px solid ${color.borde};border-radius:10px;padding:5px 10px;box-shadow:0 3px 10px rgba(0,0,0,.18);text-align:center;line-height:1.4;white-space:nowrap">
+              <div style="font-size:12px;font-weight:800;color:${color.borde}">#PED-${p.id}</div>
+              <div style="font-size:10px;font-weight:500;color:#475569;margin-top:1px">${esc(direccionCorta)}</div>
+            </div>
+            <div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:10px solid ${color.borde};margin-top:-1px"></div>
+            <div style="width:16px;height:16px;background:${color.fondo};border:3px solid ${color.borde};border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.25);margin-top:-1px"></div>
+          </div>`,
+      });
+
+      const marcador = L.marker([lat, lng], { icon: icono })
+        .addTo(mapaEntregas)
+        .bindPopup(`
+          <div style="font-size:13px;min-width:190px">
+            <div style="font-weight:800;color:#1e293b;margin-bottom:4px">#PED-${p.id}</div>
+            <div style="color:#475569;font-size:11px;margin-bottom:2px">👤 ${esc(p.cliente)}</div>
+            <div style="color:#475569;font-size:11px;margin-bottom:6px">📍 ${esc(p.direccion || 'Sin dirección')}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:100px;background:${color.fondo}22;color:${color.borde};border:1px solid ${color.borde}">${esc(p.estado)}</span>
+              <span style="font-size:11px;font-weight:700;color:#16a34a">${formatoMoneda(p.total)}</span>
+            </div>
+          </div>`);
+
+      marcadoresEntregas.push(marcador);
+      limites.push([lat, lng]);
+    });
+
+    mapaEntregas.fitBounds(limites, { padding: [60, 60] });
+    estado.textContent = `${conUbicacion.length} de ${pedidos.length} pedido(s) con ubicación`;
+    estado.classList.remove('aviso');
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // rastreo gps en vivo (websocket del backend deno, reemplaza a signalr)
+  // protocolo: ws://backend/ws/rastreo/:idPedido?token=...  →  { tipo: 'ubicacion', lat, lng }
+  // el backend guarda la ubicacion en la base y la reenvia al cliente que mira ese pedido
+  // ══════════════════════════════════════════════════════════
+  let socket: WebSocket | null = null;
+  let intervaloGps: number | null = null;
+  let temporizadorReconexion: number | null = null;
+  // pedido que se esta rastreando ahora mismo (null = rastreo apagado)
+  let idRastreo: number | null = null;
+
+  function alertaGps(mensaje: string) {
+    if (obtener('banner-gps')) return;
+
+    const banner = document.createElement('div');
+    banner.id = 'banner-gps';
+    banner.className = 'rep-banner-gps';
+
+    const icono = document.createElement('span');
+    icono.textContent = '📍';
+    const texto = document.createElement('span');
+    texto.textContent = mensaje;
+    const cerrar = document.createElement('button');
+    cerrar.type = 'button';
+    cerrar.textContent = '✕';
+    cerrar.addEventListener('click', () => banner.remove());
+
+    banner.append(icono, texto, cerrar);
+    document.body.appendChild(banner);
+    setTimeout(() => banner.remove(), 8000);
+  }
+
+  function pedirPermisoUbicacion(): Promise<boolean> {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        alertaGps('Tu navegador no soporta geolocalización.');
+        resolve(false);
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        () => resolve(true),
+        (error) => {
+          if (error.code === error.PERMISSION_DENIED) {
+            alertaGps(
+              '⚠️ Debes permitir el acceso a tu ubicación para que el cliente pueda rastrearte en tiempo real.',
+            );
+          }
+          resolve(false);
+        },
+        { timeout: 5000 },
+      );
+    });
+  }
+
+  async function obtenerTokenWs(): Promise<string | null> {
+    try {
+      const respuesta = await fetch('/api/auth/proveedor/ws-token');
+      const datos = await respuesta.json();
+      return datos.success ? (datos.token as string) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function abrirSocket(idPedido: number): Promise<WebSocket> {
+    const token = await obtenerTokenWs();
+    if (!token) throw new Error('no se pudo obtener el token del websocket');
+
+    // http://localhost:8000 → ws://localhost:8000 (https → wss)
+    const base = String(import.meta.env.PUBLIC_BACKEND_URL ?? '').replace(/^http/, 'ws');
+    const url = `${base}/ws/rastreo/${idPedido}?token=${encodeURIComponent(token)}`;
+
+    return await new Promise<WebSocket>((resolve, reject) => {
+      const ws = new WebSocket(url);
+      ws.onopen = () => resolve(ws);
+      ws.onerror = () => reject(new Error('no se pudo abrir el websocket'));
+    });
+  }
+
+  async function conectar(idPedido: number) {
+    const ws = await abrirSocket(idPedido);
+    // si el socket se cae con el rastreo todavia activo, se reintenta solo
+    ws.onclose = () => {
+      if (idRastreo === idPedido) {
+        socket = null;
+        reintentarConexion(idPedido);
+      }
+    };
+    socket = ws;
+  }
+
+  function reintentarConexion(idPedido: number) {
+    temporizadorReconexion = window.setTimeout(async () => {
+      if (idRastreo !== idPedido) return;
+      try {
+        await conectar(idPedido);
+      } catch {
+        reintentarConexion(idPedido);
+      }
+    }, REINTENTO_WS_MS);
+  }
+
+  function enviarUbicacion() {
+    if (idRastreo === null) return;
+
+    navigator.geolocation.getCurrentPosition(
+      (posicion) => {
+        if (socket?.readyState !== WebSocket.OPEN) return;
+        socket.send(
+          JSON.stringify({
+            tipo: 'ubicacion',
+            lat: posicion.coords.latitude,
+            lng: posicion.coords.longitude,
+          }),
+        );
+      },
+      (error) => console.warn('error de gps:', error.message),
+      { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 },
+    );
+  }
+
+  async function iniciarRastreo(idPedido: number) {
+    detenerRastreo();
+    idRastreo = idPedido;
+    await conectar(idPedido);
+
+    enviarUbicacion();
+    intervaloGps = window.setInterval(enviarUbicacion, INTERVALO_GPS_MS);
+  }
+
+  function detenerRastreo() {
+    // se pone en null ANTES de cerrar el socket para que onclose no intente reconectar
+    idRastreo = null;
+    if (intervaloGps !== null) {
+      clearInterval(intervaloGps);
+      intervaloGps = null;
+    }
+    if (temporizadorReconexion !== null) {
+      clearTimeout(temporizadorReconexion);
+      temporizadorReconexion = null;
+    }
+    socket?.close();
+    socket = null;
+  }
+
+  // ── banner inferior: "compartir ubicacion" o "rastreo activo" ──
+  function pintarBanner(idPedido: number) {
+    let banner = obtener('banner-rastreo-activo');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'banner-rastreo-activo';
+      document.body.appendChild(banner);
+    }
+
+    const activo = idRastreo === idPedido;
+    banner.className = `rep-banner-rastreo${activo ? ' activo' : ''}`;
+    banner.innerHTML = activo
+      ? `
+        <div class="rep-banner-info">
+          <span class="rep-banner-icono">🟢</span>
+          <div>
+            <div class="rep-banner-titulo">Rastreo activo — Pedido #PED-${idPedido}</div>
+            <div class="rep-banner-sub">Tu ubicación se actualiza cada 5 segundos</div>
+          </div>
+        </div>
+        <button type="button" class="rep-banner-btn detener" data-rastreo="detener" data-id="${idPedido}">Detener</button>`
+      : `
+        <div class="rep-banner-info">
+          <span class="rep-banner-icono">🚚</span>
+          <div>
+            <div class="rep-banner-titulo">Pedido #PED-${idPedido} en tránsito</div>
+            <div class="rep-banner-sub">Activa el rastreo para que el cliente vea tu ubicación</div>
+          </div>
+        </div>
+        <button type="button" class="rep-banner-btn" id="btn-iniciar-rastreo" data-rastreo="compartir" data-id="${idPedido}">📍 Compartir ubicación</button>`;
+  }
+
+  function quitarBanner() {
+    obtener('banner-rastreo-activo')?.remove();
+  }
+
+  // pide permiso, conecta y actualiza el banner (necesita un clic o una accion del usuario)
+  async function activarRastreo(idPedido: number) {
+    const boton = obtener<HTMLButtonElement>('btn-iniciar-rastreo');
+    if (boton) {
+      boton.textContent = 'Conectando...';
+      boton.disabled = true;
+    }
+
+    if (!(await pedirPermisoUbicacion())) {
+      pintarBanner(idPedido);
+      return;
+    }
+
+    try {
+      await iniciarRastreo(idPedido);
+    } catch (error) {
+      console.error('no se pudo iniciar el rastreo:', error);
+      alertaGps('No se pudo conectar el rastreo en vivo. Intenta de nuevo.');
+      detenerRastreo();
+    }
+    pintarBanner(idPedido);
+  }
+
+  // despues de cada carga: muestra el banner si hay un pedido en transito, o apaga todo si no
+  function sincronizarRastreo() {
+    const enTransito = pedidos.find(esTransito);
+
+    if (!enTransito) {
+      detenerRastreo();
+      quitarBanner();
+      return;
+    }
+    // si se rastreaba otro pedido que ya no esta en transito, se corta
+    if (idRastreo !== null && idRastreo !== enTransito.id) detenerRastreo();
+    pintarBanner(enTransito.id);
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // eventos
+  // ══════════════════════════════════════════════════════════
+  obtener('grilla-pedidos-rep')?.addEventListener('click', (e) => {
+    const boton = (e.target as HTMLElement).closest<HTMLElement>('[data-accion]');
+    if (!boton) return;
+
+    const id = Number(boton.dataset.id);
+    if (boton.dataset.accion === 'detalle') abrirDetalle(id);
+    if (boton.dataset.accion === 'avanzar') accionRapida(id, boton.dataset.estado ?? '');
+  });
+
+  // los botones del banner se crean dinamicamente, por eso se delega en document
+  document.addEventListener('click', (e) => {
+    const boton = (e.target as HTMLElement).closest<HTMLElement>('[data-rastreo]');
+    if (!boton) return;
+
+    const id = Number(boton.dataset.id);
+    if (boton.dataset.rastreo === 'compartir') activarRastreo(id);
+    if (boton.dataset.rastreo === 'detener') {
+      detenerRastreo();
+      pintarBanner(id);
+    }
+  });
+
+  document.querySelectorAll<HTMLElement>('.rep-tab').forEach((boton) => {
+    boton.addEventListener('click', () => cambiarTab(boton.dataset.tab as 'pedidos' | 'mapa'));
+  });
+
+  obtener('buscar-pedido-rep')?.addEventListener('input', filtrarPedidos);
+  obtener('filtro-estado-rep')?.addEventListener('change', filtrarPedidos);
+
+  obtener('modal-det-cerrar')?.addEventListener('click', cerrarDetalle);
+  obtener('modal-det-cerrar-2')?.addEventListener('click', cerrarDetalle);
+  obtener('btn-cambiar-estado-rep')?.addEventListener('click', cambiarEstadoDesdeModal);
+  obtener('modal-detalle-rep')?.addEventListener('click', (e) => {
+    // cierra solo si el clic fue en el fondo oscuro, no dentro del modal
+    if (e.target === e.currentTarget) cerrarDetalle();
+  });
+
+  // al salir de la pagina se cierra el socket: el backend marca al repartidor como inactivo
+  window.addEventListener('pagehide', detenerRastreo);
+
+  // ══════════════════════════════════════════════════════════
+  // arranque: usa los datos que ya trajo el servidor, sin pantalla de "cargando"
+  // ══════════════════════════════════════════════════════════
+  const datosIniciales = JSON.parse(obtener('datos-pedidos-iniciales')?.textContent ?? '{}');
+  pedidos = datosIniciales.pedidos ?? [];
+
+  if (datosIniciales.error) {
+    const grilla = obtener('grilla-pedidos-rep');
+    if (grilla) grilla.innerHTML = `<p class="rep-vacio error">Error: ${esc(datosIniciales.error)}</p>`;
+  } else {
+    renderPedidos(pedidos);
+    sincronizarRastreo();
+  }
+</script>

@@ -1,0 +1,14 @@
+1. CLONAR REPOSITORIO EN UNA CARPETA TEMPORAL PARA USARLA EN EL PROYECTO
+git clone --depth 1 --branch <nombre de la branch/rama> --filter=blob:none --sparse https://github.com/steven-portillo/GeoRuta_Pro.git <NOMBRE_CARPETA_TEMPORAL>
+
+
+2. ENTRA Y CONFIGURA EL SPARSE-CHECKOUT
+cd temp-front
+git sparse-checkout set <carpeta/contenido a copiar>
+
+3.COPIA EL CONTENIDO DE DE LA CARPETA/CONTENIDO A COPIAR Y LA PASA AL PROYECTO
+Copy-Item -Path "<carpeta/contenido a copiar>\*" -Destination ".." -Recurse -Force
+
+4.VUELVE A POSISIONARSE SOBRE EL PROYECTO Y ELIMINA LA CAPRTETA TEMPORAL
+cd ..
+Remove-Item -Recurse -Force <NOMBRE_CARPETA_TEMPORAL>

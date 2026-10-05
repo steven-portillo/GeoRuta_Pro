@@ -1,0 +1,29 @@
+---
+// src/pages/admin/productos.astro
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import ProductosAdmin from '../../components/admin/ProductosAdmin.astro';
+import { llamarBackend, obtenerToken } from '../../lib/Backend';
+
+const token = obtenerToken(Astro.cookies);
+
+const [respuestaPerfil, respuestaProductos, respuestaCategorias] = await Promise.all([
+  llamarBackend('/admin/perfil', { token }),
+  llamarBackend('/admin/productos', { token }),
+  llamarBackend('/admin/categorias', { token }),
+]);
+
+const perfil = respuestaPerfil.datos.data as { nombre: string; apellido: string; imagenUrl: string };
+const productos = (respuestaProductos.datos.data ?? []) as import('../../components/admin/ProductosAdmin.astro').ProductoAdmin[];
+const categorias = (respuestaCategorias.datos.data ?? []) as import('../../components/admin/ProductosAdmin.astro').CategoriaAdmin[];
+
+const iniciales = `${perfil.nombre?.[0] ?? ''}${perfil.apellido?.[0] ?? ''}`.toUpperCase();
+---
+
+<AdminLayout
+  titulo="Productos"
+  vistaActual="productos"
+  nombreAdmin={`${perfil.nombre} ${perfil.apellido}`}
+  inicialesAdmin={iniciales}
+>
+  <ProductosAdmin productosIniciales={productos} categoriasIniciales={categorias} />
+</AdminLayout>

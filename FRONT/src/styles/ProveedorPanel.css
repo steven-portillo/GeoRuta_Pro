@@ -1,0 +1,1074 @@
+/* src/styles/ProveedorPanel.css */
+/* estilos del panel proveedor — puerto de Vista_Repartidor.css (proyecto c#) adaptado al sidebar */
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  /* ── paleta verde del repartidor (idéntica a Vista_Repartidor.css) ── */
+  --verde-900: #14532d;
+  --verde-800: #166534;
+  --verde-700: #15803d;
+  --verde-600: #16a34a;
+  --verde-500: #22c55e;
+  --verde-400: #4ade80;
+  --verde-100: #dcfce7;
+  --verde-50: #f0fdf4;
+  --azul-700: #1d4ed8;
+  --azul-600: #2563eb;
+  --azul-500: #3b82f6;
+  --azul-100: #dbeafe;
+  --azul-50: #eff6ff;
+  --amber-500: #f59e0b;
+  --amber-100: #fef3c7;
+  --rojo-500: #ef4444;
+  --rojo-100: #fee2e2;
+  --gris-950: #0a0a0f;
+  --gris-900: #111827;
+  --gris-800: #1f2937;
+  --gris-700: #374151;
+  --gris-600: #4b5563;
+  --gris-500: #6b7280;
+  --gris-400: #9ca3af;
+  --gris-300: #d1d5db;
+  --gris-200: #e5e7eb;
+  --gris-100: #f3f4f6;
+  --gris-50: #f9fafb;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-500: #64748b;
+  --fuente: 'Space Grotesk', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+  --radio: 14px;
+  --shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+  --shadow-h: 0 8px 32px rgba(22, 163, 74, 0.14);
+  --trans: 0.22s cubic-bezier(.4, 0, .2, 1);
+
+  /* ── tokens que necesita Sidebar.css (mismos valores que AdminPanel.css) ── */
+  --primary-700: #1d4ed8;
+  --secondary-700: #1e3a5f;
+  --secondary-600: #27496d;
+  --secondary-500: #64748b;
+  --secondary-400: #94a3b8;
+  --secondary-300: #cbd5e1;
+  --secondary-50: #f8fafc;
+  --overlay-rgb: 255, 255, 255;
+  --color-shadow-rgb: 15, 23, 42;
+  --color-primary: #3b82f6;
+  --color-primary-rgb: 59, 130, 246;
+  --color-secondary: #8b5cf6;
+  --color-secondary-rgb: 139, 92, 246;
+  --color-border-glow: rgba(96, 165, 250, 0.45);
+  --color-tooltip-bg: #0f172a;
+  --color-danger: #ef4444;
+
+  /* ── layout con sidebar ── */
+  --sidebar-w: 260px;
+  --sidebar-w-collapsed: 76px;
+}
+
+body {
+  font-family: var(--fuente);
+  background: linear-gradient(180deg, #f0fdf4 0%, #f3f4f6 100%);
+  color: var(--gris-900);
+  min-height: 100vh;
+}
+
+/* ══════════════════════════════════════════════════════════
+   contenedor raíz + contenido principal (el header/topbar/navbar del c# se reemplazó por Sidebar.astro)
+   ══════════════════════════════════════════════════════════ */
+
+.sa-contenedor {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  margin-left: var(--sidebar-w);
+  transition: margin-left 0.25s ease;
+}
+
+body.sidebar-collapsed .sa-contenedor {
+  margin-left: var(--sidebar-w-collapsed);
+}
+
+.sa-main {
+  flex: 1;
+  padding: 1.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.sa-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.sa-page-titulo {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.sa-page-sub {
+  margin: 0;
+}
+
+.sa-badge-sistema {
+  font-family: var(--mono);
+  font-size: .68rem;
+  color: #10b981;
+  letter-spacing: .05em;
+}
+
+.sa-page-acciones {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sa-fecha {
+  font-family: var(--mono);
+  font-size: .78rem;
+  color: #94a3b8;
+  background: #f8fafc;
+  border: 1px solid #dbe4f0;
+  border-radius: 6px;
+  padding: .4rem .9rem;
+  white-space: nowrap;
+}
+
+.sa-zona-contenido {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* ══════════════════════════════════════════════════════════
+   botón de notificaciones (en el c# vivía en la topbar oscura; aquí va junto a la fecha)
+   ══════════════════════════════════════════════════════════ */
+
+.rep-icon-btn {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--gris-200);
+  background: white;
+  color: var(--gris-600);
+  font-size: 1.05rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all .15s;
+}
+
+.rep-icon-btn:hover {
+  color: var(--verde-600);
+  border-color: var(--verde-500);
+  background: var(--verde-50);
+}
+
+/* ══════════════════════════════════════════════════════════
+   1. panel de notificaciones
+   ══════════════════════════════════════════════════════════ */
+
+.rep-notif-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--rojo-500);
+  color: white;
+  font-size: .6rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* en el c# el borde era verde oscuro (#14532d) por la topbar; ahora el fondo es claro */
+  border: 2px solid white;
+}
+
+.rep-notif-panel {
+  position: fixed;
+  top: 5rem;
+  right: 1rem;
+  width: 320px;
+  max-height: 420px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid var(--gris-200);
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, .15);
+  z-index: 300;
+  display: none;
+  animation: dropIn .18s ease;
+}
+
+.rep-notif-panel.abierto {
+  display: block;
+}
+
+@keyframes dropIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rep-notif-header {
+  padding: .85rem 1rem;
+  border-bottom: 1px solid var(--gris-100);
+  font-size: .88rem;
+  font-weight: 700;
+  color: var(--gris-800);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  background: white;
+}
+
+.rep-notif-marcar {
+  font-size: .75rem;
+  color: var(--verde-600);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.rep-notif-vacia {
+  padding: 1.5rem;
+  text-align: center;
+  color: #94a3b8;
+  font-size: .82rem;
+}
+
+.rep-notif-item {
+  padding: .75rem 1rem;
+  border-bottom: 1px solid var(--gris-50);
+  font-size: .8rem;
+  color: var(--gris-700);
+  transition: background .15s;
+}
+
+.rep-notif-item:hover {
+  background: var(--verde-50);
+}
+
+.rep-notif-item.no-leida {
+  border-left: 3px solid var(--verde-500);
+  background: var(--verde-50);
+}
+
+.rep-notif-tiempo {
+  font-size: .7rem;
+  color: var(--gris-400);
+  margin-top: 3px;
+}
+
+/* ══════════════════════════════════════════════════════════
+   2. badges y botones
+   ══════════════════════════════════════════════════════════ */
+
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 100px;
+  font-size: .68rem;
+  font-weight: 700;
+}
+.badge-verde { background: var(--verde-100); color: #166534; }
+.badge-amber { background: var(--amber-100); color: #92400e; }
+.badge-rojo  { background: var(--rojo-100);  color: #991b1b; }
+.badge-slate { background: var(--gris-100);  color: var(--gris-600); }
+.badge-azul  { background: var(--azul-100);  color: #1e40af; }
+
+.rep-btn-p {
+  padding: .5rem 1.1rem;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--verde-700), var(--verde-600));
+  color: white;
+  border: none;
+  font-family: var(--fuente);
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all .2s;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, .25);
+}
+.rep-btn-p:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(22, 163, 74, .35);
+}
+.rep-btn-p:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+
+.rep-btn-s {
+  padding: .45rem .9rem;
+  border-radius: 8px;
+  border: 1px solid var(--gris-200);
+  background: white;
+  color: var(--gris-600);
+  font-family: var(--fuente);
+  font-size: .78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.rep-btn-s:hover {
+  border-color: var(--verde-400);
+  color: var(--verde-700);
+  background: var(--verde-50);
+}
+
+/* ══════════════════════════════════════════════════════════
+   3. pestañas y barra de filtros 
+   ══════════════════════════════════════════════════════════ */
+
+.rep-tabs {
+  display: flex;
+  align-items: center;
+  border-bottom: 2px solid var(--gris-200);
+}
+.rep-tab {
+  padding: .6rem 1.25rem;
+  font-family: var(--fuente);
+  font-size: .88rem;
+  font-weight: 700;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  color: var(--gris-500);
+  cursor: pointer;
+  transition: all .15s;
+}
+.rep-tab.activo {
+  color: var(--azul-600);
+  border-bottom-color: var(--azul-500);
+}
+
+.rep-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: .75rem;
+}
+.rep-toolbar-titulo { font-size: .95rem; font-weight: 700; color: var(--gris-800); }
+.rep-toolbar-filtros { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.rep-input-filtro {
+  padding: .45rem .9rem;
+  border: 1px solid var(--gris-200);
+  border-radius: 9px;
+  font-family: var(--fuente);
+  font-size: .83rem;
+  outline: none;
+  background: white;
+}
+.rep-input-filtro:focus {
+  border-color: var(--verde-400);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, .08);
+}
+input.rep-input-filtro { width: 220px; }
+select.rep-input-filtro { width: 160px; }
+
+/* ══════════════════════════════════════════════════════════
+   4. tarjetas de pedido
+   ══════════════════════════════════════════════════════════ */
+
+.rep-pedidos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
+  gap: 14px;
+}
+
+.rep-vacio {
+  grid-column: 1 / -1;
+  color: #94a3b8;
+  padding: 2rem;
+  text-align: center;
+}
+.rep-vacio.error { color: var(--rojo-500); }
+
+.rep-pedido-card {
+  background: white;
+  border: 1.5px solid var(--gris-200);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  transition: all .2s;
+}
+.rep-pedido-card:hover { box-shadow: var(--shadow-h); border-color: var(--verde-400); }
+.rep-pedido-card.activo { border-color: var(--verde-500); }
+
+.rep-pedido-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .85rem 1rem;
+  background: linear-gradient(135deg, var(--verde-900), var(--verde-700));
+  color: white;
+}
+.rep-pedido-id { font-family: var(--mono); font-size: .85rem; font-weight: 700; }
+
+.rep-pedido-body { padding: 1rem; display: flex; flex-direction: column; gap: .65rem; }
+
+.rep-pedido-fila {
+  display: flex;
+  align-items: flex-start;
+  gap: .5rem;
+  font-size: .82rem;
+  color: var(--gris-600);
+}
+.rep-pedido-fila strong { color: var(--gris-800); min-width: 80px; flex-shrink: 0; }
+.rep-pedido-fila-col { flex-direction: column; }
+.rep-pedido-fila-col strong { min-width: 0; }
+.rep-total { font-weight: 700; color: var(--verde-700); }
+.rep-pedido-direccion { font-size: .78rem; color: var(--gris-500); margin-top: 2px; }
+
+.rep-pedido-productos {
+  padding: .5rem .75rem;
+  background: var(--gris-50);
+  border-radius: 8px;
+  font-size: .78rem;
+  color: var(--gris-600);
+}
+
+.rep-pedido-footer {
+  padding: .75rem 1rem;
+  border-top: 1px solid var(--gris-100);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* ══════════════════════════════════════════════════════════
+   5. mapa de entregas
+   ══════════════════════════════════════════════════════════ */
+
+.rep-mapa-estado {
+  font-size: .78rem;
+  font-weight: 600;
+  padding: .35rem .85rem;
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  border-radius: 100px;
+}
+.rep-mapa-estado.aviso {
+  background: #fef9c3;
+  color: #854d0e;
+  border-color: #fde68a;
+}
+
+.rep-mapa-entregas {
+  width: 100%;
+  height: 520px;
+  border-radius: 14px;
+  border: 1px solid var(--gris-200);
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, .07);
+}
+
+/* ══════════════════════════════════════════════════════════
+   6. modal de detalle
+   ══════════════════════════════════════════════════════════ */
+
+.rep-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, .5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 400;
+  backdrop-filter: blur(4px);
+}
+.rep-modal {
+  background: white;
+  border-radius: 18px;
+  width: 100%;
+  max-width: 520px;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, .2);
+  animation: modalIn .22s ease;
+}
+.rep-modal-detalle { max-width: 560px; }
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(.95) translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.rep-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.1rem 1.25rem;
+  border-bottom: 1px solid var(--gris-100);
+}
+.rep-modal-titulo { font-size: 1rem; font-weight: 700; color: var(--gris-800); }
+.rep-modal-cerrar {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: var(--gris-100);
+  border-radius: 7px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rep-modal-cerrar:hover { background: var(--gris-200); }
+.rep-modal-cerrar svg { width: 14px; height: 14px; fill: var(--gris-600); }
+
+.rep-modal-body { padding: 1.25rem; display: flex; flex-direction: column; gap: .85rem; }
+.rep-modal-footer {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--gris-100);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.rep-mapa-detalle {
+  width: 100%;
+  height: 300px;
+  border-radius: 10px;
+  border: 1px solid var(--gris-200);
+}
+
+.rep-det-info { font-size: .85rem; color: var(--gris-700); }
+.rep-det-lista { display: flex; flex-direction: column; gap: .5rem; margin-bottom: .75rem; }
+.rep-det-estado { display: flex; justify-content: space-between; align-items: center; }
+.rep-det-estado > span:first-child { font-weight: 600; }
+.rep-det-direccion { font-size: .82rem; color: var(--gris-500); }
+
+.rep-msg-ok,
+.rep-msg-err {
+  border-radius: 9px;
+  padding: .6rem .9rem;
+  font-size: .82rem;
+  font-weight: 600;
+}
+.rep-msg-ok  { background: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; }
+.rep-msg-err { background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; }
+
+/* ══════════════════════════════════════════════════════════
+   7. banners de rastreo gps (en el c# se armaban con estilos en línea desde js)
+   ══════════════════════════════════════════════════════════ */
+
+.rep-banner-gps {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  border-radius: 10px;
+  padding: .75rem 1.25rem;
+  font-size: .83rem;
+  font-weight: 600;
+  max-width: 480px;
+  width: 90%;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .12);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.rep-banner-gps button {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #92400e;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.rep-banner-rastreo {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  background: #16a34a;
+  color: white;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  font-size: .83rem;
+  max-width: 480px;
+  width: 90%;
+  box-shadow: 0 4px 20px rgba(22, 163, 74, .4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.rep-banner-rastreo.activo { background: #15803d; }
+.rep-banner-info { display: flex; align-items: center; gap: 10px; }
+.rep-banner-icono { font-size: 1.3rem; }
+.rep-banner-titulo { font-weight: 700; font-size: .85rem; }
+.rep-banner-sub { font-size: .75rem; opacity: .85; }
+
+.rep-banner-btn {
+  background: white;
+  color: #166534;
+  border: none;
+  border-radius: 8px;
+  padding: .5rem 1rem;
+  font-weight: 700;
+  font-size: .82rem;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.rep-banner-btn:disabled { opacity: .7; cursor: not-allowed; }
+.rep-banner-btn.detener {
+  background: rgba(0, 0, 0, .2);
+  color: white;
+  border-radius: 6px;
+  padding: .35rem .75rem;
+  font-size: .75rem;
+  font-weight: 600;
+}
+
+/* ══════════════════════════════════════════════════════════
+   8. saludo (inicio)
+   ══════════════════════════════════════════════════════════ */
+
+/* ⚠ se respeta tal cual el original: fondo negro y nombre en deepskyblue. el c# traía un comentario
+   "REVISAR" porque el resto de la vista es verde. si quieres el gradiente verde, ver la nota al final */
+.rep-saludo {
+  background-color: black;
+  border-radius: 18px;
+  padding: 2rem 2.25rem;
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+.rep-saludo::before {
+  content: '';
+  position: absolute;
+  top: -50px;
+  right: -50px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .05);
+}
+.rep-saludo-inner { position: relative; z-index: 1; }
+.rep-saludo-hora {
+  font-size: .85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, .7);
+  margin-bottom: 4px;
+}
+.rep-saludo-nombre {
+  font-size: 1.85rem;
+  font-weight: 800;
+  margin-bottom: 6px;
+  letter-spacing: -.02em;
+  color: deepskyblue;
+}
+.rep-saludo-nombre span { color: deepskyblue; }
+.rep-saludo-nombre .rep-saludo-ola { color: rgba(255, 255, 255, .8); }
+.rep-saludo-sub { font-size: .85rem; color: rgba(255, 255, 255, .75); }
+
+/* ══════════════════════════════════════════════════════════
+   9. métricas (inicio)
+   ══════════════════════════════════════════════════════════ */
+
+.rep-metricas {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+.rep-metrica {
+  background: rgba(255, 255, 255, .85);
+  border: 1px solid rgba(255, 255, 255, .9);
+  border-radius: 18px;
+  padding: 1.4rem 1.5rem;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  transition: all .25s;
+}
+.rep-metrica:hover { transform: translateY(-3px); box-shadow: var(--shadow-h); }
+.rep-metrica::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 18px 18px 0 0;
+  background: var(--verde-500);
+}
+.rep-metrica.am::before { background: var(--amber-500); }
+.rep-metrica.az::before { background: var(--azul-500); }
+.rep-metrica.ro::before { background: var(--rojo-500); }
+
+.rep-m-label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  font-weight: 600;
+  color: var(--gris-500);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.rep-m-valor {
+  font-family: var(--mono);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--gris-900);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.rep-m-sub { font-size: .72rem; color: var(--gris-400); }
+.rep-m-sub.up { color: var(--verde-600); }
+
+/* ══════════════════════════════════════════════════════════
+   10. panel, pedido en curso y tabla (inicio)
+   ══════════════════════════════════════════════════════════ */
+
+.rep-panel {
+  background: white;
+  border: 1px solid var(--gris-200);
+  border-radius: var(--radio);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.rep-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--gris-100);
+}
+.rep-panel-titulo { font-size: .95rem; font-weight: 700; color: var(--gris-800); }
+
+/* tarjeta del pedido en curso (en el c# eran estilos en línea inyectados desde js) */
+.rep-activo-body { padding: 1.25rem; }
+.rep-activo-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .75rem;
+}
+.rep-activo-id { font-family: var(--mono); font-weight: 700; }
+.rep-activo-dato { font-size: .83rem; color: var(--gris-600); margin-bottom: .5rem; }
+.rep-activo-dato:last-of-type { margin-bottom: .75rem; }
+
+.rep-tabla-wrap { overflow-x: auto; }
+.rep-tabla { width: 100%; border-collapse: collapse; }
+.rep-tabla th {
+  font-size: .67rem;
+  font-weight: 700;
+  color: var(--gris-400);
+  text-align: left;
+  padding: .55rem 1rem;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  border-bottom: 1px solid var(--gris-100);
+  background: var(--gris-50);
+  white-space: nowrap;
+}
+.rep-tabla td {
+  padding: .75rem 1rem;
+  font-size: .83rem;
+  border-bottom: 1px solid var(--gris-100);
+  color: var(--gris-700);
+}
+.rep-tabla tr:last-child td { border-bottom: none; }
+.rep-tabla tbody tr:hover td { background: var(--verde-50); }
+
+.rep-td-id { font-family: var(--mono); font-weight: 700; }
+.rep-td-total { font-weight: 700; }
+.rep-td-dir {
+  font-size: .78rem;
+  color: var(--gris-500);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rep-td-vacio { text-align: center; color: #94a3b8; padding: 2rem !important; }
+
+/* ══════════════════════════════════════════════════════════
+   responsive del armazón
+   ══════════════════════════════════════════════════════════ */
+
+/* por debajo de 992px el sidebar pasa a drawer (Sidebar.css): el contenido ocupa todo el ancho
+   y baja para no quedar tapado por el botón hamburguesa fijo */
+@media (max-width: 991.98px) {
+  .sa-contenedor,
+  body.sidebar-collapsed .sa-contenedor {
+    margin-left: 0;
+  }
+  .sa-main {
+    padding-top: 4.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .sa-main {
+    padding: 1rem;
+    padding-top: 4.5rem;
+  }
+  .rep-notif-panel {
+    right: .75rem;
+    width: min(320px, calc(100vw - 1.5rem));
+  }
+}
+/* responsive de la vista de inicio (mismos puntos de corte que Vista_Repartidor.css) */
+@media (max-width: 1024px) {
+  .rep-metricas { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+  .rep-metricas { grid-template-columns: repeat(2, 1fr); }
+  .rep-saludo { padding: 1.5rem; }
+  .rep-saludo-nombre { font-size: 1.5rem; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   perfil (puerto de la sección 8 de Vista_Repartidor.css)
+   ══════════════════════════════════════════════════════════ */
+
+.rep-perfil-header {
+  background: linear-gradient(135deg, var(--verde-900), var(--verde-700), #065f46);
+  border-radius: 18px;
+  padding: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+.rep-perfil-header::after {
+  content: '';
+  position: absolute;
+  bottom: -50px;
+  right: -30px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .04);
+}
+
+.rep-perfil-avatar-wrap { position: relative; flex-shrink: 0; }
+
+.rep-perfil-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--verde-500), var(--azul-500));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: white;
+  overflow: hidden;
+  border: 3px solid rgba(255, 255, 255, .3);
+}
+.rep-perfil-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+
+.rep-perfil-cam {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid var(--verde-400);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background .15s;
+}
+.rep-perfil-cam:hover { background: var(--verde-50); }
+.rep-perfil-cam svg { width: 12px; height: 12px; fill: var(--verde-700); }
+
+.rep-nombre-display {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 4px;
+}
+.rep-perfil-rol {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 100px;
+  background: rgba(74, 222, 128, .25);
+  color: #4ade80;
+  font-size: .65rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  margin-bottom: 4px;
+}
+.rep-email-display { font-size: .82rem; color: rgba(255, 255, 255, .65); }
+
+.rep-perfil-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+.rep-perfil-card {
+  background: white;
+  border: 1px solid var(--gris-200);
+  border-radius: var(--radio);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: .85rem;
+  box-shadow: var(--shadow);
+}
+.rep-perfil-card-titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .9rem;
+  font-weight: 700;
+  color: var(--gris-800);
+  padding-bottom: .75rem;
+  border-bottom: 1px solid var(--gris-100);
+}
+.rep-perfil-card-titulo svg { width: 16px; height: 16px; fill: var(--verde-600); }
+
+.rep-perfil-fila {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .75rem;
+}
+.rep-perfil-grupo { display: flex; flex-direction: column; gap: 4px; }
+.rep-perfil-label {
+  font-size: .7rem;
+  font-weight: 700;
+  color: var(--gris-500);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.rep-perfil-input {
+  padding: .55rem .85rem;
+  border: 1.5px solid var(--gris-200);
+  border-radius: 9px;
+  font-family: var(--fuente);
+  font-size: .85rem;
+  color: var(--gris-800);
+  outline: none;
+  transition: all .15s;
+  background: var(--gris-50);
+  width: 100%;
+}
+.rep-perfil-input:focus {
+  border-color: var(--verde-400);
+  background: white;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, .08);
+}
+
+.rep-btn-guardar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: .6rem 1.25rem;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--verde-700), var(--verde-600));
+  color: white;
+  border: none;
+  font-family: var(--fuente);
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+  margin-top: 4px;
+  align-self: flex-start;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, .2);
+}
+.rep-btn-guardar:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(22, 163, 74, .3);
+}
+.rep-btn-guardar:disabled { opacity: .6; cursor: default; transform: none; }
+
+.rep-msg-ok {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #047857;
+  border-radius: 9px;
+  padding: .6rem .9rem;
+  font-size: .82rem;
+  font-weight: 600;
+}
+.rep-msg-err {
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+  border-radius: 9px;
+  padding: .6rem .9rem;
+  font-size: .82rem;
+  font-weight: 600;
+}
+
+/* tarjeta de estadisticas (en el c# eran estilos en linea, aqui van como clases) */
+.rep-stats-lista { display: flex; flex-direction: column; gap: .75rem; }
+.rep-stat-fila {
+  display: flex;
+  justify-content: space-between;
+  padding: .6rem .85rem;
+  border-radius: 8px;
+}
+.rep-stat-label { font-size: .82rem; }
+.rep-stat-valor { font-weight: 700; font-family: var(--mono); }
+.rep-stat-gris  { background: var(--gris-50);  } .rep-stat-gris  .rep-stat-label { color: var(--gris-600); }
+.rep-stat-verde { background: var(--verde-50); color: var(--verde-700); }
+.rep-stat-azul  { background: var(--azul-50);  color: var(--azul-700);  }
+.rep-stat-amber { background: var(--amber-100); color: #92400e; }
+
+@media (max-width: 1024px) {
+  .rep-perfil-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .rep-perfil-header { padding: 1.5rem; gap: 1rem; }
+  .rep-perfil-fila { grid-template-columns: 1fr; }
+}

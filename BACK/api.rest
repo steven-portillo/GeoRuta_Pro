@@ -1,0 +1,21 @@
+GET http://localhost:8001/producto
+
+###
+GET http://localhost:8001/stock
+
+###
+POST http://localhost:8001/pagos/checkout
+Content-Type: application/json
+
+{
+  "id_producto": 1,
+  "cantidad": 2
+}
+
+### Login con Google
+POST http://localhost:8001/auth/google
+Content-Type: application/json
+
+{
+  "credential": ""
+}

@@ -1,0 +1,634 @@
+---
+export interface RepartidorAdmin {
+  id: number;
+  nombre: string;
+  apellido: string;
+  email: string;
+  telefono: string;
+  activo: boolean;
+  imagenUrl: string;
+  enTransito: number;
+  totalAsignados: number;
+}
+
+export interface PedidoRepartidor {
+  id: number;
+  total: number;
+  fecha: string;
+  estado: string;
+  cliente: string;
+  direccion: string;
+  latitud: number | null;
+  longitud: number | null;
+}
+
+interface Props {
+  repartidoresIniciales: RepartidorAdmin[];
+  token: string;
+}
+
+const { repartidoresIniciales, token } = Astro.props;
+
+// se resuelve aqui (frontmatter, corre en el servidor) y no dentro del script
+// define:vars, porque ahi import.meta.env si se reemplaza en build time
+const backendUrlPublico = import.meta.env.PUBLIC_BACKEND_URL;
+---
+
+<!-- leaflet: mapa de ubicacion en tiempo real dentro del modal "ver repartidor" -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<div class="encabezado-sec">
+  <span class="titulo-sec">Repartidores</span>
+  <button class="btn-primario" id="btn-abrir-modal-rep">
+    <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" /></svg>
+    Agregar repartidor
+  </button>
+</div>
+
+<div class="grilla-metricas">
+  <div class="metrica-card">
+    <div class="metrica-label">Disponibles</div>
+    <div class="metrica-valor" id="m-rep-disponibles">—</div>
+    <div class="metrica-sub up">Listos para asignar</div>
+  </div>
+  <div class="metrica-card accent-azul">
+    <div class="metrica-label">En entrega</div>
+    <div class="metrica-valor" id="m-rep-entrega">—</div>
+    <div class="metrica-sub">Con pedido activo</div>
+  </div>
+  <div class="metrica-card accent-amber">
+    <div class="metrica-label">Total repartidores</div>
+    <div class="metrica-valor" id="m-rep-total">—</div>
+    <div class="metrica-sub">En tu empresa</div>
+  </div>
+</div>
+
+<div class="grilla-repartidores" id="grilla-repartidores">
+  <p style="color:#94a3b8;padding:2rem">Cargando repartidores...</p>
+</div>
+
+<!-- ── modal agregar repartidor ── -->
+<div class="modal-overlay" id="modal-repartidor" style="display:none">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 class="modal-titulo">Agregar repartidor</h2>
+      <button class="modal-cerrar" id="btn-cerrar-modal-rep">
+        <svg viewBox="0 0 24 24">
+          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-fila">
+        <div class="form-grupo">
+          <label class="form-label">Nombre</label>
+          <input class="form-input" id="rep-nombre" placeholder="Nombre" />
+        </div>
+        <div class="form-grupo">
+          <label class="form-label">Apellido</label>
+          <input class="form-input" id="rep-apellido" placeholder="Apellido" />
+        </div>
+      </div>
+      <div class="form-grupo">
+        <label class="form-label">Teléfono</label>
+        <input class="form-input" id="rep-tel" placeholder="+57 300 000 0000" />
+      </div>
+      <div class="form-grupo">
+        <label class="form-label">Correo electrónico</label>
+        <input class="form-input" id="rep-email" type="email" placeholder="correo@ejemplo.com" />
+      </div>
+      <div class="form-grupo">
+        <label class="form-label">Contraseña</label>
+        <input class="form-input" id="rep-password" type="password" placeholder="Mínimo 6 caracteres" />
+      </div>
+      <div id="msg-rep-form" style="display:none"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secundario" id="btn-cancelar-modal-rep">Cancelar</button>
+      <button class="btn-primario" id="btn-guardar-rep">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── modal ver repartidor (pedidos + ubicacion en tiempo real) ── -->
+<div class="modal-overlay" id="modal-ver-rep" style="display:none">
+  <div class="modal-box" style="max-width:700px;max-height:90vh;overflow-y:auto">
+    <div class="modal-header">
+      <h2 class="modal-titulo" id="ver-rep-titulo">Repartidor</h2>
+      <button class="modal-cerrar" id="btn-cerrar-ver-rep">
+        <svg viewBox="0 0 24 24">
+          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body" style="gap:1rem">
+      <div id="ver-rep-info" class="ver-rep-info"></div>
+
+      <div class="rep-tabs">
+        <button class="rep-tab rep-tab-activo" id="tab-pedidos-rep" data-tab="pedidos">📦 Pedidos asignados</button>
+        <button class="rep-tab" id="tab-mapa-rep" data-tab="mapa">📍 Ubicación en tiempo real</button>
+      </div>
+
+      <div id="panel-pedidos-rep">
+        <table class="tabla-admin" id="tabla-pedidos-rep">
+          <thead>
+            <tr>
+              <th>Pedido</th>
+              <th>Cliente</th>
+              <th>Total</th>
+              <th>Estado</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-pedidos-rep-modal">
+            <tr>
+              <td colspan="5" style="text-align:center;color:#94a3b8;padding:1.5rem">Cargando...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="panel-mapa-rep" style="display:none">
+        <div id="rep-estado-senal" class="rep-senal rep-senal-inactiva">⚪ Sin pedido activo en tránsito</div>
+        <div id="mapa-ubicacion-rep" class="mapa-ubicacion-rep"></div>
+        <div id="rep-ultima-pos" class="rep-ultima-pos"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secundario" id="btn-cerrar-ver-rep-footer">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script define:vars={{ repartidoresIniciales, token, backendUrlPublico }}>
+  let repartidores = repartidoresIniciales;
+  let repSeleccionado = null;
+  let mapaUbicacionRep = null;
+  let marcadorRepartidorAdmin = null;
+  let socketRastreo = null;
+
+  const badgeEstado = {
+    Pendiente: { clase: 'badge-amber', icono: '⏳' },
+    'En preparacion': { clase: 'badge-azul', icono: '📦' },
+    'En transito': { clase: 'badge-azul', icono: '🚚' },
+    'En tránsito': { clase: 'badge-azul', icono: '🚚' },
+    Entregado: { clase: 'badge-verde', icono: '✅' },
+    Cancelado: { clase: 'badge-slate', icono: '❌' },
+  };
+
+  const fmt = (n) => '$' + Number(n).toLocaleString('es-CO');
+
+  // ============================================================
+  // lista + metricas (calculadas en el cliente, igual que en el original)
+  // ============================================================
+  async function refrescarRepartidores() {
+    const res = await fetch('/api/auth/admin/repartidores');
+    const data = await res.json();
+    if (!data.success) return;
+    repartidores = data.data;
+
+    const disponibles = repartidores.filter((r) => r.enTransito === 0).length;
+    const enEntrega = repartidores.filter((r) => r.enTransito > 0).length;
+    const setM = (id, v) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = v;
+    };
+    setM('m-rep-disponibles', disponibles);
+    setM('m-rep-entrega', enEntrega);
+    setM('m-rep-total', repartidores.length);
+
+    renderRepartidores();
+  }
+
+  function renderRepartidores() {
+    const grilla = document.getElementById('grilla-repartidores');
+    if (!grilla) return;
+
+    if (!repartidores.length) {
+      grilla.innerHTML = `<p style="color:#94a3b8;padding:2rem;grid-column:1/-1;text-align:center">No hay repartidores registrados.</p>`;
+      return;
+    }
+
+    grilla.innerHTML = repartidores
+      .map((r) => {
+        const ini = `${r.nombre[0]}${r.apellido?.[0] || ''}`.toUpperCase();
+        const avatarHtml = r.imagenUrl
+          ? `<img src="${r.imagenUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`
+          : ini;
+        const estadoBadge = r.enTransito > 0
+          ? '<span class="badge badge-azul">🚚 En entrega</span>'
+          : '<span class="badge badge-verde">✅ Disponible</span>';
+
+        return `<div class="rep-card">
+          <div class="rep-avatar" style="overflow:hidden">${avatarHtml}</div>
+          <div class="rep-info">
+            <div class="rep-nombre">${r.nombre} ${r.apellido || ''}</div>
+            <div class="rep-tel">${r.telefono || r.email}</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+              ${estadoBadge}
+              <span style="font-size:.72rem;color:var(--gris-500)">${r.totalAsignados} pedido(s) total</span>
+            </div>
+          </div>
+          <div class="rep-acciones">
+            <button class="btn-primario" style="font-size:.75rem;padding:.35rem .75rem" data-accion="ver" data-id="${r.id}">Ver</button>
+          </div>
+        </div>`;
+      })
+      .join('');
+  }
+
+  // ============================================================
+  // modal agregar repartidor
+  // ============================================================
+  function mostrarMensaje(texto, ok) {
+    const el = document.getElementById('msg-rep-form');
+    if (!el) return;
+    el.textContent = texto;
+    el.className = ok ? 'admin-msg-ok' : 'admin-msg-err';
+    el.style.display = 'block';
+  }
+
+  function abrirModalRepartidor() {
+    ['rep-nombre', 'rep-apellido', 'rep-tel', 'rep-email', 'rep-password'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    const msg = document.getElementById('msg-rep-form');
+    if (msg) msg.style.display = 'none';
+    document.getElementById('modal-repartidor').style.display = 'flex';
+  }
+
+  function cerrarModalRepartidor() {
+    document.getElementById('modal-repartidor').style.display = 'none';
+  }
+
+  async function guardarRepartidor() {
+    const nombre = document.getElementById('rep-nombre')?.value.trim() ?? '';
+    const apellido = document.getElementById('rep-apellido')?.value.trim() ?? '';
+    const telefono = document.getElementById('rep-tel')?.value.trim() ?? '';
+    const email = document.getElementById('rep-email')?.value.trim() ?? '';
+    const password = document.getElementById('rep-password')?.value ?? '';
+    const btn = document.getElementById('btn-guardar-rep');
+
+    if (!nombre || nombre.length < 2) return mostrarMensaje('El nombre debe tener al menos 2 caracteres.', false);
+    if (!email || !email.includes('@')) return mostrarMensaje('Correo inválido.', false);
+    if (!password || password.length < 6) return mostrarMensaje('La contraseña debe tener mínimo 6 caracteres.', false);
+
+    const original = btn.textContent;
+    btn.textContent = 'Guardando...';
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/auth/admin/repartidores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre, apellido, telefono, email, password }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        mostrarMensaje('✅ ' + data.message, true);
+        setTimeout(() => {
+          cerrarModalRepartidor();
+          refrescarRepartidores();
+        }, 1200);
+      } else {
+        mostrarMensaje('❌ ' + data.message, false);
+      }
+    } catch {
+      mostrarMensaje('❌ Error de conexión.', false);
+    } finally {
+      btn.textContent = original;
+      btn.disabled = false;
+    }
+  }
+
+  // ============================================================
+  // modal ver repartidor: info + tabs (pedidos / mapa en vivo)
+  // ============================================================
+  function verRepartidor(id) {
+    const r = repartidores.find((x) => x.id === id);
+    if (!r) return;
+    repSeleccionado = r;
+
+    document.getElementById('ver-rep-titulo').textContent = `${r.nombre} ${r.apellido || ''}`;
+
+    const ini = `${r.nombre[0]}${r.apellido?.[0] || ''}`.toUpperCase();
+    const avatarHtml = r.imagenUrl
+      ? `<img src="${r.imagenUrl}" style="width:52px;height:52px;object-fit:cover;border-radius:50%;border:2px solid var(--gris-200)">`
+      : `<div class="rep-avatar" style="width:52px;height:52px;font-size:1.1rem">${ini}</div>`;
+    const estadoBadge = r.enTransito > 0
+      ? '<span class="badge badge-azul">🚚 En entrega</span>'
+      : '<span class="badge badge-verde">✅ Disponible</span>';
+
+    document.getElementById('ver-rep-info').innerHTML = `
+      ${avatarHtml}
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:1rem">${r.nombre} ${r.apellido || ''}</div>
+        <div style="font-size:.78rem;color:#94a3b8;margin-top:2px">${r.email}</div>
+        <div style="font-size:.78rem;color:#94a3b8">${r.telefono || 'Sin teléfono'}</div>
+        <div style="margin-top:6px;display:flex;gap:6px;align-items:center">
+          ${estadoBadge}
+          <span style="font-size:.72rem;color:#94a3b8">${r.totalAsignados} pedidos en total</span>
+        </div>
+      </div>`;
+
+    cambiarTabRep('pedidos');
+    document.getElementById('modal-ver-rep').style.display = 'flex';
+    cargarPedidosRepModal(id);
+  }
+
+  async function cargarPedidosRepModal(idRep) {
+    const tbody = document.getElementById('tbody-pedidos-rep-modal');
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:1.5rem">Cargando...</td></tr>`;
+    try {
+      const res = await fetch(`/api/auth/admin/repartidores/${idRep}/pedidos`);
+      const data = await res.json();
+
+      if (!data.success || !data.data.length) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:1.5rem">Este repartidor no tiene pedidos asignados.</td></tr>`;
+        if (repSeleccionado) repSeleccionado._ultimoPedido = null;
+        return;
+      }
+
+      tbody.innerHTML = data.data
+        .map((p) => {
+          const est = badgeEstado[p.estado] || { clase: 'badge-slate', icono: '📋' };
+          return `<tr>
+            <td class="celda-mono">#PED-${p.id}</td>
+            <td style="font-weight:500">${p.cliente}</td>
+            <td style="font-weight:700">${fmt(p.total)}</td>
+            <td><span class="badge ${est.clase}">${est.icono} ${p.estado}</span></td>
+            <td style="font-size:.75rem;color:#94a3b8">${p.fecha}</td>
+          </tr>`;
+        })
+        .join('');
+
+      const activo = data.data.find((p) => ['En transito', 'En tránsito', 'En preparacion'].includes(p.estado));
+      if (repSeleccionado) repSeleccionado._ultimoPedido = activo ?? null;
+
+      // si la pestaña de mapa ya esta abierta (el usuario cambio de tab antes de que
+      // terminara de cargar), inicializa el mapa/websocket ahora que ya hay datos
+      if (document.getElementById('panel-mapa-rep').style.display !== 'none') {
+        inicializarMapaRepAdmin();
+      }
+    } catch (err) {
+      console.error('error pedidos repartidor:', err);
+    }
+  }
+
+  function cambiarTabRep(tab) {
+    const panelPedidos = document.getElementById('panel-pedidos-rep');
+    const panelMapa = document.getElementById('panel-mapa-rep');
+    const tabPedidos = document.getElementById('tab-pedidos-rep');
+    const tabMapa = document.getElementById('tab-mapa-rep');
+
+    if (tab === 'pedidos') {
+      panelPedidos.style.display = 'block';
+      panelMapa.style.display = 'none';
+      tabPedidos.classList.add('rep-tab-activo');
+      tabMapa.classList.remove('rep-tab-activo');
+      desconectarRastreoAdmin();
+    } else {
+      panelPedidos.style.display = 'none';
+      panelMapa.style.display = 'block';
+      tabMapa.classList.add('rep-tab-activo');
+      tabPedidos.classList.remove('rep-tab-activo');
+      inicializarMapaRepAdmin();
+    }
+  }
+
+  function inicializarMapaRepAdmin() {
+    const p = repSeleccionado?._ultimoPedido;
+    const lat = p?.latitud ? Number(p.latitud) : 5.5353;
+    const lng = p?.longitud ? Number(p.longitud) : -73.3678;
+    const dir = p?.direccion || 'Última dirección registrada';
+
+    const elPos = document.getElementById('rep-ultima-pos');
+    if (elPos) elPos.textContent = `📍 ${dir}`;
+
+    if (!mapaUbicacionRep) {
+      mapaUbicacionRep = window.L.map('mapa-ubicacion-rep', { zoomControl: true, dragging: true }).setView([lat, lng], 15);
+      window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap',
+        maxZoom: 19,
+      }).addTo(mapaUbicacionRep);
+      window.L.circleMarker([lat, lng], { radius: 12, fillColor: '#16a34a', color: '#fff', weight: 3, fillOpacity: 0.85 })
+        .addTo(mapaUbicacionRep)
+        .bindPopup('📦 Destino del pedido')
+        .openPopup();
+    } else {
+      mapaUbicacionRep.setView([lat, lng], 15);
+      mapaUbicacionRep.invalidateSize();
+    }
+
+    if (p && ['En transito', 'En tránsito'].includes(p.estado)) {
+      conectarRastreoAdmin(p.id);
+    } else {
+      desconectarRastreoAdmin();
+      const elSenal = document.getElementById('rep-estado-senal');
+      if (elSenal) {
+        elSenal.textContent = '⚪ Sin pedido activo en tránsito';
+        elSenal.className = 'rep-senal rep-senal-inactiva';
+      }
+    }
+  }
+
+  // ============================================================
+  // websocket de tracking en vivo — reemplaza SignalR/RastreoHub del original.
+  // se conecta a /ws/rastreo/:idPedido?token=... del backend deno/oak; el jwt
+  // viaja como query param porque el navegador no puede mandar headers propios
+  // en el handshake de un websocket (igual que documenta RastreoController.ts)
+  // ============================================================
+  function construirUrlRastreo(idPedido) {
+    const base = backendUrlPublico.replace(/^http/, 'ws');
+    return `${base}/ws/rastreo/${idPedido}?token=${encodeURIComponent(token)}`;
+  }
+
+  function conectarRastreoAdmin(idPedido) {
+    desconectarRastreoAdmin();
+    if (!idPedido) return;
+
+    const elSenal = document.getElementById('rep-estado-senal');
+    if (elSenal) {
+      elSenal.textContent = '🟡 Conectando...';
+      elSenal.className = 'rep-senal rep-senal-esperando';
+    }
+
+    socketRastreo = new WebSocket(construirUrlRastreo(idPedido));
+
+    socketRastreo.onopen = () => {
+      if (elSenal) {
+        elSenal.textContent = '🟢 Señal activa — esperando ubicación...';
+        elSenal.className = 'rep-senal rep-senal-activa';
+      }
+    };
+
+    socketRastreo.onmessage = (evento) => {
+      try {
+        const mensaje = JSON.parse(evento.data);
+        if (mensaje.tipo === 'ubicacion') {
+          actualizarMarcadorRepAdmin(mensaje.lat, mensaje.lng);
+        }
+      } catch (err) {
+        console.error('mensaje websocket invalido:', err);
+      }
+    };
+
+    socketRastreo.onerror = () => {
+      if (elSenal) {
+        elSenal.textContent = '🔴 Error de conexión con el tracking.';
+        elSenal.className = 'rep-senal rep-senal-inactiva';
+      }
+    };
+
+    socketRastreo.onclose = () => {
+      socketRastreo = null;
+    };
+  }
+
+  function actualizarMarcadorRepAdmin(lat, lng) {
+    if (!mapaUbicacionRep) return;
+
+    if (!marcadorRepartidorAdmin) {
+      const iconoRep = window.L.divIcon({
+        className: '',
+        iconSize: [40, 40],
+        iconAnchor: [20, 20],
+        html: `<div class="rep-icono-mapa">🚴</div>`,
+      });
+      marcadorRepartidorAdmin = window.L.marker([lat, lng], { icon: iconoRep })
+        .addTo(mapaUbicacionRep)
+        .bindPopup(`🚴 ${repSeleccionado?.nombre || 'Repartidor'} — En movimiento`);
+    } else {
+      marcadorRepartidorAdmin.setLatLng([lat, lng]);
+    }
+
+    mapaUbicacionRep.panTo([lat, lng]);
+
+    const elPos = document.getElementById('rep-ultima-pos');
+    if (elPos) elPos.textContent = `🟢 Señal activa — Lat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}`;
+
+    const elSenal = document.getElementById('rep-estado-senal');
+    if (elSenal) {
+      elSenal.textContent = '🟢 Señal activa';
+      elSenal.className = 'rep-senal rep-senal-activa';
+    }
+  }
+
+  function desconectarRastreoAdmin() {
+    if (socketRastreo) {
+      socketRastreo.close();
+      socketRastreo = null;
+    }
+    marcadorRepartidorAdmin = null;
+  }
+
+  function cerrarModalVerRep() {
+    document.getElementById('modal-ver-rep').style.display = 'none';
+    desconectarRastreoAdmin();
+    repSeleccionado = null;
+  }
+
+  // ============================================================
+  // listeners
+  // ============================================================
+  document.getElementById('btn-abrir-modal-rep')?.addEventListener('click', abrirModalRepartidor);
+  document.getElementById('btn-cerrar-modal-rep')?.addEventListener('click', cerrarModalRepartidor);
+  document.getElementById('btn-cancelar-modal-rep')?.addEventListener('click', cerrarModalRepartidor);
+  document.getElementById('btn-guardar-rep')?.addEventListener('click', guardarRepartidor);
+  document.getElementById('modal-repartidor')?.addEventListener('click', function (e) {
+    if (e.target === this) cerrarModalRepartidor();
+  });
+
+  document.getElementById('btn-cerrar-ver-rep')?.addEventListener('click', cerrarModalVerRep);
+  document.getElementById('btn-cerrar-ver-rep-footer')?.addEventListener('click', cerrarModalVerRep);
+  document.getElementById('modal-ver-rep')?.addEventListener('click', function (e) {
+    if (e.target === this) cerrarModalVerRep();
+  });
+
+  document.querySelectorAll('.rep-tab').forEach((btn) => {
+    btn.addEventListener('click', () => cambiarTabRep(btn.dataset.tab));
+  });
+
+  document.getElementById('grilla-repartidores')?.addEventListener('click', (e) => {
+    const boton = e.target.closest('button[data-accion="ver"]');
+    if (boton) verRepartidor(Number(boton.dataset.id));
+  });
+
+  renderRepartidores();
+</script>
+
+<style>
+  .ver-rep-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.85rem;
+    background: var(--gris-50);
+    border-radius: 10px;
+  }
+
+  .rep-tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 2px solid var(--gris-100);
+  }
+
+  .rep-tab {
+    padding: 0.5rem 1rem;
+    border: none;
+    background: none;
+    font-family: var(--fuente);
+    font-size: 0.83rem;
+    font-weight: 700;
+    color: var(--gris-500);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    cursor: pointer;
+  }
+
+  .rep-tab-activo {
+    color: var(--azul-600);
+    border-bottom-color: var(--azul-500);
+  }
+
+  .mapa-ubicacion-rep {
+    height: 320px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--gris-200);
+  }
+
+  .rep-ultima-pos {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    margin-top: 0.5rem;
+    text-align: center;
+  }
+
+  .rep-senal {
+    padding: 0.65rem 0.9rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    border: 1px solid transparent;
+  }
+
+  .rep-senal-inactiva { background: var(--gris-100); color: var(--gris-600); border-color: var(--gris-200); }
+  .rep-senal-esperando { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+  .rep-senal-activa { background: #dcfce7; color: #166534; border-color: #86efac; }
+
+  .rep-icono-mapa {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    border: 3px solid white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 2px 10px rgba(37, 99, 235, 0.4);
+  }
+</style>

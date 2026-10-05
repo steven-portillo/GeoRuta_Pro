@@ -1,0 +1,10 @@
+¿Para que sirve y como usar stripe-cli?
+
+1. instalar paquete NPM stripe-cli
+    npm i -g @stripe/cli@latest
+
+2. Iniciar sesion con cuenta de stripe
+    stripe login
+
+3. realizar un stripe listen para tener la key secret para el webHook
+    stripe listen --events checkout.session.completed --forward-to http://localhost:8001/pagos/webhook
