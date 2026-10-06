@@ -3,6 +3,7 @@ export {
   Application,
   Router,
   Context,
+  send,
 } from "https://deno.land/x/oak@v17.2.0/mod.ts";
 export type {
   RouterContext,

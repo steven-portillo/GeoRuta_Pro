@@ -70,7 +70,7 @@ Content-Disposition: form-data; name="stock_minimo"
 ------GeoRutaBoundary
 Content-Disposition: form-data; name="imagenes"; filename="producto1.png"
 Content-Type: image/png
-
+2
 < C:\Users\deivyd\Desktop\producto1.png
 ------GeoRutaBoundary--
 

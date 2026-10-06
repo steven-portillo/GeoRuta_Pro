@@ -130,3 +130,19 @@ export const cambiarPassword = async (ctx: Context) => {
     };
   }
 };
+
+export const eliminarFotoPerfil = async (ctx: Context) => {
+  try {
+    const usuarioToken = ctx.state.user as { sub: string };
+    const resultado = await Perfil.EliminarFoto(Number(usuarioToken.sub));
+    ctx.response.status = resultado.success ? 200 : 400;
+    ctx.response.body = resultado;
+  } catch (error) {
+    console.error(error);
+    ctx.response.status = 500;
+    ctx.response.body = {
+      success: false,
+      message: "Error interno del servidor",
+    };
+  }
+};

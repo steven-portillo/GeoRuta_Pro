@@ -243,3 +243,62 @@ export const cambiarEstadoProducto = async (
     };
   }
 };
+
+/** DELETE /api/admin/productos/:id */
+export const eliminarProducto = async (
+  ctx: RouterContext<"/api/admin/productos/:id">,
+) => {
+  try {
+    const usuario = ctx.state.user as { id_empresa: number };
+    const id_producto = Number(ctx.params.id);
+
+    if (Number.isNaN(id_producto)) {
+      ctx.response.status = 400;
+      ctx.response.body = { success: false, message: "ID inválido" };
+      return;
+    }
+
+    const resultado = await Producto.Eliminar(id_producto, usuario.id_empresa);
+    ctx.response.status = resultado.success ? 200 : 400;
+    ctx.response.body = resultado;
+  } catch (error) {
+    console.error(error);
+    ctx.response.status = 500;
+    ctx.response.body = {
+      success: false,
+      message: "Error interno del servidor",
+    };
+  }
+};
+
+/** DELETE /api/admin/productos/:id/imagenes/:idImagen */
+export const eliminarImagenProducto = async (
+  ctx: RouterContext<"/api/admin/productos/:id/imagenes/:idImagen">,
+) => {
+  try {
+    const usuario = ctx.state.user as { id_empresa: number };
+    const id_producto = Number(ctx.params.id);
+    const id_imagen = Number(ctx.params.idImagen);
+
+    if (Number.isNaN(id_producto) || Number.isNaN(id_imagen)) {
+      ctx.response.status = 400;
+      ctx.response.body = { success: false, message: "ID inválido" };
+      return;
+    }
+
+    const resultado = await Producto.EliminarImagen(
+      id_producto,
+      usuario.id_empresa,
+      id_imagen,
+    );
+    ctx.response.status = resultado.success ? 200 : 404;
+    ctx.response.body = resultado;
+  } catch (error) {
+    console.error(error);
+    ctx.response.status = 500;
+    ctx.response.body = {
+      success: false,
+      message: "Error interno del servidor",
+    };
+  }
+};

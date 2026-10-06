@@ -1,4 +1,5 @@
 import { conexion } from "../conexion.ts";
+import { eliminarArchivo } from "../../Helpers/archivos.ts";
 
 interface EditarEmpresaData {
   nombre?: string;
@@ -30,10 +31,6 @@ export class EmpresaPerfil {
       campos.push("descripcion = ?");
       valores.push(datos.descripcion);
     }
-    if (datos.logo_url) {
-      campos.push("logo_url = ?");
-      valores.push(datos.logo_url);
-    }
     if (datos.color_primario) {
       campos.push("color_primario = ?");
       valores.push(datos.color_primario);
@@ -41,6 +38,17 @@ export class EmpresaPerfil {
     if (datos.color_acento) {
       campos.push("color_acento = ?");
       valores.push(datos.color_acento);
+    }
+
+    let logoAnterior: string | null = null;
+    if (datos.logo_url) {
+      const [actual] = await conexion.query(
+        `SELECT logo_url FROM empresas WHERE id_empresa = ?`,
+        [id_empresa],
+      );
+      logoAnterior = actual?.logo_url ?? null;
+      campos.push("logo_url = ?");
+      valores.push(datos.logo_url);
     }
 
     if (campos.length === 0) {
@@ -53,6 +61,28 @@ export class EmpresaPerfil {
       valores,
     );
 
+    if (logoAnterior) {
+      await eliminarArchivo(logoAnterior);
+    }
+
     return { success: true, message: "Empresa actualizada correctamente" };
+  }
+
+  static async EliminarLogo(id_empresa: number) {
+    const [empresa] = await conexion.query(
+      `SELECT logo_url FROM empresas WHERE id_empresa = ?`,
+      [id_empresa],
+    );
+    if (!empresa?.logo_url) {
+      return { success: false, message: "No hay logo para eliminar" };
+    }
+
+    await conexion.execute(
+      `UPDATE empresas SET logo_url = NULL WHERE id_empresa = ?`,
+      [id_empresa],
+    );
+    await eliminarArchivo(empresa.logo_url);
+
+    return { success: true, message: "Logo eliminado" };
   }
 }

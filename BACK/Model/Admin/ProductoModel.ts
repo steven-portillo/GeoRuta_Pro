@@ -1,4 +1,5 @@
 import { conexion } from "../conexion.ts";
+import { eliminarArchivo } from "../../Helpers/archivos.ts";
 
 interface CrearProductoData {
   id_categoria: number;
@@ -65,13 +66,14 @@ export class Producto {
     rutasImagenes: string[],
   ) {
     const [categoria] = await conexion.query(
-      `SELECT id_categoria FROM categorias WHERE id_categoria = ? AND id_empresa = ?`,
+      `SELECT id_categoria FROM categorias WHERE id_categoria = ? AND id_empresa = ? AND activo = 1`,
       [datos.id_categoria, id_empresa],
     );
     if (!categoria) {
       return {
         success: false,
-        message: "La categoría seleccionada no pertenece a tu empresa",
+        message:
+          "La categoría no existe, no pertenece a tu empresa, o está inactiva",
       };
     }
 
@@ -130,13 +132,14 @@ export class Producto {
 
     if (datos.id_categoria) {
       const [categoria] = await conexion.query(
-        `SELECT id_categoria FROM categorias WHERE id_categoria = ? AND id_empresa = ?`,
+        `SELECT id_categoria FROM categorias WHERE id_categoria = ? AND id_empresa = ? AND activo = 1`,
         [datos.id_categoria, id_empresa],
       );
       if (!categoria) {
         return {
           success: false,
-          message: "La categoría seleccionada no pertenece a tu empresa",
+          message:
+            "La categoría no existe, no pertenece a tu empresa, o está inactiva",
         };
       }
     }
@@ -209,5 +212,79 @@ export class Producto {
       [id_producto, id_empresa],
     );
     return producto ?? null;
+  }
+
+  static async Eliminar(id_producto: number, id_empresa: number) {
+    const producto = await Producto.obtenerPropio(id_producto, id_empresa);
+    if (!producto) return { success: false, message: "Producto no encontrado" };
+
+    const [enPedido] = await conexion.query(
+      `SELECT id_detalle FROM detalle_pedido WHERE id_producto = ? LIMIT 1`,
+      [id_producto],
+    );
+    if (enPedido) {
+      return {
+        success: false,
+        message:
+          "No se puede eliminar: el producto está asociado a uno o más pedidos",
+      };
+    }
+
+    const imagenes = await conexion.query(
+      `SELECT url FROM producto_imagenes WHERE id_producto = ?`,
+      [id_producto],
+    );
+
+    try {
+      await conexion.execute("START TRANSACTION");
+      await conexion.execute(
+        `DELETE FROM movimientos_inventario WHERE id_producto = ?`,
+        [id_producto],
+      );
+      await conexion.execute(`DELETE FROM inventario WHERE id_producto = ?`, [
+        id_producto,
+      ]);
+      await conexion.execute(
+        `DELETE FROM producto_imagenes WHERE id_producto = ?`,
+        [id_producto],
+      );
+      await conexion.execute(`DELETE FROM productos WHERE id_producto = ?`, [
+        id_producto,
+      ]);
+      await conexion.execute("COMMIT");
+    } catch (error) {
+      await conexion.execute("ROLLBACK");
+      console.error("Error Eliminar producto:", error);
+      return { success: false, message: "Error al eliminar el producto" };
+    }
+
+    for (const img of imagenes) {
+      await eliminarArchivo(img.url);
+    }
+
+    return { success: true, message: "Producto eliminado correctamente" };
+  }
+
+  static async EliminarImagen(
+    id_producto: number,
+    id_empresa: number,
+    id_imagen: number,
+  ) {
+    const producto = await Producto.obtenerPropio(id_producto, id_empresa);
+    if (!producto) return { success: false, message: "Producto no encontrado" };
+
+    const [imagen] = await conexion.query(
+      `SELECT url FROM producto_imagenes WHERE id_imagen = ? AND id_producto = ?`,
+      [id_imagen, id_producto],
+    );
+    if (!imagen) return { success: false, message: "Imagen no encontrada" };
+
+    await conexion.execute(
+      `DELETE FROM producto_imagenes WHERE id_imagen = ?`,
+      [id_imagen],
+    );
+    await eliminarArchivo(imagen.url);
+
+    return { success: true, message: "Imagen eliminada correctamente" };
   }
 }

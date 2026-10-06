@@ -1,4 +1,5 @@
 import { conexion } from "../conexion.ts";
+import { eliminarArchivo } from "../../Helpers/archivos.ts";
 import { hash, compare } from "../../Dependencies/dependencias.ts";
 
 interface EditarPerfilData {
@@ -25,7 +26,11 @@ export class Perfil {
     return usuario ?? null;
   }
 
-  static async Editar(id_usuario: number, datos: EditarPerfilData) {
+  static async Editar(
+    id_usuario: number,
+    datos: EditarPerfilData,
+    id_rol?: number,
+  ) {
     if (datos.email) {
       const [existente] = await conexion.query(
         `SELECT id_usuario FROM usuarios WHERE email = ? AND id_usuario != ?`,
@@ -54,7 +59,14 @@ export class Perfil {
       campos.push("email = ?");
       valores.push(datos.email);
     }
+
+    let imagenAnterior: string | null = null;
     if (datos.imagen_url) {
+      const [actual] = await conexion.query(
+        `SELECT imagen_url FROM usuarios WHERE id_usuario = ?`,
+        [id_usuario],
+      );
+      imagenAnterior = actual?.imagen_url ?? null;
       campos.push("imagen_url = ?");
       valores.push(datos.imagen_url);
     }
@@ -63,13 +75,46 @@ export class Perfil {
       return { success: false, message: "No hay datos para actualizar" };
     }
 
+    let where = "id_usuario = ?";
     valores.push(id_usuario);
-    await conexion.execute(
-      `UPDATE usuarios SET ${campos.join(", ")} WHERE id_usuario = ?`,
+    if (id_rol !== undefined) {
+      where += " AND id_rol = ?";
+      valores.push(id_rol);
+    }
+
+    const result = await conexion.execute(
+      `UPDATE usuarios SET ${campos.join(", ")} WHERE ${where}`,
       valores,
     );
 
+    if (id_rol !== undefined && result.affectedRows === 0) {
+      return { success: false, message: "Usuario no encontrado" };
+    }
+
+    if (imagenAnterior) {
+      await eliminarArchivo(imagenAnterior);
+    }
+
     return { success: true, message: "Perfil actualizado correctamente" };
+  }
+
+  /** Quita la foto de perfil sin reemplazarla — queda NULL (el frontend muestra su placeholder por defecto) */
+  static async EliminarFoto(id_usuario: number) {
+    const [usuario] = await conexion.query(
+      `SELECT imagen_url FROM usuarios WHERE id_usuario = ?`,
+      [id_usuario],
+    );
+    if (!usuario?.imagen_url) {
+      return { success: false, message: "No hay foto para eliminar" };
+    }
+
+    await conexion.execute(
+      `UPDATE usuarios SET imagen_url = NULL WHERE id_usuario = ?`,
+      [id_usuario],
+    );
+    await eliminarArchivo(usuario.imagen_url);
+
+    return { success: true, message: "Foto de perfil eliminada" };
   }
 
   static async CambiarPassword(id_usuario: number, datos: CambiarPasswordData) {

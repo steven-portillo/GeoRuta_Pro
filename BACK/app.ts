@@ -1,4 +1,4 @@
-import { Application, oakCors } from "./Dependencies/dependencias.ts";
+import { Application, oakCors, send } from "./Dependencies/dependencias.ts";
 import { authRouter } from "./Router/Auth/authRouter.ts";
 import { empresaRouter } from "./Router/SuperAdmin/empresaRouter.ts";
 import { clienteRouter } from "./Router/SuperAdmin/clienteRouter.ts";
@@ -20,6 +20,14 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
+
+app.use(async (ctx, next) => {
+  if (ctx.request.url.pathname.startsWith("/uploads/")) {
+    await send(ctx, ctx.request.url.pathname, { root: Deno.cwd() });
+    return;
+  }
+  await next();
+});
 
 // Rutas
 const routers = [

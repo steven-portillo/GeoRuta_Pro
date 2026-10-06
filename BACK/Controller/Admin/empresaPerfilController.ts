@@ -109,3 +109,19 @@ export const editarEmpresa = async (ctx: Context) => {
     };
   }
 };
+/** DELETE /api/admin/empresa/logo */
+export const eliminarLogoEmpresa = async (ctx: Context) => {
+  try {
+    const usuario = ctx.state.user as { id_empresa: number };
+    const resultado = await EmpresaPerfil.EliminarLogo(usuario.id_empresa);
+    ctx.response.status = resultado.success ? 200 : 400;
+    ctx.response.body = resultado;
+  } catch (error) {
+    console.error(error);
+    ctx.response.status = 500;
+    ctx.response.body = {
+      success: false,
+      message: "Error interno del servidor",
+    };
+  }
+};

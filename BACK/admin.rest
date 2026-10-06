@@ -1,6 +1,6 @@
 @baseUrl = http://localhost:8005
-@tokenSuperAdmin = PEGA_AQUI_TOKEN_SUPERADMIN
-@tokenAdmin = PEGA_AQUI_TOKEN_ADMIN
+@tokenSuperAdmin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjgwMDUiLCJzdWIiOiIxIiwicm9sIjoiU1VQRVJBRE1JTiIsImlkX2VtcHJlc2EiOm51bGwsImp0aSI6ImRiNTYwZTI2LTQxZWYtNGVmMy05YmU5LTg5NjE1Mjg4NTI1YiIsImV4cCI6MTc5MTI1NDY2MH0.QcM5J-fWJgxW6tR8MRnaymB4zbkhOMtXZ6MGM3LXtB0
+@tokenAdmin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjgwMDUiLCJzdWIiOiIyIiwicm9sIjoiQURNSU4iLCJpZF9lbXByZXNhIjoxLCJqdGkiOiI1YzliMWY1MC1jYTUzLTQ1YjAtYmZhMC04ZTVlYjAxNWQ4ZjgiLCJleHAiOjE3OTEyNTA4MDV9.bo0j58PWWDFfiEAdgFUQGyhUytJczvUeqDHpUM5PqwI
 
 ### ============ AUTH ============
 
@@ -10,7 +10,7 @@ Content-Type: application/json
 
 {
   "email": "deivyd@gmail.com",
-  "password": "123456"
+  "password": "12345678"
 }
 
 ### Registrar cliente
@@ -103,28 +103,29 @@ Nuevo Nombre
 ------GeoRutaBoundary--
 
 ### Obtener perfil propio
-GET {{baseUrl}}/api/admin/superadmin/perfil
+GET {{baseUrl}}/api/perfil
 Authorization: Bearer {{tokenSuperAdmin}}
 
 ### Editar perfil propio
-PUT {{baseUrl}}/api/admin/superadmin/perfil
+PUT {{baseUrl}}/api/perfil
 Authorization: Bearer {{tokenSuperAdmin}}
 Content-Type: multipart/form-data; boundary=----GeoRutaBoundary
 
 ------GeoRutaBoundary
-Content-Disposition: form-data; name="nombre"
+Content-Disposition: form-data; name="foto"; filename="perfil.png"
+Content-Type: image/png
 
-Deivyd
+< C:Users\deivy\Desktop\perfil1.png
 ------GeoRutaBoundary--
 
 ### Cambiar password
-PATCH {{baseUrl}}/api/admin/superadmin/perfil/password
+PATCH {{baseUrl}}/api/perfil/password
 Authorization: Bearer {{tokenSuperAdmin}}
 Content-Type: application/json
 
 {
-  "passwordActual": "123456",
-  "passwordNueva": "nuevaPass123"
+  "passwordActual": "12345678",
+  "passwordNueva": "12345678"
 }
 
 
@@ -139,7 +140,7 @@ POST {{baseUrl}}/api/admin/categorias
 Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
-{ "nombre": "Bebidas", "descripcion": "Gaseosas y jugos" }
+{ "nombre": "Fritos", "descripcion": "Papas y paquetes" }
 
 ### Obtener categoría
 GET {{baseUrl}}/api/admin/categorias/1
@@ -195,7 +196,12 @@ Content-Disposition: form-data; name="stock_minimo"
 Content-Disposition: form-data; name="imagenes"; filename="producto1.png"
 Content-Type: image/png
 
-< C:\Users\TU_USUARIO\Desktop\producto1.png
+< C:\Users\deivy\Desktop\producto1.png
+------GeoRutaBoundary
+Content-Disposition: form-data; name="imagenes"; filename="producto2.png"
+Content-Type: image/png
+
+< C:\Users\deivy\Desktop\producto2.png
 ------GeoRutaBoundary--
 
 ### Obtener producto
@@ -203,7 +209,7 @@ GET {{baseUrl}}/api/admin/productos/1
 Authorization: Bearer {{tokenAdmin}}
 
 ### Editar producto
-PUT {{baseUrl}}/api/admin/productos/1
+PUT {{baseUrl}}/api/admin/productos/17
 Authorization: Bearer {{tokenAdmin}}
 Content-Type: multipart/form-data; boundary=----GeoRutaBoundary
 
@@ -218,7 +224,7 @@ PATCH {{baseUrl}}/api/admin/productos/1/estado
 Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
-{ "estado": 0 }
+{ "estado": 1 }
 
 
 ### ============ ADMIN - INVENTARIO ============
@@ -232,7 +238,7 @@ POST {{baseUrl}}/api/admin/inventario/agregar
 Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
-{ "id_producto": 1, "cantidad": 50, "motivo": "Reabastecimiento inicial" }
+{ "id_producto": 18, "cantidad": 50, "motivo": "Reabastecimiento inicial" }
 
 ### Historial de movimientos
 GET {{baseUrl}}/api/admin/inventario/1/historial
@@ -258,22 +264,22 @@ Content-Type: application/json
 }
 
 ### Obtener proveedor
-GET {{baseUrl}}/api/admin/proveedores/1
+GET {{baseUrl}}/api/admin/proveedores/5
 Authorization: Bearer {{tokenAdmin}}
 
 ### Editar proveedor
-PUT {{baseUrl}}/api/admin/proveedores/1
+PUT {{baseUrl}}/api/admin/proveedores/5
 Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 { "apellido": "Ramírez Gómez" }
 
 ### Cambiar estado proveedor
-PATCH {{baseUrl}}/api/admin/proveedores/1/estado
+PATCH {{baseUrl}}/api/admin/proveedores/5/estado
 Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
-{ "estado": 0 }
+{ "estado": 1 }
 
 
 ### ============ ADMIN - PEDIDOS ============

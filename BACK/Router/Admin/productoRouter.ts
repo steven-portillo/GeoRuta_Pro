@@ -7,6 +7,8 @@ import {
   crearProducto,
   editarProducto,
   cambiarEstadoProducto,
+  eliminarProducto,
+  eliminarImagenProducto,
 } from "../../Controller/Admin/productoController.ts";
 
 const productoRouter = new Router();
@@ -19,5 +21,11 @@ productoRouter.get("/api/admin/productos/:id", obtenerProducto);
 productoRouter.post("/api/admin/productos", crearProducto);
 productoRouter.put("/api/admin/productos/:id", editarProducto);
 productoRouter.patch("/api/admin/productos/:id/estado", cambiarEstadoProducto);
+
+productoRouter.delete("/api/admin/productos/:id", eliminarProducto);
+productoRouter.delete(
+  "/api/admin/productos/:id/imagenes/:idImagen",
+  eliminarImagenProducto,
+);
 
 export { productoRouter };
