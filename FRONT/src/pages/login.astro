@@ -5,6 +5,7 @@
 
 import 'bootstrap/dist/css/bootstrap.min.css'; // agrega d-none, d-flex, spinner-border, visually-hidden, etc.
 import LoginForm from '../components/auth/LoginForm.astro';
+import TransicionesPagina from '../components/comunes/TransicionesPagina.astro';
 
 // mismos codigos que ya manda middleware.ts al redirigir con ?error=...
 const errorUrl = Astro.url.searchParams.get('error');
@@ -19,6 +20,7 @@ const mensajeError = errorUrl ? MENSAJES_ERROR[errorUrl] ?? 'Ocurrió un error, 
 
 <html lang="es">
   <head>
+    <TransicionesPagina />
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Iniciar sesión — GeoRuta</title>

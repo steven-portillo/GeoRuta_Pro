@@ -3,10 +3,13 @@
 // publica: "/" no matchea ningun prefijo de RUTAS_PROTEGIDAS en middleware.ts,
 // asi que pasa derecho sin necesidad de token (igual que /login).
 import Landing from '../components/home/Landing.astro';
+import TransicionesPagina from '../components/comunes/TransicionesPagina.astro';
 ---
 
 <html lang="es">
   <head>
+    <TransicionesPagina />
+    <meta charset="utf-8" />
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GeoRuta — Gestión de pedidos con rastreo GPS en tiempo real</title>

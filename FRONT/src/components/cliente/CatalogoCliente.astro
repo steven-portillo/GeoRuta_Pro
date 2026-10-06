@@ -1,5 +1,6 @@
 ---
 // src/components/cliente/CatalogoCliente.astro
+import CheckoutCliente from './CheckoutCliente.astro';
 
 interface ProveedorCard {
   id: number;
@@ -84,6 +85,9 @@ const { proveedores } = Astro.props;
     </div>
   </div>
 </div>
+
+<!-- ── checkout: mapa de direccion + metodo de pago + stripe ── -->
+<CheckoutCliente />
 
 <script define:vars={{ proveedoresIniciales: proveedores }}>
   // ══════════════════════════════════════════════════════════
@@ -569,11 +573,15 @@ const { proveedores } = Astro.props;
     setTimeout(cerrarModalProducto, 700);
   });
 
-  // el boton "confirmar pedido" todavia no tiene checkout implementado (viene en
-  // el siguiente archivo: modal de direccion + pago) — por ahora emite un evento
-  // personalizado para que ese componente futuro lo escuche sin acoplarse aqui
+  // "confirmar pedido" abre el checkout (CheckoutCliente.astro lo escucha): mapa -> pago -> stripe
   document.getElementById('btn-confirmar-pedido')?.addEventListener('click', () => {
     document.dispatchEvent(new CustomEvent('georuta:iniciar-checkout', { detail: { carrito, productosActuales, proveedorActual } }));
+  });
+
+  // el checkout avisa cuando el pedido quedo creado: se vacia el carrito
+  document.addEventListener('georuta:pedido-creado', () => {
+    carrito = {};
+    renderizarCarrito();
   });
 
   // busqueda desde la topbar del layout (evento emitido en ClienteLayout.astro)

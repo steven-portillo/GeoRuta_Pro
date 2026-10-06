@@ -274,9 +274,11 @@ export class Pedido {
         await conn.execute(`DELETE FROM asignacion_pedido WHERE id_pedido = ?`, [this._idPedido]);
 
         await conn.execute(
-          `INSERT INTO asignacion_pedido (id_pedido, id_proveedor, notas) VALUES (?, ?, ?)`,
-          [this._idPedido, idRepartidor, notas],
-        );
+        // fecha_asignacion es not null, se envia explicitamente con now()
+        `INSERT INTO asignacion_pedido (id_pedido, id_proveedor, fecha_asignacion, notas)
+        VALUES (?, ?, NOW(), ?)`,
+        [this._idPedido, idRepartidor, notas],
+);
 
         await conn.execute(
           `UPDATE pedidos
