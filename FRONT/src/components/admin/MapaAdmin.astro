@@ -1,42 +1,74 @@
 ---
 const token = Astro.cookies.get("token")?.value;
+import "leaflet/dist/leaflet.css";
 ---
 
 <div id="datostoken" data-token={token}></div>
 
 <div id="mapa" style="height: 70vh; width: 100%;"></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script>
-  import { WsUbicacionCliente } from "../../utils/wsCliente.ts";
 
-  declare const L: any;
+<script>
+  import L from "leaflet";
+  import { WsUbicacionCliente } from "../../utils/wsCliente.ts";
 
   const datos = document.getElementById("datostoken") as HTMLElement;
   const token = datos.dataset.token ?? "";
-  const WS_URL = "ws://127.0.0.1:8005/ws";
+  const WS_URL = import.meta.env.PUBLIC_WS_URL;
+
+  // ---------- Iconos ----------
+  const iconRepartidor = L.icon({
+    iconUrl: "/pins/repartidor.png",
+    iconSize: [40, 40],
+    iconAnchor: [20, 40],
+    popupAnchor: [0, -36],
+  });
 
   let map = L.map("mapa").setView([5.794323, -73.062859], 13);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   }).addTo(map);
 
   const marcadoresProveedor = new Map<number, any>();
+
+  function escapeHtml(s: string) {
+    return String(s)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;");
+  }
+
+  function popupRepartidor(nombre: string, empresa: string, id: number) {
+    return `
+      <strong>${escapeHtml(nombre || `${id}`)}</strong><br/>
+      <span>${escapeHtml(empresa || "")}</span>
+    `;
+  }
 
   function upsertMarcadorProveedor(
     proveedorId: number,
     lat: number,
     lng: number,
+    meta?: { nombre?: string; empresa?: string },
   ) {
     const key = Number(proveedorId);
     const latLng = L.latLng(lat, lng);
+    const html = popupRepartidor(
+      meta?.nombre ?? "Mi ubicación",
+      meta?.empresa ?? "",
+      key,
+    );
+    console.log(
+      "Upsert marcador proveedor " + key + " lat: " + lat + " lng: " + lng,
+    );
     if (marcadoresProveedor.has(key)) {
       marcadoresProveedor.get(key).setLatLng(latLng);
     } else {
-      const marker = L.marker(latLng).addTo(map);
-      marker.bindPopup(`Repartidor #${key}`);
+      const marker = L.marker(latLng, { icon: iconRepartidor }).addTo(map);
+      marker.bindPopup(`Repartidor #${html}`);
       marcadoresProveedor.set(key, marker);
     }
   }
@@ -58,6 +90,10 @@ const token = Astro.cookies.get("token")?.value;
           Number(msg.proveedorId),
           Number(msg.lat),
           Number(msg.lng),
+          {
+            nombre: String(msg.nombre ?? ""),
+            empresa: String(msg.empresa ?? ""),
+          },
         );
       }
       if (msg.tipo === "ProveedorTerminoRuta") {

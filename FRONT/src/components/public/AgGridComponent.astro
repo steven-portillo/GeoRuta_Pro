@@ -5,8 +5,9 @@ import "./Ag-grid-theme.css";
 interface Props {
   data: any[];
   columnas: ColumnaDef[];
+  resaltarCritico?: boolean;
 }
-const { data, columnas } = Astro.props;
+const { data, columnas, resaltarCritico = false } = Astro.props;
 
 const dataBase64 = utf8ToBase64(JSON.stringify(data));
 const columnasBase64 = utf8ToBase64(JSON.stringify(columnas));
@@ -43,6 +44,7 @@ const columnasBase64 = utf8ToBase64(JSON.stringify(columnas));
     const wrapper = document.getElementById("ag-grid-wrapper") as HTMLElement;
     const rows = JSON.parse(base64ToUtf8(wrapper.dataset.rows ?? ""));
     const columnas = JSON.parse(base64ToUtf8(wrapper.dataset.columnas ?? ""));
+    const resaltarCritico = wrapper.dataset.resaltarCritico === "true";
 
     const columnDefs = columnas.map((col: any) => {
       if (col.tipo === "acciones") {
@@ -89,43 +91,19 @@ const columnasBase64 = utf8ToBase64(JSON.stringify(columnas));
           width: 130,
           cellRenderer: (params: any) => {
             const activo = params.value === 1 || params.value === true;
-            const color = activo ? "btn-primary" : "btn-danger";
-            const texto = activo ? "Activo" : "Inactivo";
-            return `<button class="btn btn-sm ${color}"
-                                    data-accion="toggle-estado"
-                                    data-id="${params.data.id}"
-                                    data-estado="${activo}">${texto}</button>`;
-          },
-        };
-      }
-      if (col.tipo === "estado-editable") {
-        return {
-          field: col.campo,
-          headerName: col.titulo,
-          width: 170,
-          editable: true,
-          cellEditor: "agSelectCellEditor",
-          cellEditorParams: { values: col.opcionesEstado ?? [] },
-          // Se abre el dropdown con un solo clic en vez de doble clic
-          singleClickEdit: true,
-          onCellValueChanged: (params: any) => {
-            if (params.newValue === params.oldValue) return;
-            const evento = new CustomEvent("campo-editado", {
-              detail: {
-                campo: col.campo,
-                id: params.data.id,
-                valorNuevo: params.newValue,
-                valorAnterior: params.oldValue,
-                fila: params.data,
-              },
-              bubbles: true,
-            });
-            wrapper.dispatchEvent(evento);
+            return `<button class="pill-estado ${activo ? "pill-activo" : "pill-inactivo"}"
+                       data-accion="toggle-estado"
+                       data-id="${params.data.id}"
+                       data-estado="${activo}">
+                ${activo ? "Activo" : "Inactivo"}
+              </button>`;
           },
         };
       }
 
       if (col.tipo === "imagen") {
+        const defaultImg = col.defaultImg ?? "/defaults/usuarios.png"; // fallback genérico si la columna no especifica uno
+
         return {
           field: col.campo,
           headerName: col.titulo,
@@ -133,26 +111,35 @@ const columnasBase64 = utf8ToBase64(JSON.stringify(columnas));
           filter: false,
           width: 90,
           cellRenderer: (params: any) => {
-            let ruta = (params.value ?? "default").toString().trim();
+            if (!params.data) return "";
 
-            if (ruta.startsWith("http")) {
+            let valor = (params.value ?? "").toString().trim();
+            let src: string;
+
+            if (!valor) {
+              // Sin valor en absoluto: usa el default directo, sin pasar por IMG_BASE
+              src = defaultImg;
+            } else if (valor.startsWith("http")) {
+              // URL externa completa, se usa tal cual
+              src = valor;
+            } else if (
+              valor.startsWith("/defaults/") ||
+              valor.startsWith("defaults/")
+            ) {
+              // Imagen default servida por Astro desde /public — NUNCA pasa por IMG_BASE,
+              // porque no vive en el backend de Deno, vive en el propio frontend
+              src = valor.startsWith("/") ? valor : `/${valor}`;
             } else {
-              ruta = ruta.replace(/^\/+/, ""); // quita / iniciales
-              if (ruta.startsWith("Uploads/")) {
-                ruta = ruta.slice("Uploads/".length);
+              // Archivo real subido, servido por el middleware de Deno bajo /Uploads/
+              let relativo = valor.replace(/^\/+/, "");
+              if (relativo.startsWith("Uploads/")) {
+                relativo = relativo.slice("Uploads/".length);
               }
-              if (!ruta) ruta = "default";
-
-              // encode por segmento
-              const segmentos = ruta
+              const segmentos = relativo
                 .split("/")
                 .map((s: string) => encodeURIComponent(s));
-              ruta = `${IMG_BASE}/Uploads/${segmentos.join("/")}`;
+              src = `${IMG_BASE}/Uploads/${segmentos.join("/")}`; // "Uploads/" restaurado
             }
-
-            const src = ruta.startsWith("http")
-              ? ruta
-              : `${IMG_BASE}/Uploads/default`;
 
             return `
         <div class="d-flex h-100 align-items-center justify-content-center">
@@ -160,9 +147,76 @@ const columnasBase64 = utf8ToBase64(JSON.stringify(columnas));
             src="${src}"
             alt="${col.titulo}"
             style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid rgba(255,255,255,0.15);"
-            onerror="this.onerror=null;this.src='${IMG_BASE}/Uploads/default';"
+            onerror="this.onerror=null;this.src='${defaultImg}';"
           />
         </div>`;
+          },
+        };
+      }
+
+      if (col.tipo === "moneda") {
+        return {
+          field: col.campo,
+          headerName: col.titulo,
+          valueFormatter: (params: any) =>
+            params.value == null
+              ? ""
+              : new Intl.NumberFormat("es-CO", {
+                  style: "currency",
+                  currency: "COP",
+                  maximumFractionDigits: 0,
+                }).format(params.value),
+        };
+      }
+
+      if (col.tipo === "fecha") {
+        return {
+          field: col.campo,
+          headerName: col.titulo,
+          sortable: true,
+          filter: "agDateColumnFilter",
+          comparator: (filterDate: Date, cellValue: string) => {
+            if (!cellValue) return -1;
+            const cellDate = new Date(cellValue.replace(" ", "T"));
+            const cellSinHora = new Date(
+              cellDate.getFullYear(),
+              cellDate.getMonth(),
+              cellDate.getDate(),
+            );
+            if (cellSinHora < filterDate) return -1;
+            if (cellSinHora > filterDate) return 1;
+            return 0;
+          },
+          browserDatePicker: true,
+          valueFormatter: (params: any) =>
+            params.value
+              ? new Date(params.value).toLocaleString("es-CO", {
+                  day: "2-digit",
+                  month: "short",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "",
+        };
+      }
+
+      if (col.tipo === "estado-pedido") {
+        const COLOR_ESTADO: Record<string, string> = {
+          Pendiente: "var(--color-text-muted)",
+          Aprobado: "var(--color-primary)",
+          Asignado: "var(--primary-700)",
+          "En tránsito": "var(--color-warning)",
+          Entregado: "var(--color-success)",
+          Cancelado: "var(--color-danger)",
+        };
+        return {
+          field: col.campo,
+          headerName: col.titulo,
+          cellRenderer: (params: any) => {
+            if (!params.data) return "";
+            const color =
+              COLOR_ESTADO[params.value] ?? "var(--color-text-secondary)";
+            return `<span class="badge-estado" style="--badge-color:${color}">${params.value ?? ""}</span>`;
           },
         };
       }
@@ -190,9 +244,16 @@ const columnasBase64 = utf8ToBase64(JSON.stringify(columnas));
       pagination: true,
       paginationPageSize: 15,
       tooltipShowDelay: 300,
+      getRowStyle: resaltarCritico
+        ? (params: any) => {
+            if (params.data?.stock_disponible <= params.data?.stock_minimo) {
+              return { background: "rgba(var(--color-warning-rgb), 0.08)" };
+            }
+          }
+        : undefined,
     });
 
-    // Delegación de eventos: un solo listener detecta clics en cualquier botón de acción
+    // Delegación de eventos
     gridDiv.addEventListener("click", (e) => {
       const btn = (e.target as HTMLElement).closest(
         "[data-accion]",

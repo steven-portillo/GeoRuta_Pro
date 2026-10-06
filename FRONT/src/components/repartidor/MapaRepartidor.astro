@@ -1,5 +1,6 @@
 ---
 const token = Astro.cookies.get("token")?.value;
+import "leaflet/dist/leaflet.css";
 ---
 
 <div id="datostoken" data-token={token}></div>
@@ -9,47 +10,95 @@ const token = Astro.cookies.get("token")?.value;
 <button type="button" id="btnReanudar">Reanudar</button>
 <button type="button" id="btnTerminarRuta">Terminar ruta</button>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
+  import L from "leaflet";
   import { WsUbicacionCliente } from "../../utils/wsCliente.ts";
-
-  declare const L: any;
 
   const datos = document.getElementById("datostoken") as HTMLElement;
   const token = datos.dataset.token ?? "";
-  const API_DENO = import.meta.env.PUBLIC_API_DENO ?? "http://127.0.0.1:8005";
-  const WS_URL = "ws://127.0.0.1:8005/ws";
+  const API_DENO = import.meta.env.PUBLIC_API_DENO;
+  const WS_URL = import.meta.env.PUBLIC_WS_URL;
   const MARCADOR_YO = -1;
 
-  let map = L.map("mapa").setView([5.794323, -73.062859], 13);
+  // ---------- Iconos ----------
+  const iconRepartidor = L.icon({
+    iconUrl: "/pins/repartidor.png",
+    iconSize: [40, 40],
+    iconAnchor: [20, 40],
+    popupAnchor: [0, -36],
+  });
+
+  const iconTienda = L.icon({
+    iconUrl: "/pins/tienda.png",
+    iconSize: [36, 36],
+    iconAnchor: [18, 36],
+    popupAnchor: [0, -32],
+  });
+
+  // ---------- Mapa ----------
+  const map = L.map("mapa").setView([5.794323, -73.062859], 13);
+
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: "&copy; OpenStreetMap",
   }).addTo(map);
 
-  const marcadores = new Map<number, any>();
+  const marcadores = new Map<number, L.Marker>();
 
-  function upsertMarcador(
+  function escapeHtml(s: string) {
+    return String(s)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;");
+  }
+
+  function popupRepartidor(nombre: string, empresa: string, id: number) {
+    return `
+      <strong>${escapeHtml(nombre || "Repartidor #" + id)}</strong><br/>
+      <span>${escapeHtml(empresa || "")}</span>
+    `;
+  }
+
+  function popupTienda(nombre: string, direccion: string, idPedido: number) {
+    return `
+      <strong>${escapeHtml(nombre || "Destino")}</strong><br/>
+      <span>${escapeHtml(direccion || "")}</span><br/>
+      <small>Pedido #${idPedido}</small>
+    `;
+  }
+
+  function upsertMarcadorRepartidor(
     id: number,
     lat: number,
     lng: number,
-    popup?: string,
+    meta?: { nombre?: string; empresa?: string },
   ) {
     const key = Number(id);
     const latLng = L.latLng(lat, lng);
-    if (marcadores.has(key)) {
-      marcadores.get(key).setLatLng(latLng);
-    } else {
-      const marker = L.marker(latLng).addTo(map);
-      if (popup) marker.bindPopup(popup);
-      marcadores.set(key, marker);
+    const html = popupRepartidor(
+      meta?.nombre ?? (key === MARCADOR_YO ? "Mi ubicación" : ""),
+      meta?.empresa ?? "",
+      key === MARCADOR_YO ? 0 : key,
+    );
+
+    const existente = marcadores.get(key);
+    if (existente) {
+      existente.setLatLng(latLng);
+      existente.setPopupContent(html);
+      return;
     }
+
+    const marker = L.marker(latLng, { icon: iconRepartidor }).addTo(map);
+    marker.bindPopup(html);
+    marcadores.set(key, marker);
   }
 
+
+
+  // ---------- Destinos (tiendas) ----------
   async function cargarDestinos() {
     try {
-      
       const res = await fetch(`${API_DENO}/proveedor/mapa/destinos-en-ruta`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -57,23 +106,28 @@ const token = Astro.cookies.get("token")?.value;
         console.error("Destinos HTTP", res.status, await res.text());
         return;
       }
+
       const json = await res.json();
       const destinos = json.data ?? [];
       const grupo = L.featureGroup();
-      console.log("Destinos cargados", destinos.length);
+
       for (const d of destinos) {
         const lat = Number(d.lat);
         const lng = Number(d.lng);
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
 
-        const pin = L.marker([lat, lng]).bindPopup(
-          `<strong>Pedido #${d.id_pedido}</strong><br/>${d.direccion_texto ?? ""}<br/>${d.nombre_cliente ?? ""}`,
+        const pin = L.marker([lat, lng], { icon: iconTienda }).addTo(map);
+        pin.bindPopup(
+          popupTienda(
+            d.nombre_cliente ?? "Cliente",
+            d.direccion_texto ?? "",
+            Number(d.id_pedido),
+          ),
         );
-        pin.addTo(map);
         grupo.addLayer(pin);
       }
 
-      if (grupo.getLayers().length) {
+      if (grupo.getLayers().length > 0) {
         map.fitBounds(grupo.getBounds().pad(0.2));
       }
     } catch (e) {
@@ -81,6 +135,7 @@ const token = Astro.cookies.get("token")?.value;
     }
   }
 
+  // ---------- GPS ----------
   let watchId: number | null = null;
 
   function crearEnviarUbicacionThrottled(clienteWs: {
@@ -107,12 +162,19 @@ const token = Astro.cookies.get("token")?.value;
       console.error("Sin geolocalización");
       return;
     }
+
     detenerGps();
+
     watchId = navigator.geolocation.watchPosition(
       (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
-        upsertMarcador(MARCADOR_YO, lat, lng, "Mi ubicación");
+
+        upsertMarcadorRepartidor(MARCADOR_YO, lat, lng, {
+          nombre: "Mi ubicación",
+          empresa: "",
+        });
+
         enviarFn({ tipo: "EnviarUbicacion", lat, lng });
       },
       (err) => console.error("GPS", err),
@@ -120,6 +182,7 @@ const token = Astro.cookies.get("token")?.value;
     );
   }
 
+  // ---------- WebSocket ----------
   const cliente = new WsUbicacionCliente(WS_URL, token, {
     onEstado: (e) => console.log("[WS Proveedor]", e),
     onMensaje: (msg) => {
@@ -140,14 +203,15 @@ const token = Astro.cookies.get("token")?.value;
   document.getElementById("btnIniciarRuta")?.addEventListener("click", () => {
     cliente.enviar({ tipo: "EmpezarRuta" });
     iniciarGps(enviarThrottled);
-    console.log("Iniciando GPS y enviando ubicaciones...");
   });
 
   document.getElementById("btnDescanso")?.addEventListener("click", () => {
+    console.log("descanso")
     cliente.enviar({ tipo: "Descanso" });
   });
 
   document.getElementById("btnReanudar")?.addEventListener("click", () => {
+    console.log("reanuda")
     cliente.enviar({ tipo: "ReanudarRuta" });
   });
 

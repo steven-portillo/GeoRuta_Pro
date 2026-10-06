@@ -41,7 +41,7 @@ const iniciales = usuario?.nombre
 let rutaPerfil = ""; 
 const rol = Astro.locals.usuario?.rol;
 if (rol === "SUPERADMIN") {
-  rutaPerfil = "/super-admin";
+  rutaPerfil = "/superadmin";
 }else if(rol === "ADMIN") {
   rutaPerfil = "/admin";
 }else if(rol === "PROVEEDOR"){

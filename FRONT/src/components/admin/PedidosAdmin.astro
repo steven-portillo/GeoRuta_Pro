@@ -1,0 +1,370 @@
+---
+import AgGridComponent from "../public/AgGridComponent.astro";
+import type { ColumnaDef } from "../../utils/agGrid";
+import { utf8ToBase64 } from "../../utils/base64";
+
+const usuarioSesion = Astro.locals.usuario;
+const token = Astro.cookies.get("token")?.value;
+if (!token || !usuarioSesion) {
+  return Astro.redirect("/");
+}
+
+const API_DENO = import.meta.env.API_DENO;
+const headers = { Authorization: `Bearer ${token}` };
+
+const CargarPedidos = async () => {
+  try {
+    const respuesta = await fetch(`${API_DENO}/api/admin/pedidos`, { headers });
+    if (!respuesta.ok) {
+      console.error("Status no OK", respuesta.status, await respuesta.text());
+      return [];
+    }
+    const obj = await respuesta.json();
+    return obj.data ?? [];
+  } catch (error) {
+    console.error("Error al cargar pedidos", error);
+    return [];
+  }
+};
+
+
+const CargarProveedoresActivos = async () => {
+  try {
+    const respuesta = await fetch(`${API_DENO}/api/admin/proveedores`, { headers });
+    if (!respuesta.ok) return [];
+    const obj = await respuesta.json();
+    const lista = obj.data ?? [];
+    return lista.filter((p: any) => p.activo === 1 || p.activo === true);
+  } catch {
+    return [];
+  }
+};
+
+const pedidos = await CargarPedidos();
+const pedidosConId = pedidos.map((p: any) => ({ ...p, id: p.id_pedido }));
+
+const proveedoresActivos = await CargarProveedoresActivos();
+const proveedoresBase64 = utf8ToBase64(JSON.stringify(proveedoresActivos));
+
+// --- datos para llenar la info del as cards
+const totalPedidos = pedidosConId.length;
+const pendientesAprobados = pedidosConId.filter((p: any) =>
+  ["Pendiente", "Aprobado"].includes(p.estado)
+).length;
+const enTransito = pedidosConId.filter((p: any) => p.estado === "En transito").length;
+const totalVentas = pedidosConId
+  .filter((p: any) => p.estado !== "Cancelado")
+  .reduce((acc: number, p: any) => acc + Number(p.total ?? 0), 0);
+
+const formatoCOP = new Intl.NumberFormat("es-CO", {
+  style: "currency",
+  currency: "COP",
+  maximumFractionDigits: 0,
+});
+
+const columnasPedidos: ColumnaDef[] = [
+  { campo: "id_pedido", titulo: "N° Pedido" },
+  { campo: "nombre_cliente", titulo: "Cliente" },
+  { campo: "direccion_texto", titulo: "Dirección" },
+  { campo: "nombre_proveedor", titulo: "Repartidor" },
+  { campo: "estado", titulo: "Estado", tipo: "estado-pedido" },
+  { campo: "total", titulo: "Total", tipo: "moneda" },
+  { campo: "fecha_pedido", titulo: "Fecha", tipo: "fecha" },
+  { titulo: "Acciones", tipo: "acciones", acciones: ["Ver detalle"] },
+];
+---
+
+<div id="datos-pagina-pedidos" data-proveedores={proveedoresBase64} style="display: none;"></div>
+
+<div class="page-header">
+  <div class="title-container">
+    <h4 class="page-title">Pedidos</h4>
+  </div>
+</div>
+
+<div class="kpi-row">
+  <div class="kpi-card">
+    <span class="kpi-label">Total de pedidos</span>
+    <span class="kpi-value">{totalPedidos}</span>
+  </div>
+  <div class="kpi-card kpi-primary">
+    <span class="kpi-label">Por asignar</span>
+    <span class="kpi-value">{pendientesAprobados}</span>
+  </div>
+  <div class="kpi-card kpi-warning">
+    <span class="kpi-label">En tránsito</span>
+    <span class="kpi-value">{enTransito}</span>
+  </div>
+  <div class="kpi-card kpi-success">
+    <span class="kpi-label">Total vendido</span>
+    <span class="kpi-value">{formatoCOP.format(totalVentas)}</span>
+  </div>
+</div>
+
+<AgGridComponent data={pedidosConId} columnas={columnasPedidos} />
+
+<!-- Modal: Ver detalle + asignar/cancelar -->
+<div class="modal fade custom-dark-modal" id="modalPedido" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="pedido-titulo">Pedido</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="detalle-grid">
+          <div>
+            <span class="detalle-label">Cliente</span>
+            <span class="detalle-valor" id="pedido-cliente"></span>
+          </div>
+          <div>
+            <span class="detalle-label">Estado</span>
+            <span class="detalle-valor" id="pedido-estado"></span>
+          </div>
+          <div class="detalle-item-full">
+            <span class="detalle-label">Dirección de entrega</span>
+            <span class="detalle-valor" id="pedido-direccion"></span>
+          </div>
+          <div>
+            <span class="detalle-label">Repartidor asignado</span>
+            <span class="detalle-valor" id="pedido-proveedor"></span>
+          </div>
+          <div>
+            <span class="detalle-label">Fecha del pedido</span>
+            <span class="detalle-valor" id="pedido-fecha"></span>
+          </div>
+          <div class="detalle-item-full" id="pedido-observaciones-wrap">
+            <span class="detalle-label">Observaciones</span>
+            <span class="detalle-valor" id="pedido-observaciones"></span>
+          </div>
+        </div>
+
+        <table class="historial-tabla" id="pedido-productos-tabla">
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th>Cantidad</th>
+              <th>Precio unit.</th>
+              <th>Subtotal</th>
+            </tr>
+          </thead>
+          <tbody id="pedido-productos-tbody"></tbody>
+          <tfoot>
+            <tr>
+              <td colspan="3" style="text-align: right; font-weight: 700;">Total</td>
+              <td id="pedido-total" style="font-weight: 700;"></td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <!-- Sección: asignar proveedor -->
+        <div class="mb-3 mt-3" id="bloque-asignar" style="display: none;">
+          <label class="form-label-custom" for="pedido-selectProveedor">Asignar repartidor</label>
+          <select id="pedido-selectProveedor" class="form-control-custom no-icon">
+            <option value="">Selecciona un repartidor</option>
+          </select>
+          <div class="error-feedback" id="pedido-selectProveedor-error"></div>
+        </div>
+
+        <div id="modal-error-pedido" class="alert-custom alert-custom-danger d-none" role="alert"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancelar-outline" data-bs-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn-cancelar-pedido" id="btnCancelarPedido" style="display: none;">
+          Cancelar pedido
+        </button>
+        <button type="button" class="btn-guardar-gradient" id="btnAsignarProveedor" style="display: none;">
+          Asignar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  @media (max-width: 991.98px) {
+    .kpi-row {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  .btn-cancelar-pedido {
+    background: transparent;
+    border: 1px solid var(--color-danger);
+    border-radius: 10px;
+    padding: 0.55rem 1.25rem;
+    color: var(--color-danger);
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-right: auto;
+  }
+  .btn-cancelar-pedido:hover {
+    background: rgba(var(--color-danger-rgb), 0.1);
+  }
+</style>
+
+<script>
+  import { Modal } from "bootstrap";
+  import { base64ToUtf8 } from "../../utils/base64";
+
+  const formatoCOP = new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    maximumFractionDigits: 0,
+  });
+
+  const datosPagina = document.getElementById("datos-pagina-pedidos") as HTMLElement;
+  const proveedoresActivos = JSON.parse(base64ToUtf8(datosPagina.dataset.proveedores ?? "W10="));
+
+  const selectProveedor = document.getElementById("pedido-selectProveedor") as HTMLSelectElement;
+  proveedoresActivos.forEach((p: any) => {
+    const opt = document.createElement("option");
+    opt.value = p.id_usuario;
+    opt.textContent = p.nombre_proveedor ?? `${p.nombre} ${p.apellido}`;
+    selectProveedor.appendChild(opt);
+  });
+
+  const modalEl = document.getElementById("modalPedido") as HTMLElement;
+  const modalBS = new Modal(modalEl);
+  const modalError = document.getElementById("modal-error-pedido") as HTMLElement;
+
+  const bloqueAsignar = document.getElementById("bloque-asignar") as HTMLElement;
+  const btnAsignar = document.getElementById("btnAsignarProveedor") as HTMLButtonElement;
+  const btnCancelar = document.getElementById("btnCancelarPedido") as HTMLButtonElement;
+
+  let idPedidoActual: number | null = null;
+
+  (window as any).abrirDetallePedido = async (id: number) => {
+    idPedidoActual = id;
+    modalError.classList.add("d-none");
+    selectProveedor.value = "";
+    selectProveedor.classList.remove("is-invalid");
+
+    try {
+      const res = await fetch(`/api/admin/pedidos/${id}`);
+      const data = await res.json();
+      if (!data.success) {
+        alert(data.message ?? "No se pudo cargar el pedido");
+        return;
+      }
+      const p = data.data;
+
+      (document.getElementById("pedido-titulo") as HTMLElement).textContent = `Pedido #${p.id_pedido}`;
+      (document.getElementById("pedido-cliente") as HTMLElement).textContent =
+        `${p.nombre_cliente} ${p.apellido_cliente}`;
+      (document.getElementById("pedido-estado") as HTMLElement).textContent = p.estado;
+      (document.getElementById("pedido-direccion") as HTMLElement).textContent = p.direccion_texto;
+      (document.getElementById("pedido-proveedor") as HTMLElement).textContent = p.nombre_proveedor
+        ? `${p.nombre_proveedor} ${p.apellido_proveedor ?? ""}`
+        : "Sin asignar";
+      (document.getElementById("pedido-fecha") as HTMLElement).textContent = p.fecha_pedido
+        ? new Date(p.fecha_pedido).toLocaleString("es-CO")
+        : "";
+
+      const obsWrap = document.getElementById("pedido-observaciones-wrap") as HTMLElement;
+      if (p.observaciones) {
+        
+        (document.getElementById("pedido-observaciones") as HTMLElement).textContent = p.observaciones;
+      } else {
+        (document.getElementById("pedido-observaciones") as HTMLElement).textContent = "Sin observaciones";
+      }
+
+      const tbody = document.getElementById("pedido-productos-tbody") as HTMLElement;
+      tbody.innerHTML = (p.productos ?? [])
+        .map(
+          (prod: any) => `
+          <tr>
+            <td>${prod.nombre}</td>
+            <td>${prod.cantidad}</td>
+            <td>${formatoCOP.format(prod.precio_unitario)}</td>
+            <td>${formatoCOP.format(prod.subtotal)}</td>
+          </tr>
+        `
+        )
+        .join("");
+      (document.getElementById("pedido-total") as HTMLElement).textContent = formatoCOP.format(p.total);
+
+      // Mostrar asignación solo si el pedido está Aprobado y sin proveedor
+      const puedeAsignar = p.estado === "Aprobado" && !p.id_proveedor;
+      bloqueAsignar.style.display = puedeAsignar ? "block" : "none";
+      btnAsignar.style.display = puedeAsignar ? "inline-flex" : "none";
+
+      // Cancelar: disponible mientras no esté Entregado ni ya Cancelado
+      const puedeCancelar = !["Entregado", "Cancelado"].includes(p.estado);
+      btnCancelar.style.display = puedeCancelar ? "inline-flex" : "none";
+
+      modalBS.show();
+    } catch (error) {
+      console.error("Error al cargar el pedido", error);
+      alert("Error al cargar el pedido");
+    }
+  };
+
+  btnAsignar?.addEventListener("click", async () => {
+    modalError.classList.add("d-none");
+
+    if (!selectProveedor.value) {
+      selectProveedor.classList.add("is-invalid");
+      const err = document.getElementById("pedido-selectProveedor-error");
+      if (err) err.innerHTML = `<i class="bi bi-exclamation-circle-fill"></i> <span>Selecciona un repartidor.</span>`;
+      return;
+    }
+    selectProveedor.classList.remove("is-invalid");
+
+    try {
+      const res = await fetch(`/api/admin/pedidos/${idPedidoActual}/asignar`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id_proveedor: Number(selectProveedor.value) }),
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        modalError.textContent = data.message ?? "No se pudo asignar el repartidor";
+        modalError.classList.remove("d-none");
+        return;
+      }
+
+      modalBS.hide();
+      window.location.reload();
+    } catch {
+      modalError.textContent = "Error de conexión";
+      modalError.classList.remove("d-none");
+    }
+  });
+
+  btnCancelar?.addEventListener("click", async () => {
+    const motivo = prompt("Motivo de la cancelación:");
+    if (!motivo || !motivo.trim()) return;
+
+    try {
+      const res = await fetch(`/api/admin/pedidos/${idPedidoActual}/cancelar`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ motivo: motivo.trim() }),
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        alert(data.message ?? "No se pudo cancelar el pedido");
+        return;
+      }
+
+      modalBS.hide();
+      window.location.reload();
+    } catch {
+      alert("Error de conexión");
+    }
+  });
+
+  document.getElementById("ag-grid-wrapper")?.addEventListener("accion-tabla", (e: any) => {
+    const { accion, id } = e.detail;
+    if (accion === "Ver detalle") {
+      (window as any).abrirDetallePedido(id);
+    }
+  });
+</script>

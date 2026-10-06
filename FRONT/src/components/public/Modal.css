@@ -11,13 +11,23 @@
   background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.8), rgba(var(--color-primary-rgb), 0.7));
   border-bottom: 1px solid var(--color-border);
   border-radius: 20px 20px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
 }
 
-
-
 .custom-dark-modal.custom-dark-modal .modal-title {
-  font-weight: 800;
-  color: var(--color-text-primary);
+  text-align: center;
+  width: 100%;
+  
+}
+
+.custom-dark-modal.custom-dark-modal .btn-close {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .custom-dark-modal.custom-dark-modal .modal-footer {
@@ -90,7 +100,6 @@
   border: 1px solid var(--color-border);
   flex-shrink: 0;
   background: var(--color-input-bg);
-  /* Se oculta hasta que haya una imagen que mostrar (lo controla el script) */
   display: none;
 }
 

@@ -34,6 +34,7 @@
   width: var(--sidebar-width-collapsed);
 }
 
+
 /* ---------------------------------------------------------------
    Header / marca propia (GeoRuta)
    --------------------------------------------------------------- */
@@ -141,7 +142,7 @@
 }
 
 /* ---------------------------------------------------------------
-   Marca secundaria: la empresa (solo Admin/Repartidor)
+   Marca secundaria: la empresa 
    --------------------------------------------------------------- */
 .sidebar-subbrand {
   position: relative;
@@ -193,6 +194,23 @@
   overflow-x: hidden;
   padding: 1rem 0.75rem;
   background: var(--color-surface);
+  scrollbar-width: thin;                              
+  scrollbar-color: var(--secondary-600) transparent;
+}
+
+
+.sidebar-nav::-webkit-scrollbar {
+  width: 5px;
+}
+.sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: var(--secondary-600);
+  border-radius: 100px;
+}
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: var(--secondary-500);
 }
 
 .sidebar-nav-list {

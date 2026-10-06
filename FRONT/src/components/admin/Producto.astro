@@ -9,7 +9,7 @@ if (!token || !usuarioSesion) {
   return Astro.redirect("/");
 }
 
-const API_DENO = import.meta.env.API_DENO ?? "http://127.0.0.1:8002";
+const API_DENO = import.meta.env.API_DENO;
 const headers = { Authorization: `Bearer ${token}` };
 
 const CargarProductos = async () => {
@@ -27,8 +27,7 @@ const CargarProductos = async () => {
   }
 };
 
-// Se necesita para poblar el <select> de categoría — solo las activas,
-// no tiene sentido dejar asignar un producto a una categoría desactivada.
+
 const CargarCategoriasActivas = async () => {
   try {
     const respuesta = await fetch(`${API_DENO}/api/admin/categorias`, { headers });
@@ -52,21 +51,37 @@ const columnasProductos: ColumnaDef[] = [
   { campo: "imagen_url", titulo: "Foto", tipo: "imagen" },
   { campo: "nombre", titulo: "Nombre" },
   { campo: "nombre_categoria", titulo: "Categoría" },
-  { campo: "precio", titulo: "Precio" },
+  { campo: "precio", titulo: "Precio", tipo: "moneda" },
   { campo: "stock_disponible", titulo: "Disponible" },
   { campo: "stock_reservado", titulo: "Reservado" },
   { campo: "activo", titulo: "Estado", tipo: "estado" },
   { titulo: "Acciones", tipo: "acciones", acciones: ["Editar"] },
 ];
+const formatoCOP = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
 ---
 
 <div id="datos-pagina-productos" data-categorias={categoriasBase64} style="display: none;"></div>
 
 <div class="page-header">
-  <div>
+  <div class="title-container">
     <h4 class="page-title">Productos</h4>
   </div>
   <button class="btn-guardar-gradient" id="btnNuevoProducto">+ Nuevo producto</button>
+</div>
+
+<div class="kpi-row">
+  <div class="kpi-card">
+    <span class="kpi-label">Productos activos</span>
+    <span class="kpi-value">{productosConId.filter((p: any) => p.activo).length}</span>
+  </div>
+  <div class="kpi-card kpi-success">
+    <span class="kpi-label">Valor en inventario</span>
+    <span class="kpi-value">
+      {formatoCOP.format(
+        productosConId.reduce((acc: number, p: any) => acc + Number(p.precio ?? 0) * Number(p.stock_disponible ?? 0), 0)
+      )}
+    </span>
+  </div>
 </div>
 
 <AgGridComponent data={productosConId} columnas={columnasProductos} />
@@ -186,13 +201,13 @@ const columnasProductos: ColumnaDef[] = [
     gap: 0.5rem;
     margin-top: 0.6rem;
   }
-  .imagenes-grid img {
-    width: 56px;
-    height: 56px;
-    object-fit: cover;
-    border-radius: 8px;
-    border: 1px solid var(--color-border);
-  }
+.imagenes-grid :global(img) {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
 </style>
 
 <script>
@@ -201,8 +216,8 @@ const columnasProductos: ColumnaDef[] = [
   import { attachFieldValidation, attachFileValidation, validarImagenFile } from "../../utils/validaciones";
 
   // AJUSTA este prefijo al que realmente sirva tus imágenes
-  const IMG_BASE = import.meta.env.PUBLIC_API_DENO ?? "http://127.0.0.1:8002";
-  const urlImagen = (ruta: string) => `${IMG_BASE}/uploads/${encodeURI(ruta)}`;
+  const IMG_BASE = import.meta.env.PUBLIC_API_DENO;
+  const urlImagen = (ruta: string) => `${IMG_BASE}/Uploads/${encodeURI(ruta)}`;
 
   function validarRequerido(val: string, label: string) {
     const value = val.trim();

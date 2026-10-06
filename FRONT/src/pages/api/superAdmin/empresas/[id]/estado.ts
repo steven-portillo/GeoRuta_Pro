@@ -13,7 +13,7 @@ export const PATCH: APIRoute = async ({ request, cookies, params }) => {
 
   const body = await request.text();
 
-  const res = await fetch(`${API_DENO}/api/admin/superadmin/empresas/${params.id}/estado`, {
+  const res = await fetch(`${API_DENO}/api/superadmin/empresas/${params.id}/estado`, {
     method: "PATCH",
     headers: {
       Authorization: `Bearer ${token}`,

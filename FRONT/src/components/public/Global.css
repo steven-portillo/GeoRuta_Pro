@@ -89,7 +89,7 @@
      --------------------------------------------------------------- */
     --color-border: var(--secondary-700);
     --color-border-strong: var(--secondary-300);
-    --color-border-glow: rgba(var(--primary-600-rgb), 0.4);
+    --color-border-glow: rgba(var(--primary-600-rgb), 0.8);
 
     /* ---------------------------------------------------------------
         OVERLAY / SOMBRA 
@@ -627,4 +627,204 @@ footer {
     .footer-chips{
         grid-template-columns: 1fr 1fr;
     }
+}
+
+
+/*cositas para los estados, s usan en principio en la tabla de aggrid pero de hecho
+se pueden usar en otros lugares */
+.badge-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--badge-color);
+}
+.badge-estado::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--badge-color);
+  flex-shrink: 0;
+}
+
+/*Mismo caso de las badges, esto se usa en los botones de estado */
+.pill-estado {
+  border: none;
+  border-radius: 100px;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.pill-activo {
+  background: rgba(var(--color-success-rgb), 0.15);
+  color: var(--color-success);
+}
+.pill-activo:hover { background: rgba(var(--color-success-rgb), 0.25); }
+.pill-inactivo {
+  background: rgba(var(--color-danger-rgb), 0.15);
+  color: var(--color-danger);
+}
+.pill-inactivo:hover { background: rgba(var(--color-danger-rgb), 0.25); }
+/*Cards que de momento uso paraque las vistas en general no se vean tan vacias*/
+  .kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 0 1rem;
+}
+
+.kpi-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;      
+  justify-content: center;
+  text-align: center;
+  gap: 0.35rem;
+  border-left: 3px solid var(--color-border);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  cursor: default;
+}
+
+.kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 28px rgba(var(--color-shadow-rgb), 0.12);
+  border-color: var(--color-primary);
+}
+
+.kpi-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.kpi-value {
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+
+.kpi-primary { border-left-color: var(--color-primary); }
+.kpi-primary:hover { box-shadow: 0 10px 28px rgba(var(--color-shadow-rgb), 0.18); border-color: var(--color-primary);}
+
+.kpi-warning { border-left-color: var(--color-warning); }
+.kpi-warning:hover {
+     box-shadow: 0 10px 28px rgba(var(--color-warning-rgb), 0.18);
+     border-color: var(--color-warning);
+     }
+
+.kpi-success { border-left-color: var(--color-success); }
+.kpi-success:hover { 
+    box-shadow: 0 10px 28px rgba(var(--color-success-rgb), 0.18);
+    border-color: var(--color-success);
+ }
+
+@media (max-width: 991.98px) {
+  .kpi-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+  /*Titulos de las paginas*/
+    .title-container {
+      display: flex;
+      padding-left: 1rem;
+      padding-top: 1rem;
+    }
+  .page-title {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.01em;
+  position: relative;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0;
+}
+.page-title::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 42px;
+  height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
+}
+
+
+/* ---------------------------------------------------------------
+   Tabla simple de solo lectura penes
+   --------------------------------------------------------------- */
+.historial-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin-top: 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.historial-tabla th {
+  text-align: left;
+  padding: 0.65rem 0.9rem;
+  background: var(--color-surface-alt);
+  color: var(--color-text-secondary);
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.historial-tabla td {
+  padding: 0.65rem 0.9rem;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.historial-tabla tbody tr {
+  transition: background 0.15s ease;
+}
+.historial-tabla tbody tr:nth-child(even) {
+  background: rgba(var(--color-overlay-rgb), 0.015);
+}
+.historial-tabla tbody tr:hover {
+  background: rgba(var(--color-primary-rgb), 0.05);
+}
+
+.historial-tabla tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.historial-tabla tfoot td {
+  border-top: 2px solid var(--color-border);
+  border-bottom: none;
+  padding-top: 0.85rem;
+  background: var(--color-surface-alt);
+}
+
+.tipo-entrada {
+  color: var(--color-success);
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.tipo-salida {
+  color: var(--color-danger);
+  font-weight: 600;
+  text-transform: capitalize;
 }

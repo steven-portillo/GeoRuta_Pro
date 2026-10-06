@@ -1,5 +1,5 @@
 import { Context, RouterContext } from "../../Dependencies/dependencias.ts";
-import { validarArchivo, generarNombreUnico, rutaFisicaArchivo, escribirArchivo } from "../../Helpers/archivos.ts";
+import { validarArchivo,generarRutaArchivo,  escribirArchivo } from "../../Helpers/archivos.ts";
 import { Proveedor } from "../../Model/Admin/ProveedorModel.ts";
 import { Usuario } from "../../Model/Auth/UsuarioModel.ts";
 import type { Sesion } from "../../Utils/tipos.ts";
@@ -166,14 +166,6 @@ export const editarProveedor = async (ctx: RouterContext<string>) => {
     const email = form.get("email")?.toString().trim() ?? "";
     const imagen = form.get("imagen") as File | null;
 
-    console.log("Datos recibidos para editar proveedor:", {
-      nombre,
-      apellido,
-      email,
-      imagen,
-      sesionIdEmpresa: sesion.idEmpresa,
-    });
-    
     if(!nombre || !apellido || !email || !sesion.idEmpresa){
       response.status = 400;
       response.body = { success: false, message:"faltan campos obligatorios"};
@@ -189,7 +181,7 @@ export const editarProveedor = async (ctx: RouterContext<string>) => {
       return;
     }
 
-    let nombreUnico: string | undefined = undefined;
+    let rutaImagen: string | undefined = undefined;
     if (imagen !== null) {
     const error = validarArchivo(imagen);
 
@@ -198,14 +190,12 @@ export const editarProveedor = async (ctx: RouterContext<string>) => {
       response.body = { success: false, message: error};
       return;
     };
-    nombreUnico = generarNombreUnico(imagen);
-    const imagen_url = rutaFisicaArchivo("usuarios", nombreUnico);
-    console.log("Ruta de la imagen generada: ", imagen_url);
-    await escribirArchivo(imagen,imagen_url);
+    rutaImagen = generarRutaArchivo(imagen, "usuarios")
+    await escribirArchivo(imagen,rutaImagen);
   }
     const resultado = await Proveedor.EditarProveedor(
     idProveedor,
-    {nombreProveedor: nombre, apellidoProveedor:apellido, emailProveedor:email, imagen_url:`usuarios/${nombreUnico}` || undefined, idEmpresa: sesion.idEmpresa},
+    {nombreProveedor: nombre, apellidoProveedor:apellido, emailProveedor:email, imagen_url:rutaImagen || undefined, idEmpresa: sesion.idEmpresa},
     sesion.idEmpresa
     );
 

@@ -152,7 +152,7 @@ async function procesarMensaje(ws: WebSocket, data: Record<string, unknown>) {
         const pedidoIds = ((data.pedidoIds as unknown[]) ?? [])
             .map((x) => Number(x))
             .filter((n) => Number.isFinite(n) && n > 0);
-        console.log("pito "+ pedidoIds + " id: " + info.usuarioId)
+        
         const validos = await new pedidosModel().filtrarPedidosClienteEnTransito(info.usuarioId, pedidoIds);
         for(const id_pedido of validos) {
             agregarAGrupo(ws, `pedido-${id_pedido}`);
@@ -174,12 +174,12 @@ async function procesarMensaje(ws: WebSocket, data: Record<string, unknown>) {
     if (tipo === "Descanso") {
         if (info.rol !== "PROVEEDOR" || info.modoRuta !=="activo") return;
         info.modoRuta = "descanso";
-
+        console.log("modo: " + info.modoRuta)
         const pedidos = await new pedidosModel().pedidoEnTransitoDeProveedor(info.usuarioId);
         for(const id of pedidos) {
             enviarAGrupo(`pedido-${id}`, {
                 tipo: "ProveedorEnDescanso",
-                proveedoId: info.usuarioId,
+                proveedorId: info.usuarioId,
             });
         }
         return;
@@ -246,7 +246,7 @@ async function procesarMensaje(ws: WebSocket, data: Record<string, unknown>) {
             modo: info.modoRuta
         };
 
-
+        
         if (info.idEmpresa) {
             enviarAGrupo(`empresa-${info.idEmpresa}-admins`, payload);
         }

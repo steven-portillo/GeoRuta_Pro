@@ -13,7 +13,7 @@ const headers = { Authorization: `Bearer ${token}` };
 
 const CargarEmpresas = async () => {
   try {
-    const respuesta = await fetch(`${API_DENO}/api/admin/superadmin/empresas`, { headers });
+    const respuesta = await fetch(`${API_DENO}/api/superadmin/empresas`, { headers });
     if (!respuesta.ok) {
       console.error("Status no OK", respuesta.status, await respuesta.text());
       return [];
@@ -32,25 +32,48 @@ const empresasConId = empresas.map((e: any) => ({
   ...e,
   id: e.id_empresa,
   admin: `${e.nombre_admin ?? ""} ${e.apellido_admin ?? ""}`.trim(),
+  logo_url: e.logo_url ?? "/defaults/empresa.png"
 }));
 
+// --- KPIs ---
+const totalEmpresas = empresasConId.length;
+const empresasActivas = empresasConId.filter((e: any) => e.estado === 1 || e.estado === true).length;
+const empresasInactivas = totalEmpresas - empresasActivas;
+
 const columnasEmpresas: ColumnaDef[] = [
-  { campo: "logo_url", titulo: "Logo", tipo: "imagen" },
+  { campo: "logo_url", titulo: "Logo", tipo: "imagen", defaultImg: "/defaults/empresa.png"},
   { campo: "nombre", titulo: "Empresa" },
   { campo: "descripcion", titulo: "Descripción" },
   { campo: "admin", titulo: "Administrador" },
   { campo: "email_admin", titulo: "Email admin" },
+  { campo: "fecha_creacion", titulo:"Fecha de Creacion", tipo:"fecha"},
   { campo: "estado", titulo: "Estado", tipo: "estado" },
 ];
 ---
 
 <div class="page-header">
-  <div>
+  <div class="title-container">
     <h4 class="page-title">Empresas</h4>
   </div>
 </div>
 
+<div class="kpi-row">
+  <div class="kpi-card">
+    <span class="kpi-label">Total de empresas</span>
+    <span class="kpi-value">{totalEmpresas}</span>
+  </div>
+  <div class="kpi-card kpi-success">
+    <span class="kpi-label">Activas</span>
+    <span class="kpi-value">{empresasActivas}</span>
+  </div>
+  <div class="kpi-card kpi-warning">
+    <span class="kpi-label">Inactivas</span>
+    <span class="kpi-value">{empresasInactivas}</span>
+  </div>
+</div>
+
 <AgGridComponent data={empresasConId} columnas={columnasEmpresas} />
+
 
 <script>
   document.getElementById("ag-grid-wrapper")?.addEventListener("accion-tabla", async (e: any) => {
@@ -59,7 +82,7 @@ const columnasEmpresas: ColumnaDef[] = [
     if (accion === "toggle-estado") {
       const nuevoEstado = estado ? 0 : 1;
       try {
-        const res = await fetch(`/api/admin/superadmin/empresas/${id}/estado`, {
+        const res = await fetch(`/api/superadmin/empresas/${id}/estado`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ estado: nuevoEstado }),

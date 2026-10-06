@@ -22,10 +22,10 @@ const TablaProveedores = async () => {
 };
 
 const proveedores = await TablaProveedores();
-const proveedoresConId = proveedores.map((p: any) => ({ ...p, id: p.id_usuario }));
+const proveedoresConId = proveedores.map((p: any) => ({ ...p, id: p.id_usuario, imagen_url: p.imagen_url ?? "/defaults/usuarios.png" }));
 
 const columnasProveedor: ColumnaDef[] = [
-    { tipo: "imagen", campo: "imagen_url", titulo: "Foto de Perfil" },
+    { tipo: "imagen", campo: "imagen_url", titulo: "Foto de Perfil", defaultImg: "/defaults/usuarios.png" },
     { campo: "nombre_proveedor", titulo: "Nombre" },
     { campo: "email", titulo: "Correo Electronico" },
     { tipo: "estado", campo: "activo", titulo: "estado" },
@@ -33,8 +33,22 @@ const columnasProveedor: ColumnaDef[] = [
 ];
 ---
 
-<div class="page-header" style="padding-left: 5%; padding-top: 2%;">
+<div class="page-header">
+  <div class="title-container">
+    <h4 class="page-title">Repartidores</h4>
+  </div>
   <button class="btn-primary" id="btnNuevoProveedor">+ Crear Repartidor</button>
+</div>
+
+<div class="kpi-row">
+  <div class="kpi-card">
+    <span class="kpi-label">Repartidores</span>
+    <span class="kpi-value">{proveedoresConId.length}</span>
+  </div>
+  <div class="kpi-card kpi-success">
+    <span class="kpi-label">Activos</span>
+    <span class="kpi-value">{proveedoresConId.filter((p: any) => p.activo).length}</span>
+  </div>
 </div>
 
 <AgGridComponent data={proveedoresConId} columnas={columnasProveedor} />

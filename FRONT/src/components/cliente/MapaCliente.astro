@@ -1,13 +1,17 @@
 ---
+import "leaflet/dist/leaflet.css";
 const token = Astro.cookies.get("token")?.value;
 const API_DENO = import.meta.env.API_DENO ?? "http://127.0.0.1:8005";
 const headers = { Authorization: `Bearer ${token}` };
 
 const cargarPedidoIds = async (): Promise<number[]> => {
   try {
-    const respuesta = await fetch(`${API_DENO}/cliente/mapa/pedidos-en-transito`, {
-      headers,
-    });
+    const respuesta = await fetch(
+      `${API_DENO}/cliente/mapa/pedidos-en-transito`,
+      {
+        headers,
+      },
+    );
     if (!respuesta.ok) {
       console.error("Status no OK", respuesta.status, await respuesta.text());
       return [];
@@ -25,24 +29,24 @@ const pedidoIds = await cargarPedidoIds();
 const pedidoIdsJson = JSON.stringify(pedidoIds);
 ---
 
-<div
-  id="datospagina"
-  data-token={token ?? ""}
-  data-ids={pedidoIdsJson}
-></div>
+<div id="datospagina" data-token={token ?? ""} data-ids={pedidoIdsJson}></div>
 
 <div id="mapa" style="height: 70vh; width: 100%;"></div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
+  import L from "leaflet";
   import { WsUbicacionCliente } from "../../utils/wsCliente.ts";
-
-  declare const L: any;
 
   const datos = document.getElementById("datospagina") as HTMLElement;
   const token = datos.dataset.token ?? "";
   const pedidoIds: number[] = JSON.parse(datos.dataset.ids || "[]");
-  const WS_URL = "ws://127.0.0.1:8005/ws";
+  const WS_URL = import.meta.env.PUBLIC_WS_URL;
+
+  const iconRepartidor = L.icon({
+    iconUrl: "/pins/repartidor.png",
+    iconSize: [40, 40],
+    iconAnchor: [20, 40],
+    popupAnchor: [0, -36],
+  });
 
   let map = L.map("mapa").setView([5.794323, -73.062859], 13);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -52,18 +56,39 @@ const pedidoIdsJson = JSON.stringify(pedidoIds);
 
   const marcadoresProveedor = new Map<number, any>();
 
+  function escapeHtml(s: string) {
+    return String(s)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;");
+  }
+
+  function popupRepartidor(nombre: string, empresa: string, id: number) {
+    return `
+      <strong>${escapeHtml(nombre || `${id}`)}</strong><br/>
+      <span>${escapeHtml(empresa || "")}</span>
+    `;
+  }
+
   function upsertMarcadorProveedor(
     proveedorId: number,
     lat: number,
     lng: number,
+    meta?: { nombre?: string; empresa?: string },
   ) {
     const key = Number(proveedorId);
     const latLng = L.latLng(lat, lng);
+    const html = popupRepartidor(
+      meta?.nombre ?? "Mi ubicación",
+      meta?.empresa ?? "",
+      key,
+    );
     if (marcadoresProveedor.has(key)) {
       marcadoresProveedor.get(key).setLatLng(latLng);
     } else {
-      const marker = L.marker(latLng).addTo(map);
-      marker.bindPopup(`Repartidor #${key}`);
+      const marker = L.marker(latLng, { icon: iconRepartidor }).addTo(map);
+      marker.bindPopup(`Repartidor #${html}`);
       marcadoresProveedor.set(key, marker);
       map.panTo(latLng);
     }
@@ -81,23 +106,40 @@ const pedidoIdsJson = JSON.stringify(pedidoIds);
   const cliente = new WsUbicacionCliente(WS_URL, token, {
     onEstado: (e) => console.log("[WS Cliente]", e),
     onMensaje: (msg) => {
-      if (msg.tipo === "ActualizarUbicacion") {
-        upsertMarcadorProveedor(
-          Number(msg.proveedorId),
-          Number(msg.lat),
-          Number(msg.lng),
-        );
-      }
-      if (msg.tipo === "ProveedorEnDescanso") {
-        quitarMarcadorProveedor(Number(msg.proveedorId));
-      }
-      if (msg.tipo === "ProveedorTerminoRuta") {
-        quitarMarcadorProveedor(Number(msg.proveedorId));
-      }
-      if (msg.tipo === "unido") {
-        console.log("Unido a pedidos", msg.pedidos);
-      }
-    },
+  if (msg.tipo === "ActualizarUbicacion") {
+    // Si el hub algún día manda ubicaciones en descanso, no pintar
+    if (msg.modo === "descanso") {
+      quitarMarcadorProveedor(Number(msg.proveedorId));
+      return;
+    }
+    upsertMarcadorProveedor(
+      Number(msg.proveedorId),
+      Number(msg.lat),
+      Number(msg.lng),
+      {
+        nombre: String(msg.nombre ?? ""),
+        empresa: String(msg.empresa ?? ""),
+      },
+    );
+  }
+
+  if (msg.tipo === "ProveedorEnDescanso") {
+    console.log("Descanso recibido", msg);
+    quitarMarcadorProveedor(Number(msg.proveedorId));
+  }
+
+  if (msg.tipo === "ProveedorTerminoRuta") {
+    quitarMarcadorProveedor(Number(msg.proveedorId));
+  }
+
+  if (msg.tipo === "ProveedorReanudo") {
+    console.log("Reanudó", msg.proveedorId);
+  }
+
+  if (msg.tipo === "unido") {
+    console.log("Unido a pedidos", msg.pedidos);
+  }
+},
   });
 
   cliente.setDespuesDeAuth(() => {

@@ -1,0 +1,406 @@
+---
+import PerfilUsuario from "../public/Perfil.astro";
+
+const usuarioSesion = Astro.locals.usuario;
+const token = Astro.cookies.get("token")?.value;
+if (!token || !usuarioSesion) {
+  return Astro.redirect("/");
+}
+
+const API_DENO = import.meta.env.API_DENO;
+const headers = { Authorization: `Bearer ${token}` };
+const IMG_BASE = import.meta.env.PUBLIC_API_DENO ?? "";
+let perfilAdmin: any = {};
+try {
+  const respuesta = await fetch(`${API_DENO}/api/admin/perfil`, { headers });
+  if (respuesta.ok) {
+    const obj = await respuesta.json();
+    perfilAdmin = obj.data ?? {};
+  }
+} catch (error) {
+  console.error("Error al cargar el perfil del admin", error);
+}
+
+const fotoUrlAdmin = perfilAdmin.imagen_url ? `${IMG_BASE}/${perfilAdmin.imagen_url}` : `${IMG_BASE}/default.png`;
+
+let empresa: any = null;
+try {
+  const respuesta = await fetch(`${API_DENO}/api/admin/empresa`, { headers });
+  if (respuesta.ok) {
+    const obj = await respuesta.json();
+    empresa = obj.data ?? null;
+  }
+} catch (error) {
+  console.error("Error al cargar la empresa", error);
+}
+
+const nombreActual = empresa?.nombre ?? "";
+const descripcionActual = empresa?.descripcion ?? "";
+const logoActual = empresa?.logo_url ?? "/defaults/empresa.png";
+const colorActual = empresa?.color_primario || "#2563eb";
+const logoUrlCompleta = logoActual ? `${IMG_BASE}/Uploads/${logoActual}` : "";
+---
+
+<div class="perfil-tabs-wrapper">
+  <div class="perfil-tabs">
+    <button type="button" class="perfil-tab active" data-ventana="admin">
+      <i class="bi bi-person-circle"></i> Admin
+    </button>
+    <button type="button" class="perfil-tab" data-ventana="empresa">
+      <i class="bi bi-building"></i> Empresa
+    </button>
+  </div>
+</div>
+
+<!-- Ventana del Admin-->
+<div class="perfil-ventana active" id="ventana-admin">
+  <PerfilUsuario />
+</div>
+
+<!-- Ventana de la Empresa -->
+<div class="perfil-ventana" id="ventana-empresa">
+  <div class="perfil-grid">
+    <!-- Panel izquierdo-->
+    <div class="perfil-left-card">
+      <div class="avatar-wrapper">
+        <img
+          id="empresa-logo-preview"
+          class="avatar-img logo-img"
+          alt="Logo de la empresa"
+          src={logoUrlCompleta}
+          style={logoUrlCompleta ? "" : "display: none;"}
+        />
+        <label for="empresa-logo" class="avatar-edit-btn" aria-label="Cambiar logo">
+          <i class="bi bi-pencil-fill"></i>
+        </label>
+        <input type="file" id="empresa-logo" accept="image/jpeg,image/png,image/webp" hidden />
+      </div>
+      <div class="error-feedback" id="empresa-logo-error"></div>
+
+      <p class="perfil-nombre-label" id="labelNombreEmpresa">{nombreActual}</p>
+      <span class="perfil-rol-badge">Empresa</span>
+    </div>
+
+    <!-- Panel derecho: el form -->
+    <div class="perfil-right-card">
+      <form id="empresaForm" novalidate>
+        <div class="mb-3">
+          <label class="form-label-custom" for="empresa-nombre">Nombre de la empresa</label>
+          <div class="input-field-wrapper">
+            <i class="bi bi-building field-icon"></i>
+            <input type="text" id="empresa-nombre" class="form-control-custom" value={nombreActual} autocomplete="off" />
+          </div>
+          <div class="error-feedback" id="empresa-nombre-error"></div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label-custom" for="empresa-descripcion">
+            Descripción <span class="opcional-tag">(opcional)</span>
+          </label>
+          <div class="input-field-wrapper textarea-wrapper">
+            <i class="bi bi-card-text field-icon"></i>
+            <textarea id="empresa-descripcion" class="form-control-custom textarea-custom" rows="3">{descripcionActual}</textarea>
+          </div>
+        </div>
+
+        <hr class="perfil-divider" />
+
+        <div class="mb-3">
+          <label class="form-label-custom" for="empresa-color">Color principal de marca</label>
+          <p class="color-empresa-desc">
+            Por legibilidad, el sistema ajusta automáticamente el tono/luminosidad si el color
+            elegido es demasiado extremo — la vista previa ya muestra el resultado final.
+          </p>
+
+          <div class="color-picker-inline">
+            <input type="color" id="empresa-color" value={colorActual} />
+            <span id="colorHexLabel" class="color-hex-label">{colorActual}</span>
+          </div>
+
+          <div class="escala-preview" id="escalaPreview"></div>
+
+          <div class="preview-mockup">
+            <button type="button" class="preview-btn" id="previewBtn">Botón de ejemplo</button>
+            <span class="preview-link" id="previewLink">Link de ejemplo</span>
+          </div>
+        </div>
+
+        <div id="empresaAlert" class="alert-custom alert-custom-danger d-none" role="alert"></div>
+        <div id="empresaSuccess" class="alert-custom alert-custom-success d-none" role="alert"></div>
+
+        <button type="button" class="btn-submit-gradient" id="btnGuardarEmpresa">
+          <span class="btn-text">Guardar cambios</span>
+          <i class="bi bi-check-lg btn-icon"></i>
+          <div class="btn-spinner spinner-border spinner-border-sm text-light d-none" role="status">
+            <span class="visually-hidden">Guardando...</span>
+          </div>
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* ---- Tabs ---- */
+  .perfil-tabs-wrapper { display: flex; justify-content: center; margin-bottom: 1.75rem; }
+  .perfil-tabs {
+    display: inline-flex;
+    gap: 0.25rem;
+    background: var(--color-surface-alt);
+    border: 1px solid var(--color-border);
+    border-radius: 100px;
+    padding: 0.3rem;
+  }
+  .perfil-tab {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: none;
+    border: none;
+    border-radius: 100px;
+    padding: 0.55rem 1.4rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .perfil-tab:hover { color: var(--color-text-primary); }
+  .perfil-tab.active { color: white; background: var(--color-primary); box-shadow: var(--shadow-sm); }
+
+  .perfil-ventana { display: none; }
+  .perfil-ventana.active { display: block; }
+
+  /* ---- Grid de dos paneles (mismo patrón que Perfil.astro) ---- */
+  .perfil-grid {
+    display: grid;
+    grid-template-columns: minmax(200px, 260px) 1fr;
+    gap: 2rem;
+    align-items: start;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 1rem;
+  }
+
+  .perfil-left-card,
+  .perfil-right-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+  }
+  .perfil-left-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 1.75rem 1.25rem;
+    text-align: center;
+  }
+  .perfil-right-card { padding: 1.75rem; min-width: 0; }
+
+
+  .perfil-nombre-label {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--color-text-primary);
+    margin: 0.3rem 0 0;
+    word-break: break-word;
+  }
+  .perfil-rol-badge {
+    background: var(--color-primary);
+    color: white;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 0.3rem 0.9rem;
+    border-radius: 100px;
+  }
+
+  .form-control-custom.textarea-custom {
+    resize: vertical;
+    overflow-y: auto;
+    line-height: 1.5;
+    padding-top: 0.75rem;
+  }
+  .input-field-wrapper.textarea-wrapper { align-items: flex-start; }
+  .input-field-wrapper.textarea-wrapper .field-icon { top: 0.85rem; }
+  .opcional-tag { font-weight: 400; color: var(--color-text-secondary); }
+
+  .perfil-divider {
+    border: none;
+    border-top: 1px solid var(--color-border);
+    margin: 1.5rem 0;
+  }
+
+  .color-empresa-desc {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+    margin: 0.3rem 0 1rem;
+  }
+  .color-picker-inline { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem; }
+  #empresa-color {
+    width: 56px; height: 44px; padding: 2px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    background: none;
+  }
+  .color-hex-label { font-family: monospace; font-size: 0.9rem; color: var(--color-text-secondary); text-transform: uppercase; }
+
+  .escala-preview {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 4px;
+    margin-bottom: 1.5rem;
+    height: 50px;
+  }
+  .escala-preview .swatch { aspect-ratio: 1; border-radius: 6px; border: 1px solid rgba(0, 0, 0, 0.06); }
+
+  .preview-mockup {
+    display: flex; align-items: center; gap: 1.25rem;
+    padding: 1rem;
+    background: var(--color-surface-alt);
+    border-radius: var(--radius-sm);
+    margin-bottom: 1.5rem;
+  }
+  .preview-btn {
+    border: none; border-radius: var(--radius-sm); padding: 0.5rem 1.1rem;
+    font-weight: 600; font-size: 0.85rem; color: white; cursor: default;
+  }
+  .preview-link { font-size: 0.85rem; font-weight: 600; }
+
+  @media (max-width: 640px) {
+    .perfil-tabs { width: 100%; }
+    .perfil-tab { flex: 1; justify-content: center; }
+    .perfil-grid { grid-template-columns: 1fr; gap: 1.25rem; padding: 0 0.75rem; }
+  }
+</style>
+
+<script>
+  import { generarPaletaEmpresa } from "../../utils/paletaDinamica";
+  import { attachFieldValidation, attachFileValidation, validarImagenFile } from "../../utils/validaciones";
+
+  function validarRequerido(val: string, label: string) {
+    const value = val.trim();
+    return value ? { isValid: true, message: "" } : { isValid: false, message: `${label} es obligatorio.` };
+  }
+
+  // --- Tabs ---
+  const tabs = document.querySelectorAll<HTMLButtonElement>(".perfil-tab");
+  const ventanas = document.querySelectorAll<HTMLElement>(".perfil-ventana");
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      tabs.forEach((t) => t.classList.remove("active"));
+      ventanas.forEach((v) => v.classList.remove("active"));
+      tab.classList.add("active");
+      document.getElementById(`ventana-${tab.dataset.ventana}`)?.classList.add("active");
+    });
+  });
+
+  // --- Form de empresa ---
+  const nombreInput = document.getElementById("empresa-nombre") as HTMLInputElement;
+  const nombreError = document.getElementById("empresa-nombre-error");
+  const descripcionInput = document.getElementById("empresa-descripcion") as HTMLTextAreaElement;
+
+  const logoInput = document.getElementById("empresa-logo") as HTMLInputElement;
+  const logoError = document.getElementById("empresa-logo-error");
+  const logoPreview = document.getElementById("empresa-logo-preview") as HTMLImageElement;
+
+  const colorInput = document.getElementById("empresa-color") as HTMLInputElement;
+  const hexLabel = document.getElementById("colorHexLabel") as HTMLElement;
+  const escalaPreview = document.getElementById("escalaPreview") as HTMLElement;
+  const previewBtn = document.getElementById("previewBtn") as HTMLElement;
+  const previewLink = document.getElementById("previewLink") as HTMLElement;
+
+  const alertBox = document.getElementById("empresaAlert") as HTMLElement;
+  const successBox = document.getElementById("empresaSuccess") as HTMLElement;
+  const btnGuardar = document.getElementById("btnGuardarEmpresa") as HTMLButtonElement;
+
+  const PASOS = [900, 800, 700, 600, 500, 400, 300, 200, 100, 50] as const;
+
+  function actualizarPreviewColor(hex: string) {
+    hexLabel.textContent = hex.toUpperCase();
+    try {
+      const paleta = generarPaletaEmpresa(hex);
+      escalaPreview.innerHTML = PASOS.map((p) => `<div class="swatch" style="background:${paleta.primary[p]}" title="${p}"></div>`).join("");
+      previewBtn.style.background = paleta.primary[600];
+      previewLink.style.color = paleta.primary[600];
+    } catch {
+      escalaPreview.innerHTML = `<span style="grid-column: 1 / -1; color: var(--color-danger); font-size: 0.85rem;">Color inválido</span>`;
+    }
+  }
+  actualizarPreviewColor(colorInput.value);
+  colorInput.addEventListener("input", () => actualizarPreviewColor(colorInput.value));
+
+  const validarNombre = attachFieldValidation(nombreInput, nombreError, (v) => validarRequerido(v, "El nombre de la empresa"));
+  const validarLogo = attachFileValidation(logoInput, logoError, validarImagenFile);
+
+  logoInput.addEventListener("change", () => {
+    const file = logoInput.files?.[0] ?? null;
+    if (file && validarImagenFile(file).isValid) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        logoPreview.src = reader.result as string;
+        logoPreview.style.display = "block";
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  document.getElementById("btnGuardarEmpresa")?.addEventListener("click", async () => {
+    alertBox.classList.add("d-none");
+    successBox.classList.add("d-none");
+
+    const nombreOk = validarNombre?.();
+    const logoOk = validarLogo?.();
+
+    if (!nombreOk?.isValid || !logoOk?.isValid) {
+      alertBox.textContent = "Por favor completa todos los campos requeridos correctamente.";
+      alertBox.classList.remove("d-none");
+      if (!nombreOk?.isValid) nombreInput.focus();
+      else if (!logoOk?.isValid) logoInput.focus();
+      return;
+    }
+
+    const btnText = btnGuardar.querySelector(".btn-text") as HTMLElement;
+    const btnIcon = btnGuardar.querySelector(".btn-icon") as HTMLElement;
+    const btnSpinner = btnGuardar.querySelector(".btn-spinner") as HTMLElement;
+
+    btnText.textContent = "Guardando...";
+    btnIcon.classList.add("d-none");
+    btnSpinner.classList.remove("d-none");
+    btnGuardar.disabled = true;
+
+    try {
+      const formData = new FormData();
+      formData.append("nombre", nombreInput.value.trim());
+      formData.append("descripcion", descripcionInput.value.trim());
+      formData.append("color_primario", colorInput.value);
+      if (logoInput.files?.[0]) {
+        formData.append("logo", logoInput.files[0]);
+      }
+
+      const res = await fetch("/api/admin/empresa", { method: "PUT", body: formData });
+      const data = await res.json();
+
+      if (!data.success) {
+        alertBox.textContent = data.message ?? "No se pudo guardar";
+        alertBox.classList.remove("d-none");
+        return;
+      }
+
+      successBox.textContent = data.message ?? "Empresa actualizada correctamente";
+      successBox.classList.remove("d-none");
+      window.location.reload();
+    } catch {
+      alertBox.textContent = "Error de conexión";
+      alertBox.classList.remove("d-none");
+    } finally {
+      btnText.textContent = "Guardar cambios";
+      btnIcon.classList.remove("d-none");
+      btnSpinner.classList.add("d-none");
+      btnGuardar.disabled = false;
+    }
+  });
+</script>

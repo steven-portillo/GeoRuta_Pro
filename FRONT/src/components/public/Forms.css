@@ -35,7 +35,7 @@
 
 .form-control-custom {
   width: 100%;
-  background-color: var(--primary-100);
+  background-color: var(--white);
   border: 1px solid var(--secondary-800);
   border-radius: 12px;
   padding: 0.75rem 1rem 0.75rem 2.6rem;
@@ -324,3 +324,39 @@ input[type="file"].form-control-custom::file-selector-button:hover {
     font-weight: 400;
     color: var(--color-text-secondary);
   }
+
+
+  /*imagenes y logos+boton de editar esa imagen*/
+  .avatar-wrapper { position: relative; width: 130px; height: 130px; flex-shrink: 0; }
+  .avatar-img {
+    width: 130px;
+    height: 130px;
+    object-fit: cover;
+    border: 3px solid var(--color-surface);
+    outline: 1px solid var(--color-border);
+    box-shadow: var(--shadow-sm);
+    background: var(--color-surface-alt);
+    border-radius: 50%;
+  }
+  /* Logo de empresa: cuadrado redondeado, NO circular */
+  .logo-img { border-radius: 16px; }
+
+  .avatar-edit-btn {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: 2px solid var(--color-surface);
+    font-size: 0.85rem;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s ease;
+  }
+  .avatar-edit-btn:hover { transform: scale(1.08); }

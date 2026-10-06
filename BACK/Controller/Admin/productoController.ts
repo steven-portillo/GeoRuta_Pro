@@ -1,12 +1,12 @@
 import { Context, RouterContext } from "../../Dependencies/dependencias.ts";
 import { Producto } from "../../Model/Admin/ProductoModel.ts";
 import {
+  generarRutaArchivo,
   escribirArchivo,
-  generarNombreUnico,
-  rutaFisicaArchivo,
   validarArchivo,
 } from "../../Helpers/archivos.ts";
-import { Sesion } from "../../Utils/tipos.ts";
+import type { Sesion } from "../../Utils/tipos.ts";
+
 /** GET /api/admin/productos */
 export const listarProductos = async (ctx: Context) => {
   try {
@@ -63,7 +63,7 @@ export const obtenerProducto = async (
 /** POST /api/admin/productos */
 export const crearProducto = async (ctx: Context) => {
   try {
-    const usuario = ctx.state.user as Sesion;
+    const usuario = ctx.state.user as { id_empresa: number };
     const form = await ctx.request.body.formData();
 
     const id_categoria = Number(form.get("id_categoria"));
@@ -100,11 +100,11 @@ export const crearProducto = async (ctx: Context) => {
     }
 
     const rutasImagenes = archivosValidados.map((archivo) =>
-      rutaFisicaArchivo("productos", generarNombreUnico(archivo))
+      generarRutaArchivo(archivo, "productos"),
     );
 
     const resultado = await Producto.Crear(
-      usuario.idEmpresa!,
+      usuario.id_empresa,
       { id_categoria, nombre, descripcion, precio, stock_minimo },
       rutasImagenes,
     );
@@ -153,9 +153,8 @@ export const editarProducto = async (
     const nombreRaw = form.get("nombre");
     const nombre = nombreRaw ? String(nombreRaw).trim() : undefined;
     const descripcionRaw = form.get("descripcion");
-    const descripcion = descripcionRaw !== null
-      ? String(descripcionRaw).trim()
-      : undefined;
+    const descripcion =
+      descripcionRaw !== null ? String(descripcionRaw).trim() : undefined;
     const precio = form.get("precio") ? Number(form.get("precio")) : undefined;
     const stock_minimo = form.get("stock_minimo")
       ? Number(form.get("stock_minimo"))
@@ -175,28 +174,25 @@ export const editarProducto = async (
       archivosValidados.push(imagen);
     }
 
-
-    const rutasRelativas: string[] = [];
-
-    for (const archivo of archivosValidados) {
-      const nombreUnico = generarNombreUnico(archivo);
-      const rutaFisica = rutaFisicaArchivo("productos", nombreUnico);
-
-      await escribirArchivo(archivo, rutaFisica); 
-
-      rutasRelativas.push(`productos/${nombreUnico}`);
-    }
+    const rutasImagenes = archivosValidados.map((archivo) =>
+      generarRutaArchivo(archivo, "productos"),
+    );
 
     const resultado = await Producto.Editar(
       id_producto,
       usuario.idEmpresa!,
       { id_categoria, nombre, descripcion, precio, stock_minimo },
-      rutasRelativas, 
+      rutasImagenes,
     );
+
     if (!resultado.success) {
       ctx.response.status = 404;
       ctx.response.body = resultado;
       return;
+    }
+
+    for (let i = 0; i < archivosValidados.length; i++) {
+      await escribirArchivo(archivosValidados[i], rutasImagenes[i]);
     }
 
     ctx.response.status = 200;
@@ -236,6 +232,65 @@ export const cambiarEstadoProducto = async (
       id_producto,
       usuario.idEmpresa!,
       body.estado,
+    );
+    ctx.response.status = resultado.success ? 200 : 404;
+    ctx.response.body = resultado;
+  } catch (error) {
+    console.error(error);
+    ctx.response.status = 500;
+    ctx.response.body = {
+      success: false,
+      message: "Error interno del servidor",
+    };
+  }
+};
+
+/** DELETE /api/admin/productos/:id */
+export const eliminarProducto = async (
+  ctx: RouterContext<"/api/admin/productos/:id">,
+) => {
+  try {
+    const usuario = ctx.state.user as Sesion;
+    const id_producto = Number(ctx.params.id);
+
+    if (Number.isNaN(id_producto)) {
+      ctx.response.status = 400;
+      ctx.response.body = { success: false, message: "ID inválido" };
+      return;
+    }
+
+    const resultado = await Producto.Eliminar(id_producto, usuario.idEmpresa!);
+    ctx.response.status = resultado.success ? 200 : 400;
+    ctx.response.body = resultado;
+  } catch (error) {
+    console.error(error);
+    ctx.response.status = 500;
+    ctx.response.body = {
+      success: false,
+      message: "Error interno del servidor",
+    };
+  }
+};
+
+/** DELETE /api/admin/productos/:id/imagenes/:idImagen */
+export const eliminarImagenProducto = async (
+  ctx: RouterContext<"/api/admin/productos/:id/imagenes/:idImagen">,
+) => {
+  try {
+    const usuario = ctx.state.user as Sesion;
+    const id_producto = Number(ctx.params.id);
+    const id_imagen = Number(ctx.params.idImagen);
+
+    if (Number.isNaN(id_producto) || Number.isNaN(id_imagen)) {
+      ctx.response.status = 400;
+      ctx.response.body = { success: false, message: "ID inválido" };
+      return;
+    }
+
+    const resultado = await Producto.EliminarImagen(
+      id_producto,
+      usuario.idEmpresa!,
+      id_imagen,
     );
     ctx.response.status = resultado.success ? 200 : 404;
     ctx.response.body = resultado;

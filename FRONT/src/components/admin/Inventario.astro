@@ -41,12 +41,31 @@ const columnasInventario: ColumnaDef[] = [
 ---
 
 <div class="page-header">
-  <div>
+  <div class="title-container">
     <h4 class="page-title">Inventario</h4>
   </div>
 </div>
 
-<AgGridComponent data={inventarioConId} columnas={columnasInventario} />
+<div class="kpi-row">
+  <div class="kpi-card">
+    <span class="kpi-label">Productos</span>
+    <span class="kpi-value">{inventarioConId.length}</span>
+  </div>
+  <div class="kpi-card kpi-warning">
+    <span class="kpi-label">Stock crítico</span>
+    <span class="kpi-value">
+      {inventarioConId.filter((i: any) => i.stock_disponible <= i.stock_minimo).length}
+    </span>
+  </div>
+  <div class="kpi-card">
+    <span class="kpi-label">Reservado total</span>
+    <span class="kpi-value">
+      {inventarioConId.reduce((acc: number, i: any) => acc + Number(i.stock_reservado ?? 0), 0)}
+    </span>
+  </div>
+</div>
+
+<AgGridComponent data={inventarioConId} columnas={columnasInventario} resaltarCritico={true} />
 
 <!-- Modal: Agregar Stock -->
 <div class="modal fade custom-dark-modal" id="modalAgregarStock" tabindex="-1" aria-hidden="true">
@@ -140,54 +159,6 @@ const columnasInventario: ColumnaDef[] = [
   </div>
 </div>
 
-<style>
-  .form-control-custom.textarea-custom {
-    resize: vertical;
-    overflow-y: auto;
-    line-height: 1.5;
-    padding-top: 0.75rem;
-  }
-  .input-field-wrapper.textarea-wrapper {
-    align-items: flex-start;
-  }
-  .input-field-wrapper.textarea-wrapper .field-icon {
-    top: 0.85rem;
-  }
-
-  /* Tabla simple de solo lectura — este historial no es un CRUD, no
-     justifica un segundo AgGridComponent en la misma página */
-  .historial-tabla {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.85rem;
-  }
-  .historial-tabla th {
-    text-align: left;
-    padding: 0.6rem 0.75rem;
-    background: var(--color-surface-alt);
-    color: var(--color-text-secondary);
-    font-weight: 700;
-    border-bottom: 1px solid var(--color-border);
-  }
-  .historial-tabla td {
-    padding: 0.6rem 0.75rem;
-    border-bottom: 1px solid var(--color-border);
-    color: var(--color-text-primary);
-  }
-  .historial-tabla tr:last-child td {
-    border-bottom: none;
-  }
-  .tipo-entrada {
-    color: var(--color-success);
-    font-weight: 600;
-    text-transform: capitalize;
-  }
-  .tipo-salida {
-    color: var(--color-danger);
-    font-weight: 600;
-    text-transform: capitalize;
-  }
-</style>
 
 <script>
   import { Modal } from "bootstrap";

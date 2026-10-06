@@ -2,8 +2,7 @@ import { Context } from "../../Dependencies/dependencias.ts";
 import { Usuario } from "../../Model/Auth/UsuarioModel.ts";
 import { crearToken } from "../../Helpers/Jwt.ts";
 import {
-  generarNombreUnico,
-  rutaFisicaArchivo,
+  generarRutaArchivo,
   escribirArchivo,
   validarArchivo,
 } from "../../Helpers/archivos.ts";
@@ -152,6 +151,8 @@ export const registrarEmpresa = async (ctx: Context) => {
       return;
     }
 
+    let logo_url: string | undefined = undefined;
+
     if (logo !== null) {
       if (!(logo instanceof File)) {
         response.status = 400;
@@ -169,7 +170,7 @@ export const registrarEmpresa = async (ctx: Context) => {
         return;
       }
 
-      logoValidado = logo;
+      logo_url = generarRutaArchivo(logo,"logos");
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailAdmin)) {
@@ -190,16 +191,11 @@ export const registrarEmpresa = async (ctx: Context) => {
       return;
     }
 
-    // Ruta calculada de antemano, pero el archivo todavía no se escribe en disco
-    const nombreUnico = logoValidado ? generarNombreUnico(logoValidado) : undefined;
-    const rutaLogo = logoValidado
-      ? rutaFisicaArchivo("logos", nombreUnico!)
-      : undefined;
 
     const usuario = new Usuario(null, null, {
       nombreEmpresa,
       descripcionEmpresa: descripcionEmpresa || undefined,
-      logoEmpresa: `logos/${nombreUnico}` || undefined,
+      logoEmpresa: logo_url || undefined,
       nombreAdmin,
       apellidoAdmin,
       emailAdmin,
@@ -215,8 +211,8 @@ export const registrarEmpresa = async (ctx: Context) => {
     }
 
     // si La transacción ya confirmó en BD, ahora sí se escribe el archivo físico
-    if (logoValidado && rutaLogo) {
-      await escribirArchivo(logoValidado, rutaLogo);
+    if (logoValidado && logo_url) {
+      await escribirArchivo(logoValidado, logo_url);
     }
 
     response.status = 201;

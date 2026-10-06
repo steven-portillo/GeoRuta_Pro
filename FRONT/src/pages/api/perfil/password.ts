@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 
-const API_DENO = import.meta.env.API_DENO;
+const API_DENO = import.meta.env.API_DENO ?? "http://127.0.0.1:8002";
 
 export const PATCH: APIRoute = async ({ request, cookies }) => {
   const token = cookies.get("token")?.value;
@@ -12,8 +12,8 @@ export const PATCH: APIRoute = async ({ request, cookies }) => {
   }
 
   const body = await request.text();
-  console.log("LLEGA A APIROUTE")
-  const res = await fetch(`${API_DENO}/api/admin/cambiar-color-empresa`, {
+
+  const res = await fetch(`${API_DENO}/api/perfil/password`, {
     method: "PATCH",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -21,7 +21,7 @@ export const PATCH: APIRoute = async ({ request, cookies }) => {
     },
     body,
   });
- 
+
   return new Response(await res.text(), {
     status: res.status,
     headers: { "Content-Type": "application/json" },

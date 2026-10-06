@@ -13,7 +13,7 @@ const headers = { Authorization: `Bearer ${token}` };
 
 const CargarClientes = async () => {
   try {
-    const respuesta = await fetch(`${API_DENO}/api/admin/superadmin/clientes`, { headers });
+    const respuesta = await fetch(`${API_DENO}/api/superadmin/clientes`, { headers });
     if (!respuesta.ok) {
       console.error("Status no OK", respuesta.status, await respuesta.text());
       return [];
@@ -27,26 +27,54 @@ const CargarClientes = async () => {
 };
 
 const clientes = await CargarClientes();
-const clientesConId = clientes.map((c: any) => ({ ...c, id: c.id_usuario }));
+const clientesConId = clientes.map((c: any) => ({ ...c, id: c.id_usuario, imagen_url: c.imagen_url ?? "/defaults/usuarios.png" }));
+
+// --- KPIs ---
+const totalClientes = clientesConId.length;
+const clientesActivos = clientesConId.filter((c: any) => c.activo === 1 || c.activo === true).length;
+
+const inicioMes = new Date();
+inicioMes.setDate(1);
+inicioMes.setHours(0, 0, 0, 0);
+const nuevosEsteMes = clientesConId.filter((c: any) => {
+  if (!c.fecha_creacion) return false;
+  return new Date(c.fecha_creacion) >= inicioMes;
+}).length;
 
 const columnasClientes: ColumnaDef[] = [
-  { campo: "imagen_url", titulo: "Foto", tipo: "imagen" },
+  { campo: "imagen_url", titulo: "Foto", tipo: "imagen", defaultImg: "/defaults/usuarios.png" },
   { campo: "nombre", titulo: "Nombre" },
   { campo: "apellido", titulo: "Apellido" },
   { campo: "email", titulo: "Email" },
-  { campo: "fecha_creacion", titulo: "Registrado" },
+  { campo: "fecha_creacion", titulo: "Registrado", tipo:"fecha" },
   { campo: "activo", titulo: "Estado", tipo: "estado" },
   { titulo: "Acciones", tipo: "acciones", acciones: ["Editar"] },
 ];
 ---
 
 <div class="page-header">
-  <div>
+  <div class="title-container">
     <h4 class="page-title">Clientes</h4>
   </div>
 </div>
 
+<div class="kpi-row">
+  <div class="kpi-card">
+    <span class="kpi-label">Total de clientes</span>
+    <span class="kpi-value">{totalClientes}</span>
+  </div>
+  <div class="kpi-card kpi-success">
+    <span class="kpi-label">Activos</span>
+    <span class="kpi-value">{clientesActivos}</span>
+  </div>
+  <div class="kpi-card kpi-primary">
+    <span class="kpi-label">Nuevos este mes</span>
+    <span class="kpi-value">{nuevosEsteMes}</span>
+  </div>
+</div>
+
 <AgGridComponent data={clientesConId} columnas={columnasClientes} />
+
 
 <div class="modal fade custom-dark-modal" id="modalCliente" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
@@ -157,7 +185,7 @@ const columnasClientes: ColumnaDef[] = [
 
   (window as any).abrirEditarCliente = async (idUsuario: number) => {
     try {
-      const res = await fetch(`/api/admin/superadmin/clientes/${idUsuario}`);
+      const res = await fetch(`/api/superadmin/clientes/${idUsuario}`);
       const data = await res.json();
       const c = data.data;
 
@@ -215,7 +243,7 @@ const columnasClientes: ColumnaDef[] = [
     }
 
     try {
-      const res = await fetch(`/api/admin/superadmin/clientes/${idUsuario}`, {
+      const res = await fetch(`/api/superadmin/clientes/${idUsuario}`, {
         method: "PUT",
         body: formData,
       });
@@ -246,7 +274,7 @@ const columnasClientes: ColumnaDef[] = [
     if (accion === "toggle-estado") {
       const nuevoEstado = estado ? 0 : 1;
       try {
-        const res = await fetch(`/api/admin/superadmin/clientes/${id}/estado`, {
+        const res = await fetch(`/api/superadmin/clientes/${id}/estado`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ estado: nuevoEstado }),

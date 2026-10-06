@@ -1,28 +1,37 @@
-// helpers/archivos.ts
+const UPLOADS_URL_PREFIX = "/Uploads";
 
 const MIME_PERMITIDOS = ["image/jpeg", "image/png", "image/webp"];
-const TAMANO_MAXIMO = 2 * 1024 * 1024; // 5MB
+const TAMANO_MAXIMO = 2 * 1024 * 1024; // 2MB
 
-// helpers/archivos.ts
-
-// Ruta FÍSICA para escribir en disco (con ./Uploads/ al inicio)
-export function rutaFisicaArchivo(subcarpeta: string, nombreUnico: string): string {
-  return `./Uploads/${subcarpeta}/${nombreUnico}`;
-}
-
-// Ruta RELATIVA para guardar en la base de datos — sin "./Uploads/", 
-// solo "subcarpeta/nombre.ext". El middleware y el frontend ya saben
-// anteponer "/Uploads/" cuando construyen la URL pública.
-export function generarNombreUnico(archivo: File): string {
+export function generarRutaArchivo(archivo: File, subcarpeta: string): string {
   const extension = archivo.name.split(".").pop();
-  return `${Date.now()}-${crypto.randomUUID()}.${extension}`;
+  const nombreUnico = `${Date.now()}-${crypto.randomUUID()}.${extension}`;
+  return `${UPLOADS_URL_PREFIX}/${subcarpeta}/${nombreUnico}`;
 }
 
-export async function escribirArchivo(archivo: File, rutaFisica: string): Promise<void> {
-  const carpeta = rutaFisica.substring(0, rutaFisica.lastIndexOf("/"));
+function rutaADisco(rutaUrl: string): string {
+  return `.${rutaUrl}`;
+}
+
+export async function escribirArchivo(
+  archivo: File,
+  rutaUrl: string,
+): Promise<void> {
+  const rutaDisco = rutaADisco(rutaUrl);
+  const carpeta = rutaDisco.substring(0, rutaDisco.lastIndexOf("/"));
   await Deno.mkdir(carpeta, { recursive: true });
   const bytes = new Uint8Array(await archivo.arrayBuffer());
-  await Deno.writeFile(rutaFisica, bytes);
+  await Deno.writeFile(rutaDisco, bytes);
+}
+
+export async function eliminarArchivo(rutaUrl: string): Promise<void> {
+  try {
+    await Deno.remove(rutaADisco(rutaUrl));
+  } catch (error) {
+    if (!(error instanceof Deno.errors.NotFound)) {
+      console.error("Error al eliminar archivo:", error);
+    }
+  }
 }
 
 export function validarArchivo(archivo: File): string | null {

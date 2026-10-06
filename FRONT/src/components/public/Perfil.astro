@@ -1,0 +1,447 @@
+---
+const usuarioSesion = Astro.locals.usuario;
+const token = Astro.cookies.get("token")?.value;
+if (!token || !usuarioSesion) {
+  return Astro.redirect("/");
+}
+
+const API_DENO = import.meta.env.API_DENO;
+const IMG_BASE = import.meta.env.PUBLIC_API_DENO ?? "";
+const headers = { Authorization: `Bearer ${token}` };
+
+let perfil: any = {};
+try {
+  const respuesta = await fetch(`${API_DENO}/api/perfil`, { headers });
+  if (respuesta.ok) {
+    const obj = await respuesta.json();
+    perfil = obj.data ?? {};
+  }
+} catch (error) {
+  console.error("Error al cargar el perfil", error);
+}
+
+const nombreActual = perfil.nombre ?? "";
+const apellidoActual = perfil.apellido ?? "";
+const emailActual = perfil.email ?? "";
+const rolActual = perfil.rol ?? "";
+const fotoUrl = perfil.imagen_url ? `${IMG_BASE}/Uploads/${perfil.imagen_url}` : "/defaults/usuarios.png";
+const nombreCompleto = `${nombreActual} ${apellidoActual}`.trim();
+---
+
+<div class="perfil-grid">
+  <!-- Panel izquierdo: avatar + datos de solo lectura -->
+  <div class="perfil-left-card">
+    <div class="avatar-wrapper">
+      <img
+        id="fotoPreview"
+        class="avatar-img"
+        alt="Foto de perfil"
+        src={fotoUrl}
+        style={fotoUrl ? "" : "display: none;"}
+      />
+      <label for="fotoInput" class="avatar-edit-btn" aria-label="Cambiar foto de perfil">
+        <i class="bi bi-pencil-fill"></i>
+      </label>
+      <input type="file" id="fotoInput" accept="image/jpeg,image/png,image/webp" hidden />
+    </div>
+    <div class="error-feedback" id="fotoError"></div>
+
+    <p class="perfil-nombre-label" id="labelNombreCompleto">{nombreCompleto}</p>
+    <p class="perfil-email-label" id="labelEmail">{emailActual}</p>
+    {rolActual && <span class="perfil-rol-badge">{rolActual}</span>}
+  </div>
+
+  <!-- Panel derecho: el form completo -->
+  <div class="perfil-right-card">
+    <form id="perfilForm" novalidate>
+      <div class="row g-2 mb-3">
+        <div class="col">
+          <label class="form-label-custom" for="pf-nombre">Nombres</label>
+          <div class="input-field-wrapper">
+            <i class="bi bi-person field-icon"></i>
+            <input type="text" id="pf-nombre" class="form-control-custom" value={nombreActual} autocomplete="given-name" />
+          </div>
+          <div class="error-feedback" id="pf-nombre-error"></div>
+        </div>
+        <div class="col">
+          <label class="form-label-custom" for="pf-apellido">Apellidos</label>
+          <div class="input-field-wrapper">
+            <i class="bi bi-person field-icon"></i>
+            <input type="text" id="pf-apellido" class="form-control-custom" value={apellidoActual} autocomplete="family-name" />
+          </div>
+          <div class="error-feedback" id="pf-apellido-error"></div>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label-custom" for="pf-email">Email</label>
+        <div class="input-field-wrapper">
+          <i class="bi bi-envelope field-icon"></i>
+          <input type="text" id="pf-email" class="form-control-custom" value={emailActual} autocomplete="email" />
+        </div>
+        <div class="error-feedback" id="pf-email-error"></div>
+      </div>
+
+      <div id="perfilAlert" class="alert-custom alert-custom-danger d-none" role="alert"></div>
+      <div id="perfilSuccess" class="alert-custom alert-custom-success d-none" role="alert"></div>
+
+      <button type="button" class="btn-submit-gradient" id="btnGuardarPerfil">
+        <span class="btn-text">Guardar Cambios</span>
+        <i class="bi bi-check-lg btn-icon"></i>
+        <div class="btn-spinner spinner-border spinner-border-sm text-light d-none" role="status">
+          <span class="visually-hidden">Guardando...</span>
+        </div>
+      </button>
+
+      <hr class="perfil-divider" />
+
+      <h5 class="seguridad-titulo">Seguridad</h5>
+      <p class="seguridad-desc">Cambia tu contraseña. Necesitas confirmar la actual.</p>
+
+      <div class="mb-3">
+        <label class="form-label-custom" for="pf-passwordActual">Contraseña actual</label>
+        <div class="input-field-wrapper">
+          <i class="bi bi-key field-icon"></i>
+          <input type="password" id="pf-passwordActual" class="form-control-custom" autocomplete="current-password" />
+          <button type="button" class="toggle-password-btn" id="toggleActual" aria-label="Mostrar u ocultar contraseña">
+            <i class="bi bi-eye" id="toggleActualIcon"></i>
+          </button>
+        </div>
+        <div class="error-feedback" id="pf-passwordActual-error"></div>
+      </div>
+
+      <div class="row g-2 mb-3">
+        <div class="col">
+          <label class="form-label-custom" for="pf-passwordNueva">Nueva contraseña</label>
+          <div class="input-field-wrapper">
+            <i class="bi bi-key field-icon"></i>
+            <input type="password" id="pf-passwordNueva" class="form-control-custom" placeholder="Mínimo 8 caracteres" autocomplete="new-password" />
+            <button type="button" class="toggle-password-btn" id="toggleNueva" aria-label="Mostrar u ocultar contraseña">
+              <i class="bi bi-eye" id="toggleNuevaIcon"></i>
+            </button>
+          </div>
+          <div class="error-feedback" id="pf-passwordNueva-error"></div>
+        </div>
+        <div class="col">
+          <label class="form-label-custom" for="pf-passwordConfirmar">Confirmar nueva</label>
+          <div class="input-field-wrapper">
+            <i class="bi bi-key field-icon"></i>
+            <input type="password" id="pf-passwordConfirmar" class="form-control-custom" autocomplete="new-password" />
+            <button type="button" class="toggle-password-btn" id="toggleConfirmar" aria-label="Mostrar u ocultar contraseña">
+              <i class="bi bi-eye" id="toggleConfirmarIcon"></i>
+            </button>
+          </div>
+          <div class="error-feedback" id="pf-passwordConfirmar-error"></div>
+        </div>
+      </div>
+
+      <div id="passwordAlert" class="alert-custom alert-custom-danger d-none" role="alert"></div>
+      <div id="passwordSuccess" class="alert-custom alert-custom-success d-none" role="alert"></div>
+
+      <button type="button" class="btn-submit-gradient" id="btnCambiarPassword">
+        <span class="btn-text">Actualizar contraseña</span>
+        <i class="bi bi-shield-check btn-icon"></i>
+        <div class="btn-spinner spinner-border spinner-border-sm text-light d-none" role="status">
+          <span class="visually-hidden">Guardando...</span>
+        </div>
+      </button>
+    </form>
+  </div>
+</div>
+
+<style>
+  .perfil-grid {
+    display: grid;
+    grid-template-columns: minmax(200px, 260px) 1fr;
+    gap: 2rem;
+    align-items: start;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 1rem;
+  }
+
+  .perfil-left-card,
+  .perfil-right-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .perfil-left-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 1.75rem 1.25rem;
+    text-align: center;
+  }
+
+  .perfil-right-card {
+    padding: 1.75rem;
+    min-width: 0;
+  }
+
+
+  .perfil-nombre-label {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--color-text-primary);
+    margin: 0.3rem 0 0;
+    word-break: break-word;
+  }
+  .perfil-email-label {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+    margin: 0 0 0.3rem;
+    word-break: break-word;
+  }
+  .perfil-rol-badge {
+    background: var(--color-primary);
+    color: white;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 0.3rem 0.9rem;
+    border-radius: 100px;
+    text-transform: capitalize;
+  }
+
+  .perfil-divider {
+    border: none;
+    border-top: 1px solid var(--color-border);
+    margin: 1.75rem 0 1.5rem;
+  }
+  .seguridad-titulo {
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin-bottom: 0.3rem;
+  }
+  .seguridad-desc {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+    margin-bottom: 1.25rem;
+  }
+
+  @media (max-width: 640px) {
+    .perfil-grid {
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+      padding: 0 0.75rem;
+    }
+  }
+</style>
+
+<script>
+  import {
+    validarSoloLetras,
+    validarFormatoEmail,
+    validarPassword,
+    validarPasswordComparar,
+    validarImagenFile,
+    attachFieldValidation,
+    attachFileValidation,
+  } from "../../utils/validaciones";
+
+  // ---------------- Datos personales + foto ----------------
+  const fotoInput = document.getElementById("fotoInput") as HTMLInputElement;
+  const fotoPreview = document.getElementById("fotoPreview") as HTMLImageElement;
+  const fotoError = document.getElementById("fotoError");
+
+  const nombreInput = document.getElementById("pf-nombre") as HTMLInputElement;
+  const nombreError = document.getElementById("pf-nombre-error");
+
+  const apellidoInput = document.getElementById("pf-apellido") as HTMLInputElement;
+  const apellidoError = document.getElementById("pf-apellido-error");
+
+  const emailInput = document.getElementById("pf-email") as HTMLInputElement;
+  const emailError = document.getElementById("pf-email-error");
+
+  const perfilAlert = document.getElementById("perfilAlert") as HTMLElement;
+  const perfilSuccess = document.getElementById("perfilSuccess") as HTMLElement;
+  const btnGuardarPerfil = document.getElementById("btnGuardarPerfil") as HTMLButtonElement;
+
+  const validarNombre = attachFieldValidation(nombreInput, nombreError, (v) => validarSoloLetras(v, "El nombre"));
+  const validarApellido = attachFieldValidation(apellidoInput, apellidoError, (v) => validarSoloLetras(v, "El apellido"));
+  const validarEmail = attachFieldValidation(emailInput, emailError, validarFormatoEmail);
+  const validarFoto = attachFileValidation(fotoInput, fotoError, validarImagenFile);
+
+  fotoInput.addEventListener("change", () => {
+    const file = fotoInput.files?.[0] ?? null;
+    if (file && validarImagenFile(file).isValid) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        fotoPreview.src = reader.result as string;
+        fotoPreview.style.display = "block";
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  btnGuardarPerfil.addEventListener("click", async () => {
+    perfilAlert.classList.add("d-none");
+    perfilSuccess.classList.add("d-none");
+
+    const nombreOk = validarNombre?.();
+    const apellidoOk = validarApellido?.();
+    const emailOk = validarEmail?.();
+    const fotoOk = validarFoto?.();
+
+    if (!nombreOk?.isValid || !apellidoOk?.isValid || !emailOk?.isValid || !fotoOk?.isValid) {
+      perfilAlert.textContent = "Por favor completa todos los campos requeridos correctamente.";
+      perfilAlert.classList.remove("d-none");
+      if (!nombreOk?.isValid) nombreInput.focus();
+      else if (!apellidoOk?.isValid) apellidoInput.focus();
+      else if (!emailOk?.isValid) emailInput.focus();
+      else if (!fotoOk?.isValid) fotoInput.focus();
+      return;
+    }
+
+    const btnText = btnGuardarPerfil.querySelector(".btn-text") as HTMLElement;
+    const btnIcon = btnGuardarPerfil.querySelector(".btn-icon") as HTMLElement;
+    const btnSpinner = btnGuardarPerfil.querySelector(".btn-spinner") as HTMLElement;
+
+    btnText.textContent = "Guardando...";
+    btnIcon.classList.add("d-none");
+    btnSpinner.classList.remove("d-none");
+    btnGuardarPerfil.disabled = true;
+
+    try {
+      const formData = new FormData();
+      formData.append("nombre", nombreInput.value.trim());
+      formData.append("apellido", apellidoInput.value.trim());
+      formData.append("email", emailInput.value.trim());
+      if (fotoInput.files?.[0]) {
+        formData.append("foto", fotoInput.files[0]);
+      }
+
+      const res = await fetch("/api/perfil", { method: "PUT", body: formData });
+      const data = await res.json();
+
+      if (!data.success) {
+        perfilAlert.textContent = data.message ?? "No se pudo guardar";
+        perfilAlert.classList.remove("d-none");
+        return;
+      }
+
+      perfilSuccess.textContent = data.message ?? "Perfil actualizado correctamente";
+      perfilSuccess.classList.remove("d-none");
+    } catch {
+      perfilAlert.textContent = "Error de conexión";
+      perfilAlert.classList.remove("d-none");
+    } finally {
+      btnText.textContent = "Guardar Cambios";
+      btnIcon.classList.remove("d-none");
+      btnSpinner.classList.add("d-none");
+      btnGuardarPerfil.disabled = false;
+    }
+  });
+
+  // ---------------- Cambiar contraseña ----------------
+  function toggleVisibilidad(btnId: string, iconId: string, inputId: string) {
+    const btn = document.getElementById(btnId);
+    const icon = document.getElementById(iconId);
+    const input = document.getElementById(inputId) as HTMLInputElement | null;
+    if (!btn || !icon || !input) return;
+    btn.addEventListener("click", () => {
+      const isPassword = input.type === "password";
+      input.type = isPassword ? "text" : "password";
+      icon.classList.toggle("bi-eye", !isPassword);
+      icon.classList.toggle("bi-eye-slash", isPassword);
+    });
+  }
+  toggleVisibilidad("toggleActual", "toggleActualIcon", "pf-passwordActual");
+  toggleVisibilidad("toggleNueva", "toggleNuevaIcon", "pf-passwordNueva");
+  toggleVisibilidad("toggleConfirmar", "toggleConfirmarIcon", "pf-passwordConfirmar");
+
+  function validarRequerido(val: string, label: string) {
+    const value = val.trim();
+    return value ? { isValid: true, message: "" } : { isValid: false, message: `${label} es obligatoria.` };
+  }
+
+  const passwordActualInput = document.getElementById("pf-passwordActual") as HTMLInputElement;
+  const passwordActualError = document.getElementById("pf-passwordActual-error");
+
+  const passwordNuevaInput = document.getElementById("pf-passwordNueva") as HTMLInputElement;
+  const passwordNuevaError = document.getElementById("pf-passwordNueva-error");
+
+  const passwordConfirmarInput = document.getElementById("pf-passwordConfirmar") as HTMLInputElement;
+  const passwordConfirmarError = document.getElementById("pf-passwordConfirmar-error");
+
+  const passwordAlert = document.getElementById("passwordAlert") as HTMLElement;
+  const passwordSuccess = document.getElementById("passwordSuccess") as HTMLElement;
+  const btnCambiarPassword = document.getElementById("btnCambiarPassword") as HTMLButtonElement;
+
+  const validarPasswordActual = attachFieldValidation(passwordActualInput, passwordActualError, (v) =>
+    validarRequerido(v, "La contraseña actual")
+  );
+  const validarPasswordNueva = attachFieldValidation(passwordNuevaInput, passwordNuevaError, (v) => validarPassword(v, 8));
+  const validarPasswordConfirmar = attachFieldValidation(passwordConfirmarInput, passwordConfirmarError, (v) =>
+    validarPasswordComparar(v, passwordNuevaInput?.value ?? "")
+  );
+
+  passwordNuevaInput.addEventListener("input", () => {
+    if (passwordConfirmarInput.value) validarPasswordConfirmar?.();
+  });
+
+  btnCambiarPassword.addEventListener("click", async () => {
+    passwordAlert.classList.add("d-none");
+    passwordSuccess.classList.add("d-none");
+
+    const actualOk = validarPasswordActual?.();
+    const nuevaOk = validarPasswordNueva?.();
+    const confirmarOk = validarPasswordConfirmar?.();
+
+    if (!actualOk?.isValid || !nuevaOk?.isValid || !confirmarOk?.isValid) {
+      passwordAlert.textContent = "Por favor completa todos los campos requeridos correctamente.";
+      passwordAlert.classList.remove("d-none");
+      if (!actualOk?.isValid) passwordActualInput.focus();
+      else if (!nuevaOk?.isValid) passwordNuevaInput.focus();
+      else if (!confirmarOk?.isValid) passwordConfirmarInput.focus();
+      return;
+    }
+
+    const btnText = btnCambiarPassword.querySelector(".btn-text") as HTMLElement;
+    const btnIcon = btnCambiarPassword.querySelector(".btn-icon") as HTMLElement;
+    const btnSpinner = btnCambiarPassword.querySelector(".btn-spinner") as HTMLElement;
+
+    btnText.textContent = "Guardando...";
+    btnIcon.classList.add("d-none");
+    btnSpinner.classList.remove("d-none");
+    btnCambiarPassword.disabled = true;
+
+    try {
+      const res = await fetch("/api/perfil/password", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          passwordActual: passwordActualInput.value,
+          passwordNueva: passwordNuevaInput.value,
+        }),
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        passwordAlert.textContent = data.message ?? "No se pudo actualizar la contraseña";
+        passwordAlert.classList.remove("d-none");
+        return;
+      }
+
+      passwordSuccess.textContent = data.message ?? "Contraseña actualizada correctamente";
+      passwordSuccess.classList.remove("d-none");
+      passwordActualInput.value = "";
+      passwordNuevaInput.value = "";
+      passwordConfirmarInput.value = "";
+      [passwordActualInput, passwordNuevaInput, passwordConfirmarInput].forEach((el) =>
+        el.classList.remove("is-valid", "is-invalid")
+      );
+    } catch {
+      passwordAlert.textContent = "Error de conexión";
+      passwordAlert.classList.remove("d-none");
+    } finally {
+      btnText.textContent = "Actualizar contraseña";
+      btnIcon.classList.remove("d-none");
+      btnSpinner.classList.add("d-none");
+      btnCambiarPassword.disabled = false;
+    }
+  });
+</script>

@@ -11,7 +11,7 @@ export const GET: APIRoute = async ({ cookies, params }) => {
     );
   }
 
-  const res = await fetch(`${API_DENO}/api/admin/superadmin/clientes/${params.id}`, {
+  const res = await fetch(`${API_DENO}/api/superadmin/clientes/${params.id}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 
@@ -32,7 +32,7 @@ export const PUT: APIRoute = async ({ request, cookies, params }) => {
 
   const formData = await request.formData();
 
-  const res = await fetch(`${API_DENO}/api/admin/superadmin/clientes/${params.id}`, {
+  const res = await fetch(`${API_DENO}/api/superadmin/clientes/${params.id}`, {
     method: "PUT",
     headers: { Authorization: `Bearer ${token}` },
     body: formData,

@@ -1,13 +1,20 @@
 import { Application, oakCors } from "./Dependencies/dependencias.ts";
 import { authRouter } from "./Router/Auth/authRouter.ts";
-import { superAdminRouter } from "./Router/SuperAdmin/superAdminRouter.ts";
+//super
+import { empresasRouter } from "./Router/SuperAdmin/empresaRouter.ts";
+import { clienteRouter } from "./Router/SuperAdmin/clienteRouter.ts";
+//admin
 import { categoriaRouter } from "./Router/Admin/categoriaRouter.ts";
 import { inventarioRouter } from "./Router/Admin/inventarioRouter.ts";
 import { productoRouter } from "./Router/Admin/productoController.ts";
+import { pedidoRouter } from "./Router/Admin/pedidoRouter.ts";
 import { proveedorRouter } from "./Router/Admin/proveedorRouter.ts";
 import { empresaRouter } from "./Router/Admin/empresaRouter.ts";
+//´mapra
 import { PruebasRouter } from "./Router/Mapa/pruebasRouter.ts";
 import { manejarWsUbicacion } from "./ws/ubicacionHub.ts";
+
+import { perfilRouter } from "./Router/Perfil/perfilRouter.ts";
 
 import { servirArchivos } from "./Middlewares/archivos.middleware.ts";
 
@@ -46,15 +53,20 @@ const routers = [
   //rutas publicas y de auth
   authRouter, 
   //rutas de superadmin
-  superAdminRouter,
+  empresasRouter,
+  clienteRouter,
   //rutas del admin
   categoriaRouter,
   inventarioRouter,
   productoRouter, 
   proveedorRouter,
   empresaRouter,
+  pedidoRouter,
   //rutas de mapa(prueba)
   PruebasRouter,
+
+  //rutas publicas
+  perfilRouter
 ];
 
 routers.forEach((router) => {
