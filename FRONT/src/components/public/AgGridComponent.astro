@@ -46,6 +46,11 @@ const columnasBase64 = utf8ToBase64(JSON.stringify(columnas));
     const columnas = JSON.parse(base64ToUtf8(wrapper.dataset.columnas ?? ""));
     const resaltarCritico = wrapper.dataset.resaltarCritico === "true";
 
+    function anchoSegunTitulo(titulo: string, anchoMinimo = 110): number {
+      const estimado = titulo.length * 8 + 56;
+      return Math.max(estimado, anchoMinimo);
+    }
+
     const columnDefs = columnas.map((col: any) => {
       if (col.tipo === "acciones") {
         const cantidadBotones = col.acciones.length;
@@ -88,7 +93,8 @@ const columnasBase64 = utf8ToBase64(JSON.stringify(columnas));
         return {
           field: col.campo,
           headerName: col.titulo,
-          width: 130,
+          width: anchoSegunTitulo(col.titulo),
+        minWidth: anchoSegunTitulo(col.titulo),
           cellRenderer: (params: any) => {
             const activo = params.value === 1 || params.value === true;
             return `<button class="pill-estado ${activo ? "pill-activo" : "pill-inactivo"}"
@@ -109,7 +115,8 @@ const columnasBase64 = utf8ToBase64(JSON.stringify(columnas));
           headerName: col.titulo,
           sortable: false,
           filter: false,
-          width: 90,
+          width: anchoSegunTitulo(col.titulo),
+        minWidth: anchoSegunTitulo(col.titulo),
           cellRenderer: (params: any) => {
             if (!params.data) return "";
 
@@ -158,6 +165,8 @@ const columnasBase64 = utf8ToBase64(JSON.stringify(columnas));
         return {
           field: col.campo,
           headerName: col.titulo,
+          width: anchoSegunTitulo(col.titulo),
+        minWidth: anchoSegunTitulo(col.titulo),
           valueFormatter: (params: any) =>
             params.value == null
               ? ""
@@ -174,6 +183,8 @@ const columnasBase64 = utf8ToBase64(JSON.stringify(columnas));
           field: col.campo,
           headerName: col.titulo,
           sortable: true,
+          width: anchoSegunTitulo(col.titulo, 140),
+          minWidth: anchoSegunTitulo(col.titulo, 140),
           filter: "agDateColumnFilter",
           comparator: (filterDate: Date, cellValue: string) => {
             if (!cellValue) return -1;
@@ -224,6 +235,8 @@ const columnasBase64 = utf8ToBase64(JSON.stringify(columnas));
       return {
         field: col.campo,
         headerName: col.titulo,
+        width: anchoSegunTitulo(col.titulo),
+        minWidth: anchoSegunTitulo(col.titulo),
         filter: true,
         floatingFilter: false,
         tooltipField: col.campo,
@@ -235,8 +248,8 @@ const columnasBase64 = utf8ToBase64(JSON.stringify(columnas));
     const gridDiv = document.getElementById("tabla-generica") as HTMLElement;
     createGrid(gridDiv, {
       defaultColDef: {
-        flex: 1,
         resizable: true,
+        flex:1,
         tooltipValueGetter: (params) => params.value ?? null,
       },
       rowData: rows,
@@ -251,6 +264,7 @@ const columnasBase64 = utf8ToBase64(JSON.stringify(columnas));
             }
           }
         : undefined,
+      suppressColumnVirtualisation: false,
     });
 
     // Delegación de eventos
