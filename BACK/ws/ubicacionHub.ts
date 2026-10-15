@@ -1,5 +1,5 @@
 import { string } from "https://deno.land/x/zod@v3.24.4/types.ts";
-import {VerificarTokenAcceso} from "../Helpers/Jwt.ts";
+import {VerificarTokenAcceso} from "../Helpers/JWT.ts";
 import { resolve } from "jsr:@std/path@1/resolve";
 import { info } from "node:console";
 import { pedidosModel } from "../Model/pruebasMapa/pruebasModel.ts";

@@ -89,6 +89,7 @@
     "https://deno.land/std@0.104.0/log/mod.ts": "91711789b28803082b1bdfb123d2c9685a7e01767f2e79c0a82706063ad964d8",
     "https://deno.land/std@0.104.0/testing/_diff.ts": "5d3693155f561d1a5443ac751ac70aab9f5d67b4819a621d4b96b8a1a1c89620",
     "https://deno.land/std@0.104.0/testing/asserts.ts": "e4311d45d956459d4423bc267208fe154b5294989da2ed93257b6a85cae0427e",
+    "https://deno.land/std@0.204.0/dotenv/mod.ts": "1da8c6d0e7f7d8a5c2b19400b763bc11739df24acec235dda7ea2cfd3d300057",
     "https://deno.land/std@0.221.0/encoding/_util.ts": "beacef316c1255da9bc8e95afb1fa56ed69baef919c88dc06ae6cb7a6103d376",
     "https://deno.land/std@0.221.0/encoding/base64.ts": "8ccae67a1227b875340a8582ff707f37b131df435b07080d3bb58e07f5f97807",
     "https://deno.land/std@0.221.0/encoding/base64url.ts": "9cc46cf510436be63ac00ebf97a7de1993e603ca58e1853b344bf90d80ea9945",

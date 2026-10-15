@@ -1,5 +1,5 @@
 {
-  "name": "front",
+  "name": "astronautical-aperture",
   "type": "module",
   "version": "0.0.1",
   "engines": {
@@ -14,8 +14,7 @@
   "dependencies": {
     "@astrojs/node": "^11.1.6",
     "@popperjs/core": "^2.11.8",
-    "ag-grid-enterprise": "^36.2.0",
-    "astro": "^7.3.3",
+    "astro": "^7.3.4",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
     "jose": "^6.2.12"
@@ -24,6 +23,7 @@
     "esbuild": true
   },
   "devDependencies": {
-    "@types/bootstrap": "^5.2.11"
+    "@astrojs/check": "^0.9.10",
+    "typescript": "^6.0.3"
   }
 }

@@ -1,0 +1,220 @@
+---
+// src/components/superadmin/EmpresasSuperAdmin.astro
+// gestion global de empresas: lista con busqueda y filtro por estado, y activar/desactivar.
+// las filas llegan renderizadas por ssr; el js solo filtra y cambia el estado de la fila
+
+export interface EmpresaSuperAdmin {
+  idEmpresa: number;
+  nombre: string;
+  descripcion: string | null;
+  logoUrl: string | null;
+  estado: boolean;
+  fechaCreacion: string | null;
+  adminNombre: string;
+  adminEmail: string;
+}
+
+interface Props {
+  empresas: EmpresaSuperAdmin[];
+}
+
+const { empresas } = Astro.props;
+
+function formatearFecha(valor: string | null): string {
+  if (!valor) return '—';
+  const fecha = new Date(valor);
+  if (Number.isNaN(fecha.getTime())) return '—';
+  return fecha.toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+const activas = empresas.filter((e) => e.estado).length;
+---
+
+<div class="encabezado-sec">
+  <div>
+    <span class="titulo-sec">Empresas registradas</span>
+    <p class="emp-resumen">
+      <span id="contador-visibles">{empresas.length}</span> de {empresas.length} ·
+      <span id="contador-activas">{activas}</span> activas
+    </p>
+  </div>
+</div>
+
+<div class="barra-filtros">
+  <input
+    class="input-busqueda"
+    type="text"
+    id="buscar-empresa"
+    placeholder="Buscar por empresa o administrador..."
+    style="width:300px"
+  />
+  <select class="input-busqueda" id="filtro-estado" style="width:170px">
+    <option value="">Todos los estados</option>
+    <option value="1">Activas</option>
+    <option value="0">Inactivas</option>
+  </select>
+</div>
+
+<div class="panel-card">
+  <table class="tabla-admin">
+    <thead>
+      <tr>
+        <th>Empresa</th>
+        <th>Administrador</th>
+        <th>Registro</th>
+        <th>Estado</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody id="tbody-empresas">
+      {
+        empresas.map((e) => (
+          <tr
+            class="fila-empresa"
+            data-id={e.idEmpresa}
+            data-nombre={e.nombre}
+            data-estado={e.estado ? '1' : '0'}
+            data-texto={`${e.nombre} ${e.adminNombre} ${e.adminEmail}`.toLowerCase()}
+          >
+            <td>
+              <div class="emp-celda">
+                <div class="emp-logo">
+                  {e.logoUrl ? <img src={e.logoUrl} alt={e.nombre} /> : e.nombre.charAt(0).toUpperCase()}
+                </div>
+                <div class="emp-textos">
+                  <div class="emp-nombre">{e.nombre}</div>
+                  {e.descripcion && <div class="emp-desc">{e.descripcion}</div>}
+                </div>
+              </div>
+            </td>
+            <td>
+              <div class="emp-nombre">{e.adminNombre}</div>
+              <div class="emp-desc">{e.adminEmail}</div>
+            </td>
+            <td>{formatearFecha(e.fechaCreacion)}</td>
+            <td>
+              <span class={`badge estado-badge ${e.estado ? 'badge-verde' : 'badge-amber'}`}>
+                {e.estado ? 'Activa' : 'Inactiva'}
+              </span>
+            </td>
+            <td>
+              <button class={`btn-toggle-empresa ${e.estado ? 'btn-peligro' : 'btn-primario'}`} type="button">
+                {e.estado ? 'Desactivar' : 'Activar'}
+              </button>
+            </td>
+          </tr>
+        ))
+      }
+      <tr id="fila-vacia" style={empresas.length ? 'display:none' : ''}>
+        <td colspan="5" style="text-align:center;color:#94a3b8;padding:2rem">
+          {empresas.length ? 'No se encontraron empresas con ese filtro.' : 'Aún no hay empresas registradas.'}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+  const cuerpo = document.getElementById('tbody-empresas');
+  const buscador = document.getElementById('buscar-empresa') as HTMLInputElement | null;
+  const filtroEstado = document.getElementById('filtro-estado') as HTMLSelectElement | null;
+  const filaVacia = document.getElementById('fila-vacia');
+  const contadorVisibles = document.getElementById('contador-visibles');
+  const contadorActivas = document.getElementById('contador-activas');
+
+  const filas = () => Array.from(document.querySelectorAll<HTMLTableRowElement>('.fila-empresa'));
+
+  function aplicarFiltros() {
+    const texto = buscador?.value.toLowerCase().trim() ?? '';
+    const estado = filtroEstado?.value ?? '';
+    let visibles = 0;
+
+    for (const fila of filas()) {
+      const coincide =
+        (!texto || (fila.dataset.texto ?? '').includes(texto)) && (!estado || fila.dataset.estado === estado);
+      fila.style.display = coincide ? '' : 'none';
+      if (coincide) visibles++;
+    }
+
+    if (contadorVisibles) contadorVisibles.textContent = String(visibles);
+    // la fila de "sin resultados" solo tiene sentido si hay filas y ninguna coincide
+    if (filaVacia && filas().length) filaVacia.style.display = visibles === 0 ? '' : 'none';
+  }
+
+  function contarActivas() {
+    if (contadorActivas) {
+      contadorActivas.textContent = String(filas().filter((f) => f.dataset.estado === '1').length);
+    }
+  }
+
+  // refleja el nuevo estado en la fila sin recargar la pagina
+  function pintarEstado(fila: HTMLTableRowElement, activa: boolean) {
+    fila.dataset.estado = activa ? '1' : '0';
+
+    const badge = fila.querySelector('.estado-badge');
+    if (badge) {
+      badge.textContent = activa ? 'Activa' : 'Inactiva';
+      badge.className = `badge estado-badge ${activa ? 'badge-verde' : 'badge-amber'}`;
+    }
+
+    const boton = fila.querySelector<HTMLButtonElement>('.btn-toggle-empresa');
+    if (boton) {
+      boton.textContent = activa ? 'Desactivar' : 'Activar';
+      boton.className = `btn-toggle-empresa ${activa ? 'btn-peligro' : 'btn-primario'}`;
+    }
+  }
+
+  cuerpo?.addEventListener('click', async (evento) => {
+    const boton = (evento.target as HTMLElement).closest<HTMLButtonElement>('.btn-toggle-empresa');
+    const fila = boton?.closest<HTMLTableRowElement>('.fila-empresa');
+    if (!boton || !fila) return;
+
+    const activar = fila.dataset.estado !== '1';
+    const nombre = fila.dataset.nombre ?? 'esta empresa';
+    const aviso = activar
+      ? `¿Activar "${nombre}"?\n\nSu administrador podrá iniciar sesión y la empresa aparecerá en el catálogo de los clientes.`
+      : `¿Desactivar "${nombre}"?\n\nSu administrador no podrá iniciar sesión y la empresa dejará de mostrarse a los clientes.`;
+    if (!confirm(aviso)) return;
+
+    const textoOriginal = boton.textContent;
+    boton.disabled = true;
+    boton.textContent = 'Guardando...';
+
+    try {
+      const res = await fetch('/api/auth/superadmin/empresas/cambiar-estado', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idEmpresa: Number(fila.dataset.id), activar }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        pintarEstado(fila, activar);
+        contarActivas();
+        aplicarFiltros();
+      } else {
+        alert(data.message ?? 'No fue posible cambiar el estado.');
+        boton.textContent = textoOriginal;
+      }
+    } catch {
+      alert('Error de conexión.');
+      boton.textContent = textoOriginal;
+    } finally {
+      boton.disabled = false;
+    }
+  });
+
+  buscador?.addEventListener('input', aplicarFiltros);
+  filtroEstado?.addEventListener('change', aplicarFiltros);
+</script>
+
+<style>
+  .emp-resumen { font-size: 0.78rem; color: var(--gris-500); margin-top: 2px; }
+  .emp-celda { display: flex; align-items: center; gap: 12px; }
+  .emp-logo { width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, var(--azul-600), var(--violeta-600)); color: white; font-weight: 700; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+  .emp-logo img { width: 100%; height: 100%; object-fit: contain; background: white; }
+  .emp-textos { min-width: 0; }
+  .emp-nombre { font-weight: 700; color: var(--gris-800); }
+  .emp-desc { font-size: 0.75rem; color: var(--gris-500); max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .btn-toggle-empresa { cursor: pointer; font-size: 0.78rem; }
+</style>

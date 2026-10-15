@@ -1,0 +1,640 @@
+---
+
+
+export interface PedidoAdmin {
+  id: number;
+  total: number;
+  fecha: string;
+  estado: string;
+  cliente: string;
+  direccion: string;
+  metodoPago: string;
+  pagoConfirmado: boolean;
+  estadoPago: string;
+  repartidor: string;
+  totalItems: number;
+}
+
+export interface MetricasPedidos {
+  pendientes: number;
+  enTransito: number;
+  entregadosHoy: number;
+  canceladosMes: number;
+}
+
+interface Props {
+  pedidosIniciales: PedidoAdmin[];
+  metricasIniciales: MetricasPedidos;
+}
+
+const { pedidosIniciales, metricasIniciales } = Astro.props;
+---
+
+<!-- leaflet: solo para el mini-mapa de la direccion de entrega en el detalle -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<div class="encabezado-sec">
+  <span class="titulo-sec">Gestión de pedidos</span>
+  <div style="display:flex;gap:8px">
+    <input class="input-busqueda" type="text" placeholder="Buscar cliente o #pedido..." id="buscar-pedido" />
+    <select class="input-busqueda" id="filtro-estado" style="width:160px">
+      <option value="">Todos los estados</option>
+      <option value="Pendiente">Pendiente</option>
+      <option value="En preparacion">En preparación</option>
+      <option value="En transito">En tránsito</option>
+      <option value="Entregado">Entregado</option>
+      <option value="Cancelado">Cancelado</option>
+    </select>
+  </div>
+</div>
+
+<div class="grilla-metricas">
+  <div class="metrica-card accent-amber">
+    <div class="metrica-label">Pendientes</div>
+    <div class="metrica-valor" id="m-pendientes">{metricasIniciales.pendientes}</div>
+    <div class="metrica-sub">Requieren acción</div>
+  </div>
+  <div class="metrica-card accent-azul">
+    <div class="metrica-label">En tránsito</div>
+    <div class="metrica-valor" id="m-transito">{metricasIniciales.enTransito}</div>
+    <div class="metrica-sub">En camino</div>
+  </div>
+  <div class="metrica-card">
+    <div class="metrica-label">Entregados hoy</div>
+    <div class="metrica-valor" id="m-entregados">{metricasIniciales.entregadosHoy}</div>
+    <div class="metrica-sub up">↑ vs ayer</div>
+  </div>
+  <div class="metrica-card accent-rojo">
+    <div class="metrica-label">Cancelados</div>
+    <div class="metrica-valor" id="m-cancelados">{metricasIniciales.canceladosMes}</div>
+    <div class="metrica-sub">Este mes</div>
+  </div>
+</div>
+
+<div class="panel-card">
+  <table class="tabla-admin">
+    <thead>
+      <tr>
+        <th>Pedido</th>
+        <th>Cliente</th>
+        <th>Ítems</th>
+        <th>Total</th>
+        <th>Método</th>
+        <th>Pago</th>
+        <th>Estado</th>
+        <th>Repartidor</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody id="tbody-pedidos">
+      <tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:2rem">Cargando pedidos...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- modal detalle (unificado con acciones) -->
+<div class="modal-overlay" id="modal-det-admin" style="display:none">
+  <div class="modal-box" style="max-width:960px;max-height:92vh;overflow-y:auto">
+    <div class="modal-header">
+      <h2 class="modal-titulo" id="det-admin-titulo">Detalle del pedido</h2>
+      <button class="modal-cerrar" id="btn-cerrar-detalle">
+        <svg viewBox="0 0 24 24">
+          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+        </svg>
+      </button>
+    </div>
+
+    <div class="modal-body" style="gap:1rem">
+      <div id="det-admin-cabecera" class="det-admin-cabecera"></div>
+
+      <table class="tabla-admin" id="det-admin-tabla">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Cat.</th>
+            <th style="text-align:center">Cant.</th>
+            <th style="text-align:right">P. unit.</th>
+            <th style="text-align:right">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody id="det-admin-items"></tbody>
+      </table>
+
+      <div id="det-admin-totales" style="text-align:right;font-size:.85rem;padding:.5rem 0"></div>
+
+      <div id="det-admin-mapa" class="det-admin-mapa" style="display:none"></div>
+
+      <div id="det-admin-rep" class="det-admin-rep" style="display:none"></div>
+
+      <div id="det-admin-acciones" class="det-admin-acciones">
+        <div id="accion-aprobar" style="display:none">
+          <div class="det-admin-accion-label">Acción disponible</div>
+          <button class="btn-primario" data-accion="En preparacion" style="width:100%">✓ Aprobar pedido</button>
+        </div>
+
+        <div id="accion-asignar" style="display:none">
+          <div class="det-admin-accion-label">Asignar repartidor</div>
+          <div id="lista-repartidores-asignar" class="lista-repartidores-asignar">
+            <p style="color:#94a3b8;text-align:center;padding:1rem">Cargando repartidores...</p>
+          </div>
+          <div class="form-grupo">
+            <label class="form-label">Notas para el repartidor (opcional)</label>
+            <input class="form-input" id="asignar-notas" placeholder="Ej: tocar el timbre del apartamento 302" />
+          </div>
+          <div id="msg-asignar" style="display:none;margin-top:.5rem"></div>
+          <button class="btn-primario" id="btn-confirmar-asignar" disabled style="width:100%;margin-top:.5rem">
+            🚚 Asignar repartidor
+          </button>
+        </div>
+
+        <div id="accion-entregado" style="display:none">
+          <div class="det-admin-accion-label">Acción disponible</div>
+          <button class="btn-primario" data-accion="Entregado" style="width:100%;background:#16a34a">
+            ✅ Marcar como entregado
+          </button>
+        </div>
+
+        <div id="accion-cancelar" style="display:none">
+          <button class="btn-peligro" data-accion="Cancelado" style="width:100%">✕ Cancelar pedido</button>
+        </div>
+
+        <div id="det-admin-msg" style="display:none;font-size:.82rem;padding:.6rem .9rem;border-radius:8px;font-weight:600"></div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secundario" id="btn-cerrar-detalle-footer">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script define:vars={{ pedidosIniciales }}>
+  let pedidos = pedidosIniciales;
+  let pedidoAbierto = null; // id del pedido cuyo detalle esta abierto
+  let repartidorSeleccionado = null;
+  let mapaDetalle = null;
+
+  const badgeEstado = {
+    Pendiente: { clase: 'badge-amber', icono: '⏳' },
+    'En preparacion': { clase: 'badge-azul', icono: '📦' },
+    'En transito': { clase: 'badge-azul', icono: '🚚' },
+    'En tránsito': { clase: 'badge-azul', icono: '🚚' },
+    Entregado: { clase: 'badge-verde', icono: '✅' },
+    Cancelado: { clase: 'badge-slate', icono: '❌' },
+  };
+
+  const fmt = (n) => '$' + Number(n).toLocaleString('es-CO');
+
+  // ============================================================
+  // lista + metricas
+  // ============================================================
+  async function refrescarPedidos() {
+    const res = await fetch('/api/auth/admin/pedidos');
+    const data = await res.json();
+    if (!data.success) return;
+    pedidos = data.pedidos;
+    const m = data.metricas;
+    if (m) {
+      const setM = (id, v) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = v;
+      };
+      setM('m-pendientes', m.pendientes);
+      setM('m-transito', m.enTransito);
+      setM('m-entregados', m.entregadosHoy);
+      setM('m-cancelados', m.canceladosMes);
+    }
+    renderPedidos();
+  }
+
+  function renderPedidos() {
+    const tbody = document.getElementById('tbody-pedidos');
+    if (!tbody) return;
+
+    const texto = document.getElementById('buscar-pedido')?.value.toLowerCase() ?? '';
+    const estadoFiltro = document.getElementById('filtro-estado')?.value ?? '';
+
+    const filtrados = pedidos.filter(
+      (p) =>
+        (p.cliente.toLowerCase().includes(texto) || String(p.id).includes(texto)) &&
+        (!estadoFiltro || p.estado === estadoFiltro),
+    );
+
+    if (!filtrados.length) {
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:2rem">No hay pedidos registrados.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = filtrados
+      .map((p) => {
+        const est = badgeEstado[p.estado] || { clase: 'badge-slate', icono: '📋' };
+        const pagoBadge = p.pagoConfirmado
+          ? '<span class="badge badge-verde">✅ Confirmado</span>'
+          : '<span class="badge badge-amber">⏳ Pendiente</span>';
+        const metodoTxt = p.metodoPago === 'online' ? '💳 Online' : '💵 Contra entrega';
+        const repartidorTxt = p.repartidor
+          ? `<span style="font-size:.75rem;color:var(--gris-600)">🚴 ${p.repartidor}</span>`
+          : '<span style="font-size:.72rem;color:#94a3b8">Sin asignar</span>';
+
+        return `<tr>
+          <td class="celda-mono">#PED-${p.id}<div style="font-size:.68rem;color:#94a3b8">${p.fecha}</div></td>
+          <td style="font-weight:600">${p.cliente}</td>
+          <td style="text-align:center">${p.totalItems}</td>
+          <td style="font-weight:700">${fmt(p.total)}</td>
+          <td style="font-size:.8rem">${metodoTxt}</td>
+          <td>${pagoBadge}</td>
+          <td><span class="badge ${est.clase}">${est.icono} ${p.estado}</span></td>
+          <td>${repartidorTxt}</td>
+          <td><button class="btn-secundario" style="font-size:.72rem;padding:.3rem .65rem" data-accion="detalle" data-id="${p.id}">🔍 Detalle</button></td>
+        </tr>`;
+      })
+      .join('');
+  }
+
+  // ============================================================
+  // detalle del pedido
+  // ============================================================
+  async function abrirDetalle(id) {
+    ['accion-aprobar', 'accion-asignar', 'accion-entregado', 'accion-cancelar'].forEach((x) => {
+      document.getElementById(x).style.display = 'none';
+    });
+    document.getElementById('det-admin-msg').style.display = 'none';
+    document.getElementById('det-admin-rep').style.display = 'none';
+    document.getElementById('det-admin-mapa').style.display = 'none';
+
+    document.getElementById('det-admin-titulo').textContent = `Pedido #PED-${id}`;
+    document.getElementById('det-admin-cabecera').innerHTML = '<span style="color:#94a3b8">Cargando...</span>';
+    document.getElementById('det-admin-items').innerHTML = '';
+    document.getElementById('det-admin-totales').innerHTML = '';
+    document.getElementById('modal-det-admin').style.display = 'flex';
+
+    try {
+      const res = await fetch(`/api/auth/admin/pedidos/${id}`);
+      const data = await res.json();
+      if (!data.success) {
+        document.getElementById('det-admin-cabecera').innerHTML = `<span style="color:#ef4444">Error: ${data.message}</span>`;
+        return;
+      }
+
+      const c = data.data.cabecera;
+      const items = data.data.items;
+      pedidoAbierto = id;
+
+      document.getElementById('det-admin-cabecera').innerHTML = `
+        <div>
+          <div class="det-admin-mini-label">Cliente</div>
+          <div style="font-weight:600">${c.cliente}</div>
+          <div style="font-size:.75rem;color:#94a3b8">${c.clienteEmail}</div>
+        </div>
+        <div>
+          <div class="det-admin-mini-label">Fecha</div>
+          <div style="font-size:.82rem">${c.fecha}</div>
+        </div>
+        <div>
+          <div class="det-admin-mini-label">Pago</div>
+          <div style="font-size:.82rem">${c.metodoPago === 'online' ? '💳 Online' : '💵 Contra entrega'}</div>
+        </div>
+        <div>
+          <div class="det-admin-mini-label">Estado pago</div>
+          <div style="font-size:.82rem">${c.estadoPago}</div>
+        </div>
+        <div style="grid-column:1/-1">
+          <div class="det-admin-mini-label">Dirección</div>
+          <div style="font-size:.82rem">📍 ${c.direccion}</div>
+        </div>`;
+
+      let subtotal = 0;
+      document.getElementById('det-admin-items').innerHTML = items
+        .map((it) => {
+          subtotal += it.subtotal;
+          const img = it.imagenUrl
+            ? `<img src="${it.imagenUrl}" style="width:32px;height:32px;object-fit:contain;border-radius:6px;border:1px solid var(--gris-200);margin-right:6px;vertical-align:middle">`
+            : '';
+          return `<tr>
+            <td>${img}<span style="font-weight:500">${it.nombre}</span></td>
+            <td style="font-size:.75rem;color:#94a3b8">${it.categoria}</td>
+            <td style="text-align:center">${it.cantidad}</td>
+            <td style="text-align:right">${fmt(it.precioUnitario)}</td>
+            <td style="text-align:right;font-weight:600">${fmt(it.subtotal)}</td>
+          </tr>`;
+        })
+        .join('');
+
+      const envio = Number(c.total) - subtotal;
+      document.getElementById('det-admin-totales').innerHTML = `
+        <div style="display:inline-flex;flex-direction:column;gap:4px;min-width:200px;text-align:right">
+          <div style="font-size:.8rem;color:#94a3b8">Subtotal: <strong>${fmt(subtotal)}</strong></div>
+          <div style="font-size:.8rem;color:#94a3b8">Envío: <strong>${fmt(envio > 0 ? envio : 8000)}</strong></div>
+          <div style="font-size:1rem;font-weight:700;color:var(--gris-900);border-top:1px solid var(--gris-200);padding-top:4px;margin-top:2px">
+            Total: ${fmt(c.total)}
+          </div>
+        </div>`;
+
+      if (c.repartidor) {
+        const el = document.getElementById('det-admin-rep');
+        el.innerHTML = `🚴 Repartidor asignado: <strong>${c.repartidor}</strong>`;
+        el.style.display = 'block';
+      }
+
+      if (c.latitud && c.longitud) {
+        const mapaEl = document.getElementById('det-admin-mapa');
+        mapaEl.style.display = 'block';
+        setTimeout(() => {
+          if (mapaDetalle) {
+            mapaDetalle.remove();
+            mapaDetalle = null;
+          }
+          mapaDetalle = window.L.map('det-admin-mapa', { zoomControl: false, dragging: false, scrollWheelZoom: false }).setView(
+            [c.latitud, c.longitud],
+            16,
+          );
+          window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(mapaDetalle);
+          window.L.circleMarker([c.latitud, c.longitud], { radius: 10, fillColor: '#2563eb', color: '#fff', weight: 3, fillOpacity: 1 }).addTo(
+            mapaDetalle,
+          );
+          mapaDetalle.invalidateSize();
+        }, 200);
+      }
+
+      const estado = c.estado;
+      const esFinal = estado === 'Entregado' || estado === 'Cancelado';
+
+      if (estado === 'Pendiente') document.getElementById('accion-aprobar').style.display = 'block';
+      if (estado === 'En preparacion') {
+        document.getElementById('accion-asignar').style.display = 'block';
+        cargarRepartidoresDisponibles();
+      }
+      if (estado === 'En transito' || estado === 'En tránsito') document.getElementById('accion-entregado').style.display = 'block';
+      if (!esFinal) document.getElementById('accion-cancelar').style.display = 'block';
+    } catch (err) {
+      console.error('Error detalle admin:', err);
+    }
+  }
+
+  function cerrarDetalle() {
+    document.getElementById('modal-det-admin').style.display = 'none';
+  }
+
+  // ============================================================
+  // asignar repartidor (dentro del detalle)
+  // ============================================================
+  async function cargarRepartidoresDisponibles() {
+    repartidorSeleccionado = null;
+    document.getElementById('btn-confirmar-asignar').disabled = true;
+    const msg = document.getElementById('msg-asignar');
+    if (msg) msg.style.display = 'none';
+
+    const lista = document.getElementById('lista-repartidores-asignar');
+    lista.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:1rem">Cargando...</p>';
+
+    try {
+      const res = await fetch('/api/auth/admin/repartidores/disponibles');
+      const data = await res.json();
+      if (!data.success || !data.data.length) {
+        lista.innerHTML = `<p style="color:#94a3b8;text-align:center;padding:1rem">No hay repartidores registrados.</p>`;
+        return;
+      }
+      lista.innerHTML = data.data
+        .map((r) => {
+          const ini = `${r.nombre[0]}${r.apellido?.[0] || ''}`.toUpperCase();
+          const avatarHtml = r.imagenUrl
+            ? `<img src="${r.imagenUrl}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--gris-200)">`
+            : `<div class="rep-avatar-mini">${ini}</div>`;
+          const disponibleBadge = r.disponible
+            ? '<span class="badge-disponible">Disponible</span>'
+            : `<span class="badge-ocupado">${r.pedidosActivos} activo(s)</span>`;
+          return `<div class="rep-asignar-item" id="rep-item-${r.id}" data-id="${r.id}">
+            ${avatarHtml}
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;font-size:.85rem">${r.nombre} ${r.apellido}</div>
+              <div style="font-size:.73rem;color:#94a3b8">${r.telefono || ''}</div>
+            </div>
+            ${disponibleBadge}
+          </div>`;
+        })
+        .join('');
+    } catch {
+      lista.innerHTML = `<p style="color:#ef4444;padding:1rem">Error al cargar repartidores.</p>`;
+    }
+  }
+
+  function seleccionarRepartidor(id) {
+    repartidorSeleccionado = id;
+    document.querySelectorAll('.rep-asignar-item').forEach((el) => el.classList.remove('rep-asignar-item-activo'));
+    document.getElementById(`rep-item-${id}`)?.classList.add('rep-asignar-item-activo');
+    document.getElementById('btn-confirmar-asignar').disabled = false;
+  }
+
+  async function confirmarAsignacion() {
+    if (!pedidoAbierto || !repartidorSeleccionado) return;
+    const btn = document.getElementById('btn-confirmar-asignar');
+    const msg = document.getElementById('msg-asignar');
+    const notas = document.getElementById('asignar-notas').value.trim();
+    btn.textContent = 'Asignando...';
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/auth/admin/repartidores/asignar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idPedido: pedidoAbierto, idRepartidor: repartidorSeleccionado, notas: notas || null }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        msg.textContent = '✅ ' + data.message;
+        msg.className = 'admin-msg-ok';
+        msg.style.display = 'block';
+        setTimeout(() => {
+          cerrarDetalle();
+          refrescarPedidos();
+        }, 1400);
+      } else {
+        msg.textContent = '❌ ' + data.message;
+        msg.className = 'admin-msg-err';
+        msg.style.display = 'block';
+        btn.textContent = 'Asignar repartidor';
+        btn.disabled = false;
+      }
+    } catch {
+      msg.textContent = '❌ Error de conexión.';
+      msg.className = 'admin-msg-err';
+      msg.style.display = 'block';
+      btn.textContent = 'Asignar repartidor';
+      btn.disabled = false;
+    }
+  }
+
+  // ============================================================
+  // cambiar estado (aprobar / entregar / cancelar) desde el detalle
+  // ============================================================
+  async function accionDesdeDetalle(nuevoEstado) {
+    if (!pedidoAbierto) return;
+    if (!confirm(`¿Cambiar pedido #PED-${pedidoAbierto} a "${nuevoEstado}"?`)) return;
+
+    const msg = document.getElementById('det-admin-msg');
+    try {
+      const res = await fetch('/api/auth/admin/pedidos/cambiar-estado', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idPedido: pedidoAbierto, nuevoEstado }),
+      });
+      const data = await res.json();
+      msg.style.display = 'block';
+      if (data.success) {
+        msg.textContent = `✅ ${data.message}`;
+        msg.className = 'admin-msg-ok';
+        await refrescarPedidos();
+        if (nuevoEstado === 'Cancelado' || nuevoEstado === 'Entregado') {
+          setTimeout(cerrarDetalle, 1200);
+        } else {
+          setTimeout(() => abrirDetalle(pedidoAbierto), 900);
+        }
+      } else {
+        msg.textContent = `❌ ${data.message}`;
+        msg.className = 'admin-msg-err';
+      }
+    } catch {
+      msg.textContent = '❌ Error de conexión.';
+      msg.className = 'admin-msg-err';
+      msg.style.display = 'block';
+    }
+  }
+
+  // ============================================================
+  // listeners
+  // ============================================================
+  document.getElementById('buscar-pedido')?.addEventListener('input', renderPedidos);
+  document.getElementById('filtro-estado')?.addEventListener('change', renderPedidos);
+  document.getElementById('btn-cerrar-detalle')?.addEventListener('click', cerrarDetalle);
+  document.getElementById('btn-cerrar-detalle-footer')?.addEventListener('click', cerrarDetalle);
+  document.getElementById('btn-confirmar-asignar')?.addEventListener('click', confirmarAsignacion);
+
+  document.getElementById('modal-det-admin')?.addEventListener('click', function (e) {
+    if (e.target === this) cerrarDetalle();
+  });
+
+  document.getElementById('tbody-pedidos')?.addEventListener('click', (e) => {
+    const boton = e.target.closest('button[data-accion="detalle"]');
+    if (boton) abrirDetalle(Number(boton.dataset.id));
+  });
+
+  document.getElementById('det-admin-acciones')?.addEventListener('click', (e) => {
+    const boton = e.target.closest('button[data-accion]');
+    if (boton && boton.dataset.accion !== 'detalle') accionDesdeDetalle(boton.dataset.accion);
+  });
+
+  document.getElementById('lista-repartidores-asignar')?.addEventListener('click', (e) => {
+    const item = e.target.closest('.rep-asignar-item');
+    if (item) seleccionarRepartidor(Number(item.dataset.id));
+  });
+
+  renderPedidos();
+</script>
+
+<style>
+  .det-admin-cabecera {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    padding: 0.85rem;
+    background: var(--gris-50);
+    border-radius: 10px;
+    font-size: 0.83rem;
+  }
+
+  .det-admin-mini-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+  }
+
+  .det-admin-mapa {
+    height: 200px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--gris-200);
+  }
+
+  .det-admin-rep {
+    font-size: 0.82rem;
+    padding: 0.65rem 0.9rem;
+    border-radius: 8px;
+    background: var(--azul-50);
+    color: var(--azul-700);
+  }
+
+  .det-admin-acciones {
+    border-top: 1px solid var(--gris-200);
+    padding-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .det-admin-accion-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--gris-500);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.5rem;
+  }
+
+  .lista-repartidores-asignar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 260px;
+    overflow-y: auto;
+    margin-bottom: 0.5rem;
+  }
+
+  .rep-asignar-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border: 2px solid var(--gris-200);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .rep-asignar-item-activo {
+    border-color: var(--azul-500) !important;
+    background: var(--azul-50);
+  }
+
+  .rep-avatar-mini {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--azul-600), var(--violeta-600));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 0.75rem;
+    color: white;
+    flex-shrink: 0;
+  }
+
+  .badge-disponible {
+    font-size: 0.65rem;
+    font-weight: 700;
+    background: var(--verde-100);
+    color: #166534;
+    padding: 2px 8px;
+    border-radius: 100px;
+  }
+
+  .badge-ocupado {
+    font-size: 0.65rem;
+    font-weight: 700;
+    background: var(--amber-100);
+    color: #92400e;
+    padding: 2px 8px;
+    border-radius: 100px;
+  }
+</style>

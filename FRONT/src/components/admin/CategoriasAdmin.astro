@@ -1,0 +1,282 @@
+---
+// src/components/admin/CategoriasAdmin.astro
+// puerto de Views/Admin/Categorias.cshtml + la parte de categorias de Script_Admin.js
+
+export interface CategoriaAdmin {
+  id_categoria: number;
+  nombre: string;
+}
+
+interface Props {
+  categoriasIniciales: CategoriaAdmin[];
+}
+
+const { categoriasIniciales } = Astro.props;
+---
+
+<div class="encabezado-sec">
+  <span class="titulo-sec">Gestión de categorías</span>
+</div>
+
+<div class="grid-categorias">
+  <!-- panel izquierdo: nueva categoria -->
+  <div class="panel-card panel-card-body">
+    <div class="titulo-panel-izq">Nueva categoría</div>
+
+    <div id="msg-nueva-cat" style="display:none;margin-bottom:0.75rem"></div>
+
+    <label class="form-label">Nombre</label>
+    <input class="form-input" id="input-nueva-cat" placeholder="Ej: Bebidas, Aseo, Lácteos..." maxlength="100" />
+
+    <button class="btn-primario" id="btn-crear-cat" style="margin-top:0.85rem;width:100%">
+      <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" /></svg>
+      Agregar categoría
+    </button>
+  </div>
+
+  <!-- panel derecho: lista -->
+  <div class="panel-card">
+    <div class="cabecera-lista-cat">
+      <span style="font-weight:700;font-size:0.9rem;color:var(--slate-800)">Mis categorías</span>
+      <span style="font-size:0.78rem;color:var(--slate-400)" id="total-categorias">
+        {categoriasIniciales.length} categoría{categoriasIniciales.length !== 1 ? 's' : ''}
+      </span>
+    </div>
+
+    <div id="lista-categorias" style="padding:0.5rem 0">
+      {categoriasIniciales.length === 0 && (
+        <p style="text-align:center;color:#94a3b8;padding:2rem">No hay categorías aún.</p>
+      )}
+    </div>
+  </div>
+</div>
+
+<!-- modal renombrar -->
+<div class="modal-overlay" id="modal-renombrar" style="display:none">
+  <div class="modal-box" style="max-width:400px">
+    <div class="modal-header">
+      <h2 class="modal-titulo">Renombrar categoría</h2>
+      <button class="modal-cerrar" id="btn-cerrar-renombrar">
+        <svg viewBox="0 0 24 24">
+          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="renombrar-id" />
+      <div id="msg-renombrar" style="display:none;margin-bottom:0.75rem"></div>
+      <label class="form-label">Nuevo nombre</label>
+      <input class="form-input" id="renombrar-nombre" maxlength="100" placeholder="Nombre de la categoría" />
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secundario" id="btn-cancelar-renombrar">Cancelar</button>
+      <button class="btn-primario" id="btn-confirmar-renombrar">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script define:vars={{ categoriasIniciales }}>
+  let categorias = categoriasIniciales;
+
+  const iconoCategoria = `
+    <svg viewBox="0 0 24 24">
+      <path d="M12 2l-5.5 9h11L12 2zm0 3.84L13.93 9h-3.87L12
+      5.84zM17.5 13c-2.49 0-4.5 2.01-4.5 4.5S15.01 22 17.5
+      22s4.5-2.01 4.5-4.5S19.99 13 17.5 13zm0 7a2.5 2.5 0
+      010-5 2.5 2.5 0 010 5zM3 21.5h8v-8H3v8zm2-6h4v4H5v-4z"/></svg>`;
+
+  function escaparComillas(texto) {
+    return texto.replace(/'/g, "\\'");
+  }
+
+  // ============================================================
+  // render de la lista
+  // ============================================================
+  function renderLista() {
+    const lista = document.getElementById('lista-categorias');
+    const total = document.getElementById('total-categorias');
+    if (!lista) return;
+
+    if (total) total.textContent = `${categorias.length} categoría${categorias.length !== 1 ? 's' : ''}`;
+
+    if (!categorias.length) {
+      lista.innerHTML = `<p style="text-align:center;color:#94a3b8;padding:2rem">No hay categorías aún.</p>`;
+      return;
+    }
+
+    lista.innerHTML = categorias
+      .map(
+        (c) => `
+      <div class="cat-item" id="cat-item-${c.id_categoria}">
+        <div class="cat-icono">${iconoCategoria}</div>
+        <span class="cat-nombre">${c.nombre}</span>
+        <div class="cat-acciones">
+          <button class="btn-secundario btn-cat-sm" data-accion="renombrar" data-id="${c.id_categoria}" data-nombre="${escaparComillas(c.nombre)}">Renombrar</button>
+          <button class="btn-peligro btn-cat-sm" data-accion="eliminar" data-id="${c.id_categoria}" data-nombre="${escaparComillas(c.nombre)}">Eliminar</button>
+        </div>
+      </div>`,
+      )
+      .join('');
+  }
+
+  // ============================================================
+  // backend
+  // ============================================================
+  async function refrescarCategorias() {
+    const res = await fetch('/api/auth/admin/categorias');
+    const data = await res.json();
+    if (data.success) {
+      categorias = data.data;
+      renderLista();
+    }
+  }
+
+  function mostrarMensaje(elId, texto, ok) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    el.textContent = texto;
+    el.className = ok ? 'admin-msg-ok' : 'admin-msg-err';
+    el.style.display = 'block';
+    setTimeout(() => {
+      el.style.display = 'none';
+    }, 4000);
+  }
+
+  async function crearCategoria() {
+    const input = document.getElementById('input-nueva-cat');
+    const nombre = input?.value.trim() ?? '';
+    if (!nombre) return mostrarMensaje('msg-nueva-cat', 'Escribe un nombre.', false);
+
+    try {
+      const res = await fetch('/api/auth/admin/categorias', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        mostrarMensaje('msg-nueva-cat', '✓ ' + data.message, true);
+        input.value = '';
+        await refrescarCategorias();
+      } else {
+        mostrarMensaje('msg-nueva-cat', '✗ ' + data.message, false);
+      }
+    } catch {
+      mostrarMensaje('msg-nueva-cat', '✗ Error de conexión.', false);
+    }
+  }
+
+  async function eliminarCategoria(id, nombre) {
+    if (!confirm(`¿Eliminar "${nombre}"?`)) return;
+    try {
+      const res = await fetch('/api/auth/admin/categorias/eliminar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idCategoria: id }),
+      });
+      const data = await res.json();
+      if (data.success) await refrescarCategorias();
+      else alert('⚠️ ' + data.message);
+    } catch {
+      alert('Error de conexión.');
+    }
+  }
+
+  function abrirModalRenombrar(id, nombreActual) {
+    document.getElementById('renombrar-id').value = String(id);
+    document.getElementById('renombrar-nombre').value = nombreActual;
+    document.getElementById('msg-renombrar').style.display = 'none';
+    document.getElementById('modal-renombrar').style.display = 'flex';
+    setTimeout(() => document.getElementById('renombrar-nombre')?.focus(), 100);
+  }
+
+  function cerrarModalRenombrar() {
+    document.getElementById('modal-renombrar').style.display = 'none';
+  }
+
+  async function confirmarRenombrar() {
+    const id = document.getElementById('renombrar-id')?.value;
+    const nuevoNombre = document.getElementById('renombrar-nombre')?.value.trim() ?? '';
+    if (!nuevoNombre) return mostrarMensaje('msg-renombrar', 'El nombre no puede estar vacío.', false);
+
+    try {
+      const res = await fetch('/api/auth/admin/categorias/renombrar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idCategoria: Number(id), nuevoNombre }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        cerrarModalRenombrar();
+        await refrescarCategorias();
+      } else {
+        mostrarMensaje('msg-renombrar', '✗ ' + data.message, false);
+      }
+    } catch {
+      mostrarMensaje('msg-renombrar', '✗ Error de conexión.', false);
+    }
+  }
+
+  // ============================================================
+  // listeners
+  // ============================================================
+  document.getElementById('btn-crear-cat')?.addEventListener('click', crearCategoria);
+  document.getElementById('input-nueva-cat')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') crearCategoria();
+  });
+
+  document.getElementById('btn-cerrar-renombrar')?.addEventListener('click', cerrarModalRenombrar);
+  document.getElementById('btn-cancelar-renombrar')?.addEventListener('click', cerrarModalRenombrar);
+  document.getElementById('btn-confirmar-renombrar')?.addEventListener('click', confirmarRenombrar);
+  document.getElementById('renombrar-nombre')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') confirmarRenombrar();
+  });
+
+  document.getElementById('lista-categorias')?.addEventListener('click', (e) => {
+    const boton = e.target.closest('button[data-accion]');
+    if (!boton) return;
+    const id = Number(boton.dataset.id);
+    const nombre = boton.dataset.nombre ?? '';
+    if (boton.dataset.accion === 'renombrar') abrirModalRenombrar(id, nombre);
+    if (boton.dataset.accion === 'eliminar') eliminarCategoria(id, nombre);
+  });
+
+  renderLista();
+</script>
+
+<style>
+  .grid-categorias {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  .titulo-panel-izq {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--slate-800);
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--slate-100);
+  }
+
+  .cabecera-lista-cat {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--slate-100);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .btn-cat-sm {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.7rem;
+  }
+
+  @media (max-width: 768px) {
+    .grid-categorias {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

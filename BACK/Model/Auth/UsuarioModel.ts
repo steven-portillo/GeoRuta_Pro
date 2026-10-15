@@ -131,12 +131,18 @@ export class Usuario {
       );
 
       if (!usuario) {
-        return { success: false, message: "Credenciales incorrectas" };
+        return {
+          success: false,
+          message: "Credenciales incorrectas"
+        };
       }
 
       const passwordValido = await compare(password, usuario.password_hash);
       if (!passwordValido) {
-        return { success: false, message: "Credenciales incorrectas" };
+        return {
+          success: false,
+          message: "Credenciales incorrectas"
+        };
       }
 
       if (!usuario.activo) {

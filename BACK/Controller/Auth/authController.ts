@@ -1,6 +1,6 @@
 import { Context } from "../../Dependencies/dependencias.ts";
 import { Usuario } from "../../Model/Auth/UsuarioModel.ts";
-import { crearToken } from "../../Helpers/Jwt.ts";
+import { crearToken } from "../../Helpers/JWT.ts";
 import {
   generarNombreUnico,
   rutaFisicaArchivo,
@@ -44,16 +44,28 @@ export const iniciarSesion = async (ctx: Context) => {
     const result = await objUsuario.IniciarSesion();
 
     if (result.success && result.data) {
+
       const token = await crearToken({
         id: result.data.idUsuario,
         nombre: result.data.nombre,
         rol: result.data.rol,
         idEmpresa: result.data.idEmpresa,
       });
+
       response.status = 200;
       response.body = {
         success: true,
-        accessToken: token,
+        message: result.message,
+        data: {
+          token,
+          usuario:{
+            id: result.data.idUsuario,
+            nombre: result.data.nombre,
+            email: result.data.email,
+            rol:result.data.rol,
+            imagenUrl: null,
+          },
+        },
       };
     } else {
       response.status = 401;

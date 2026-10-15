@@ -1,0 +1,94 @@
+---
+// src/pages/superadmin/inicio.astro
+import SuperAdminLayout from '../../layouts/SuperAdminLayout.astro';
+import InicioSuperAdmin from '../../components/superadmin/InicioSuperAdmin.astro';
+import type { MetricasSuperAdmin, EmpresaPendiente } from '../../components/superadmin/InicioSuperAdmin.astro';
+import type { EmpresaSuperAdmin } from '../../components/superadmin/EmpresasSuperAdmin.astro';
+
+const token = Astro.cookies.get('token')?.value ?? '';
+
+const [respuestaPerfil, respuestaEmpresas, respuestaUsuarios] = await Promise.all([
+  solicitarAPI<{ nombre: string; apellido: string; imagenUrl?: string }>('/superadmin/perfil', { token }),
+  solicitarAPI<EmpresaSuperAdmin[]>('/superadmin/empresas', { token }),
+  solicitarAPI<{ total: number }>('/superadmin/usuarios/total', { token }),
+]);
+
+const perfil = respuestaPerfil.datos.data ?? { nombre: '', apellido: '' };
+const empresas = respuestaEmpresas.datos.data ?? [];
+
+// el backend ya devuelve las empresas de la mas reciente a la mas antigua
+const inactivas = empresas.filter((e) => !e.estado);
+
+const metricas: MetricasSuperAdmin = {
+  totalEmpresas: empresas.length,
+  empresasActivas: empresas.length - inactivas.length,
+  empresasInactivas: inactivas.length,
+  totalUsuarios: respuestaUsuarios.datos.data?.total ?? 0,
+};
+
+// solo las 5 mas recientes; el resto se ve en la pagina de empresas
+const pendientes: EmpresaPendiente[] = inactivas.slice(0, 5);
+type OpcionesSolicitud = {
+  metodo?: string;
+  token?: string | null;
+  cuerpo?: unknown;
+  headers?: HeadersInit;
+  query?: Record<string, string | number | boolean | null | undefined>;
+  timeoutMs?: number;
+};
+
+async function solicitarAPI<T = any>(ruta: string, opciones: OpcionesSolicitud = {}): Promise<{ ok: boolean; status: number; datos: { [clave: string]: any; data?: T; success?: boolean; message?: string; error?: string } }> {
+  const { metodo = 'GET', token, cuerpo, headers: encabezadosIniciales, query, timeoutMs = 20_000 } = opciones;
+  const absoluta = /^https?:\/\//i.test(ruta);
+  const rutaNormalizada = absoluta || ruta.startsWith('/') ? ruta : `/${ruta}`;
+  const requiereApi = !absoluta && !rutaNormalizada.startsWith('/api') && !rutaNormalizada.startsWith('/ws') && !rutaNormalizada.startsWith('/img');
+  const baseUrl = import.meta.env.API_DENO ?? 'http://127.0.0.1:8005';
+  const url = new URL(absoluta ? rutaNormalizada : `${baseUrl.replace(/\/+$/, '')}${requiereApi ? '/api' : ''}${rutaNormalizada}`);
+  for (const [clave, valor] of Object.entries(query ?? {})) {
+    if (valor !== undefined && valor !== null) url.searchParams.set(clave, String(valor));
+  }
+  const headers = new Headers(encabezadosIniciales);
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  let body: BodyInit | undefined;
+  if (cuerpo !== undefined && cuerpo !== null && metodo.toUpperCase() !== 'GET' && metodo.toUpperCase() !== 'HEAD') {
+    if (typeof cuerpo === 'string' || cuerpo instanceof FormData || cuerpo instanceof URLSearchParams || (typeof Blob !== 'undefined' && cuerpo instanceof Blob) || (typeof ArrayBuffer !== 'undefined' && cuerpo instanceof ArrayBuffer)) {
+      body = cuerpo as BodyInit;
+    } else {
+      if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+      body = JSON.stringify(cuerpo);
+    }
+  }
+  const controller = new AbortController();
+  const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const respuesta = await fetch(url, { method: metodo, headers, body, signal: controller.signal });
+    const texto = await respuesta.text();
+    let datos: any = { success: respuesta.ok, message: 'Sin contenido' };
+    if (texto) {
+      try { datos = JSON.parse(texto); }
+      catch { datos = { success: false, message: texto }; }
+    }
+    return { ok: respuesta.ok, status: respuesta.status, datos };
+  } catch (error) {
+    console.error(`Error al llamar al backend (${ruta}):`, error);
+    return { ok: false, status: 502, datos: { success: false, message: error instanceof Error ? error.message : 'Error al contactar con el backend' } };
+  } finally {
+    globalThis.clearTimeout(timeout);
+  }
+}
+
+---
+
+<SuperAdminLayout
+  titulo="Inicio"
+  vistaActual="inicio"
+  nombreAdmin={`${perfil.nombre} ${perfil.apellido}`.trim()}
+  imagenUrl={perfil.imagenUrl || null}
+>
+  <InicioSuperAdmin
+    nombre={perfil.nombre}
+    apellido={perfil.apellido}
+    metricas={metricas}
+    pendientes={pendientes}
+  />
+</SuperAdminLayout>

@@ -6,6 +6,7 @@ import {
   registrarEmpresa,
   cerrarSesion,
 } from "../../Controller/Auth/authController.ts";
+import { loginGoogle } from "../../Controller/Auth/AuthGoogle.ts";
 import { authMiddleware } from "../../Middlewares/validarJWT.ts";
 
 const authRouter = new Router();
@@ -15,5 +16,6 @@ authRouter.post("/api/auth/login", iniciarSesion);
 authRouter.post("/api/auth/register", registrarCliente);
 authRouter.post("/api/auth/register-empresa", registrarEmpresa);
 authRouter.post("/api/auth/logout", cerrarSesion);
+authRouter.post("/auth/google", loginGoogle);
 
 export { authRouter };

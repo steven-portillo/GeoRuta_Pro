@@ -1,0 +1,154 @@
+---
+// src/layouts/SuperAdminLayout.astro
+// mismo shell que AdminLayout (sidebar + cabecera), pero contra /superadmin/* y sin marca de empresa:
+// el superadmin es un rol de plataforma, no pertenece a ninguna empresa
+import '../styles/AdminPanel.css';
+import Sidebar from '../components/comunes/Sidebar.astro';
+import type { SidebarLink } from '../components/comunes/Sidebar.astro';
+
+interface Props {
+  titulo: string;
+  vistaActual: 'inicio' | 'empresas' | 'perfil';
+  // si la pagina ya cargo el perfil, los manda y el layout no repite la peticion
+  nombreAdmin?: string;
+  imagenUrl?: string | null;
+}
+
+const { titulo, vistaActual, nombreAdmin, imagenUrl } = Astro.props;
+
+let nombreCompleto = nombreAdmin;
+let foto = imagenUrl;
+
+if (nombreCompleto === undefined) {
+  try {
+    const token = Astro.cookies.get('token')?.value ?? '';
+    const respuesta = await solicitarAPI<{ nombre?: string; apellido?: string; imagenUrl?: string }>(
+      '/superadmin/perfil',
+      { token },
+    );
+    const perfil = respuesta.datos.data ?? {};
+    nombreCompleto = `${perfil.nombre ?? ''} ${perfil.apellido ?? ''}`.trim();
+    foto = perfil.imagenUrl || null;
+  } catch (error) {
+    // si el backend no responde el sidebar igual se pinta, solo sin nombre/foto
+    console.error('SuperAdminLayout: no se pudo cargar el perfil', error);
+  }
+}
+
+const links: SidebarLink[] = [
+  { href: '/superadmin/inicio', label: 'Inicio', icon: 'bi-house-door' },
+  { href: '/superadmin/empresas', label: 'Empresas', icon: 'bi-buildings' },
+];
+
+// la vista "perfil" no esta en la lista, asi que no marca ningun link como activo
+const activePath = `/superadmin/${vistaActual}`;
+type OpcionesSolicitud = {
+  metodo?: string;
+  token?: string | null;
+  cuerpo?: unknown;
+  headers?: HeadersInit;
+  query?: Record<string, string | number | boolean | null | undefined>;
+  timeoutMs?: number;
+};
+
+async function solicitarAPI<T = any>(ruta: string, opciones: OpcionesSolicitud = {}): Promise<{ ok: boolean; status: number; datos: { [clave: string]: any; data?: T; success?: boolean; message?: string; error?: string } }> {
+  const { metodo = 'GET', token, cuerpo, headers: encabezadosIniciales, query, timeoutMs = 20_000 } = opciones;
+  const absoluta = /^https?:\/\//i.test(ruta);
+  const rutaNormalizada = absoluta || ruta.startsWith('/') ? ruta : `/${ruta}`;
+  const requiereApi = !absoluta && !rutaNormalizada.startsWith('/api') && !rutaNormalizada.startsWith('/ws') && !rutaNormalizada.startsWith('/img');
+  const baseUrl = import.meta.env.API_DENO ?? 'http://127.0.0.1:8005';
+  const url = new URL(absoluta ? rutaNormalizada : `${baseUrl.replace(/\/+$/, '')}${requiereApi ? '/api' : ''}${rutaNormalizada}`);
+  for (const [clave, valor] of Object.entries(query ?? {})) {
+    if (valor !== undefined && valor !== null) url.searchParams.set(clave, String(valor));
+  }
+  const headers = new Headers(encabezadosIniciales);
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  let body: BodyInit | undefined;
+  if (cuerpo !== undefined && cuerpo !== null && metodo.toUpperCase() !== 'GET' && metodo.toUpperCase() !== 'HEAD') {
+    if (typeof cuerpo === 'string' || cuerpo instanceof FormData || cuerpo instanceof URLSearchParams || (typeof Blob !== 'undefined' && cuerpo instanceof Blob) || (typeof ArrayBuffer !== 'undefined' && cuerpo instanceof ArrayBuffer)) {
+      body = cuerpo as BodyInit;
+    } else {
+      if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+      body = JSON.stringify(cuerpo);
+    }
+  }
+  const controller = new AbortController();
+  const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const respuesta = await fetch(url, { method: metodo, headers, body, signal: controller.signal });
+    const texto = await respuesta.text();
+    let datos: any = { success: respuesta.ok, message: 'Sin contenido' };
+    if (texto) {
+      try { datos = JSON.parse(texto); }
+      catch { datos = { success: false, message: texto }; }
+    }
+    return { ok: respuesta.ok, status: respuesta.status, datos };
+  } catch (error) {
+    console.error(`Error al llamar al backend (${ruta}):`, error);
+    return { ok: false, status: 502, datos: { success: false, message: error instanceof Error ? error.message : 'Error al contactar con el backend' } };
+  } finally {
+    globalThis.clearTimeout(timeout);
+  }
+}
+
+---
+
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{titulo} — GeoRuta SuperAdmin</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
+  </head>
+  <body>
+    <Sidebar
+      activePath={activePath}
+      links={links}
+      perfilHref="/superadmin/perfil"
+      usuario={{ nombre: nombreCompleto || 'Superadministrador', fotoUrl: foto || undefined }}
+    />
+
+    <!-- aplica el estado colapsado ANTES del primer pintado para que no haya parpadeo al navegar -->
+    <script is:inline>
+      if (localStorage.getItem('sidebar-collapsed') === 'true' && window.innerWidth >= 992) {
+        document.body.classList.add('sidebar-collapsed');
+        document.getElementById('appSidebar')?.classList.add('is-collapsed');
+      }
+    </script>
+
+    <div class="sa-contenedor">
+      <main class="sa-main">
+        <div class="sa-page-header">
+          <div>
+            <h1 class="sa-page-titulo">{titulo}</h1>
+            <p class="sa-page-sub">
+              <span class="sa-badge-sistema">● SISTEMA ACTIVO</span>
+            </p>
+          </div>
+          <div class="sa-page-acciones">
+            <span class="sa-fecha" id="admin-fecha-hoy"></span>
+          </div>
+        </div>
+        <div class="sa-zona-contenido">
+          <slot />
+        </div>
+      </main>
+    </div>
+
+    <script>
+      const elFecha = document.getElementById('admin-fecha-hoy');
+      if (elFecha) {
+        const ahora = new Date();
+        elFecha.textContent =
+          '📅 ' +
+          ahora
+            .toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric' })
+            .toUpperCase();
+      }
+    </script>
+  </body>
+</html>

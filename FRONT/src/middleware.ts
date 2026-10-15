@@ -1,58 +1,79 @@
+// src/middleware.ts
 import { defineMiddleware } from "astro:middleware";
-import { verificarTokenAstro } from "./lib/jwt";
+import { jwtVerify } from "jose";
 
-const RUTAS_PUBLICAS = ["/", "/auth/login", "/auth/signin", "/auth/signin-empresa", "/auth/password"];
+declare global {
+  namespace App {
+    interface Locals {
+      usuario: {
+        idUsuario: number;
+        idEmpresa: number | null;
+        rol: string;
+      };
+    }
+  }
+}
 
+/** Misma cookie que setea pages/api/auth/login.ts */
+const NOMBRE_COOKIE = "token";
+
+const RUTAS_PROTEGIDAS: { prefijo: string; rol: string }[] = [
+  { prefijo: "/cliente", rol: "CLIENTE" },
+  { prefijo: "/api/auth/cliente", rol: "CLIENTE" },
+  { prefijo: "/admin", rol: "ADMIN" },
+  { prefijo: "/api/auth/admin", rol: "ADMIN" },
+  { prefijo: "/proveedor", rol: "PROVEEDOR" },
+  { prefijo: "/api/auth/proveedor", rol: "PROVEEDOR" },
+  { prefijo: "/superadmin", rol: "SUPERADMIN" },
+  { prefijo: "/api/auth/superadmin", rol: "SUPERADMIN" },
+];
+
+async function obtenerClaveSecreta(): Promise<Uint8Array> {
+  const secreto = import.meta.env.JWT_SECRET;
+  if (!secreto) {
+    throw new Error("JWT_SECRET no está configurada en el .env de Astro");
+  }
+  return new TextEncoder().encode(secreto);
+}
 
 export const onRequest = defineMiddleware(async (context, next) => {
-    const { url, cookies, redirect, locals } = context;
-    const path = url.pathname;
+  const { pathname } = context.url;
 
-    if (path.startsWith("/api/")) {
-        return next();
+  const rutaProtegida = RUTAS_PROTEGIDAS.find((r) =>
+    pathname.startsWith(r.prefijo),
+  );
+
+  // Públicas: login, registro, home, /api/auth/login, etc.
+  if (!rutaProtegida) {
+    return next();
+  }
+
+  const token = context.cookies.get(NOMBRE_COOKIE)?.value;
+
+  if (!token) {
+    return context.redirect("/login");
+  }
+
+  try {
+    const clave = await obtenerClaveSecreta();
+    const { payload } = await jwtVerify(token, clave);
+
+    const rol = String(payload.rol ?? "").toUpperCase();
+
+    if (rol !== rutaProtegida.rol) {
+      return context.redirect("/login?error=sin_permisos");
     }
 
-    const token = cookies.get("token")?.value;
-    const usuario = await verificarTokenAstro(token);
-    locals.usuario = usuario;
-
-    const esPublica = RUTAS_PUBLICAS.some(
-        (r) => path === r || path.startsWith(r + "/"),
-    );
-
-    if (esPublica) {
-        if (usuario) {
-            const rol = usuario.rol?.toUpperCase();
-            if (rol === "SUPERADMIN") return redirect("/superadmin/");
-            if (rol === "ADMIN") return redirect("/admin/");
-            if (rol === "PROVEEDOR") return redirect("/repartidor/");
-            if (rol === "CLIENTE") return redirect("/cliente/");
-            return redirect("/");
-        }
-        return next();
-    }
-
-
-    if (!usuario) {
-        return redirect("/");
-    }
-
-    if (path.startsWith("/superadmin") && usuario.rol !== "SUPERADMIN") {
-        cookies.delete("token", { path: "/" });
-        return redirect("/");
-    }
-    if (path.startsWith("/admin") && usuario.rol !== "ADMIN") {
-        cookies.delete("token", { path: "/" });
-        return redirect("/");
-    }
-    if (path.startsWith("/repartidor") && usuario.rol !== "PROVEEDOR") {
-        cookies.delete("token", { path: "/" });
-        return redirect("/");
-    }
-    if (path.startsWith("/cliente") && usuario.rol !== "CLIENTE") {
-        cookies.delete("token", { path: "/" });
-        return redirect("/");
-    }
+    context.locals.usuario = {
+      idUsuario: Number(payload.sub),
+      idEmpresa: (payload.idEmpresa as number | null) ?? null,
+      rol,
+    };
 
     return next();
+  } catch (error) {
+    console.error("JWT inválido o expirado:", error);
+    context.cookies.delete(NOMBRE_COOKIE, { path: "/" });
+    return context.redirect("/login?error=sesion_expirada");
+  }
 });

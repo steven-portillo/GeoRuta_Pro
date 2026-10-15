@@ -7,7 +7,9 @@ import { productoRouter } from "./Router/Admin/productoController.ts";
 import { proveedorRouter } from "./Router/Admin/proveedorRouter.ts";
 import { empresaRouter } from "./Router/Admin/empresaRouter.ts";
 import { PruebasRouter } from "./Router/Mapa/pruebasRouter.ts";
+import { pagoRouter } from "./Router/Pagos/pagoRouter.ts";
 import { manejarWsUbicacion } from "./ws/ubicacionHub.ts";
+
 
 import { servirArchivos } from "./Middlewares/archivos.middleware.ts";
 
@@ -55,6 +57,8 @@ const routers = [
   empresaRouter,
   //rutas de mapa(prueba)
   PruebasRouter,
+  //pafo con wompi
+  pagoRouter,
 ];
 
 routers.forEach((router) => {

@@ -1,4 +1,4 @@
-import { VerificarTokenAcceso } from "../Helpers/Jwt.ts";
+import { VerificarTokenAcceso } from "../Helpers/JWT.ts";
 import { Context, Next } from "../Dependencies/dependencias.ts";
 
 export async function authMiddleware(ctx: Context, next: Next) {

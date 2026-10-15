@@ -1,35 +1,73 @@
-@baseUrl = http://localhost:8005
-
 ### 
-POST {{baseUrl}}/api/auth/register 
+POST http://localhost:8005/api/auth/register 
 Content-Type: application/json
 
 {
-"nombre": "Emmanuel",
-"apellido": "Alvarez",
-"email": "alvarez@gmail.com", 
-"password": "12345678"
+  "nombre": "super",
+  "apellido": "admin",
+  "email": "superadmin@gmail.com", 
+  "password": "12345678"
 }
 
 ### Iniciar sesión 
-POST {{baseUrl}}/api/auth/login 
+POST http://localhost:8005/api/auth/login 
 Content-Type: application/json
 
 {
-"email": "cocacola@gmail.com", "password": "12345678"
+  "email":"CocaCola@gmail.com",
+  "password": "12345678"
 }
 
 
 ### Crear Proveedor
-POST {{baseUrl}}/api/empresa/crear-proveedor
+POST http://localhost:8005/api/empresa/crear-proveedor
 Content-Type: application/json 
 Authorization: `Bearer `
 
 {
-    "nombre": "Gabriel",
-    "apellido": "Jesus",
-    "email": "gabrielj@gmail.com",
-    "password": "12345678"
+  "nombre": "prov",
+  "apellido": "edor",
+  "email": "provedor@gmail.com",
+  "password": "12345678"
 }
 
+### Preparar pago Wompi
+POST http://localhost:8005/pagos/checkout
+Content-Type: application/json
 
+{
+  "amount": 50000
+}
+
+### Realizar pedido
+POST http://localhost:8005/pagos/checkout
+Content-Type: application/json
+
+{
+  "id_producto": 1,
+  "cantidad": 1,
+  "id_empresa": 1
+}
+
+### WebHook del Pagoa
+POST https://morse-envoy-parking.ngrok-free.dev/pagos/webhook
+Content-Type: application/json
+
+{
+  "event": "transaction.updated",
+  "data": {
+    "transaction": {
+      "id": "test_manual_1",
+      "status": "APPROVED",
+      "reference": "pedido_1_1791316186751",
+      "amount_in_cents": 560000
+    }
+  }
+}
+###
+POST http://localhost:8005/auth/google
+Content-Type: application/json
+
+{
+  "credential": ""
+}

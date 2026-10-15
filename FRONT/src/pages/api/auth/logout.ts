@@ -1,13 +1,16 @@
-//RECORDAR TAMBIEN UNIR AL LOGOUT DEL BACKEND, EL ENDPOINT ES LA RUTABASE/api/auth/logout
-import type { APIRoute } from "astro";
+// src/pages/api/auth/logout.ts
+import type { APIRoute } from 'astro';
 
-const rutadeno = import.meta.env.API_DENO;
 
 export const POST: APIRoute = async ({ cookies }) => {
-    cookies.delete("token", { path: "/" });
-    const respuesta = await fetch(`${rutadeno}/api/auth/logout`, {
-        method: "POST",
-        headers: { "Content-Typer": "application/json"}
-    })
-    return new Response(JSON.stringify({ success: true }), { status: 200 });
+  const NOMBRE_COOKIE = "token"
+  // borra la cookie httponly del jwt. no hace falta avisarle al backend deno
+  // (el jwt no se invalida server-side, simplemente expira solo a las 8 horas
+  // por su campo "exp" — aqui solo dejamos de mandarlo)
+  cookies.delete(NOMBRE_COOKIE, { path: '/' });
+
+  return new Response(
+    JSON.stringify({ success: true, message: 'Sesion cerrada' }),
+    { status: 200, headers: { 'Content-Type': 'application/json' } },
+  );
 };

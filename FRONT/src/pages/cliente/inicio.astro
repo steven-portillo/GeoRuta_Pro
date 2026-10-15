@@ -1,0 +1,83 @@
+---
+// src/pages/cliente/inicio.astro
+import ClienteLayout from "../../layouts/ClienteLayout.astro";
+import InicioCliente from "../../components/cliente/InicioCliente.astro";
+
+const DENO_URL = (
+  import.meta.env.API_DENO ?? "http://127.0.0.1:8005"
+).replace(/\/+$/, "");
+const NOMBRE_COOKIE = "token";
+
+const token = Astro.cookies.get(NOMBRE_COOKIE)?.value;
+
+if (!token) {
+  return Astro.redirect("/login");
+}
+
+async function getDeno(ruta: string) {
+  const res = await fetch(`${DENO_URL}${ruta}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+  const text = await res.text();
+  let datos: any = null;
+  try {
+    datos = text ? JSON.parse(text) : null;
+  } catch {
+    datos = { success: false, message: "Respuesta inválida", data: null };
+  }
+  return { status: res.status, datos };
+}
+
+const [respuestaCuenta, respuestaProveedores] = await Promise.all([
+  getDeno("/cliente/perfil/cuenta"),
+  getDeno("/cliente/proveedores"),
+]);
+
+// Si el token no sirve en el backend, vuelve a login
+if (respuestaCuenta.status === 401 || respuestaProveedores.status === 401) {
+  Astro.cookies.delete(NOMBRE_COOKIE, { path: "/" });
+  return Astro.redirect("/login?error=sesion_expirada");
+}
+
+const perfil = (respuestaCuenta.datos?.data ?? {
+  nombre: "",
+  apellido: "",
+  email: "",
+  imagenUrl: "",
+  activo: false,
+  fechaCreacion: "",
+  estadoCuenta: "",
+}) as {
+  nombre: string;
+  apellido: string;
+  email: string;
+  imagenUrl: string;
+  activo: boolean;
+  fechaCreacion: string;
+  estadoCuenta: string;
+};
+
+const proveedores = (respuestaProveedores.datos?.data ?? []) as {
+  id: number;
+  nombre: string;
+  descripcion: string;
+  logoUrl: string;
+}[];
+
+const iniciales =
+  `${perfil.nombre?.[0] ?? ""}${perfil.apellido?.[0] ?? ""}`.toUpperCase();
+---
+
+<ClienteLayout
+  titulo="Inicio"
+  vistaActual="inicio"
+  nombreUsuario={`${perfil.nombre} ${perfil.apellido}`}
+  inicialesUsuario={iniciales}
+  imagenUrl={perfil.imagenUrl || null}
+>
+  <InicioCliente perfil={perfil} proveedores={proveedores} />
+</ClienteLayout>
