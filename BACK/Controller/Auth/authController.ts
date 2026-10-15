@@ -6,6 +6,12 @@ import {
   escribirArchivo,
   validarArchivo,
 } from "../../Helpers/archivos.ts";
+import { enviarCorreo } from "../../Helpers/mailer.ts";
+import {
+  plantillaBienvenidaCliente,
+  plantillaRegistroEmpresaAdmin,
+  plantillaNuevaEmpresaSuperAdmin,
+} from "../../Helpers/emailTemplates.ts";
 
 /** POST /api/login */
 export const iniciarSesion = async (ctx: Context) => {
@@ -111,6 +117,8 @@ export const registrarCliente = async (ctx: Context) => {
     const result = await objUsuario.Registrar();
 
     if (result.success) {
+      const { asunto, html, texto } = plantillaBienvenidaCliente(nombre);
+      enviarCorreo(email, asunto, html, texto);
       response.status = 201;
       response.body = { success: true, message: result.message, id: result.id };
     } else {
@@ -215,6 +223,44 @@ export const registrarEmpresa = async (ctx: Context) => {
       response.status = 400;
       response.body = resultado;
       return;
+    }
+
+    // Correo 2: aviso al admin que se registró (sin await, no bloquea).
+    const correoAdmin = plantillaRegistroEmpresaAdmin(
+      nombreAdmin,
+      nombreEmpresa,
+    );
+    enviarCorreo(
+      emailAdmin,
+      correoAdmin.asunto,
+      correoAdmin.html,
+      correoAdmin.texto,
+    );
+
+    // Correo 3: aviso al SuperAdmin. Si falla algo aquí, no debe afectar
+    // el registro, que ya quedó confirmado en la BD.
+    try {
+      const emailSuperAdmin = await Usuario.ObtenerEmailSuperAdmin();
+      if (emailSuperAdmin) {
+        const correoSuper = plantillaNuevaEmpresaSuperAdmin(
+          nombreEmpresa,
+          nombreAdmin,
+          apellidoAdmin,
+          emailAdmin,
+        );
+        enviarCorreo(
+          emailSuperAdmin,
+          correoSuper.asunto,
+          correoSuper.html,
+          correoSuper.texto,
+        );
+      } else {
+        console.warn(
+          "No se encontró un SuperAdmin activo para avisarle del nuevo registro.",
+        );
+      }
+    } catch (error) {
+      console.error("No se pudo preparar el aviso al SuperAdmin:", error);
     }
 
     // si La transacción ya confirmó en BD, ahora sí se escribe el archivo físico

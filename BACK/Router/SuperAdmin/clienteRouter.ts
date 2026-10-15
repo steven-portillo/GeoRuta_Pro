@@ -9,16 +9,16 @@ import {
   editarCliente,
 } from "../../Controller/SuperAdmin/clienteController.ts";
 
-const clienteRouter = new Router();
-clienteRouter.use(authMiddleware);
-clienteRouter.use(soloSuperAdmin);
+const clientesRouter = new Router();
+clientesRouter.use(authMiddleware);
+clientesRouter.use(soloSuperAdmin);
 
-clienteRouter.get("/api/admin/superadmin/clientes", listarClientes);
-clienteRouter.get("/api/admin/superadmin/clientes/:id", obtenerCliente);
-clienteRouter.patch(
+clientesRouter.get("/api/admin/superadmin/clientes", listarClientes);
+clientesRouter.get("/api/admin/superadmin/clientes/:id", obtenerCliente);
+clientesRouter.patch(
   "/api/admin/superadmin/clientes/:id/estado",
   cambiarEstadoCliente,
 );
-clienteRouter.put("/api/admin/superadmin/clientes/:id", editarCliente);
+clientesRouter.put("/api/admin/superadmin/clientes/:id", editarCliente);
 
-export { clienteRouter };
+export { clientesRouter };

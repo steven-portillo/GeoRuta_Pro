@@ -1,7 +1,7 @@
 import { Application, oakCors, send } from "./Dependencies/dependencias.ts";
 import { authRouter } from "./Router/Auth/authRouter.ts";
 import { empresaRouter } from "./Router/SuperAdmin/empresaRouter.ts";
-import { clienteRouter } from "./Router/SuperAdmin/clienteRouter.ts";
+import { clientesRouter } from "./Router/SuperAdmin/clienteRouter.ts";
 import { categoriaRouter } from "./Router/Admin/categoriaRouter.ts";
 import { productoRouter } from "./Router/Admin/productoRouter.ts";
 import { inventarioRouter } from "./Router/Admin/inventarioRouter.ts";
@@ -9,6 +9,7 @@ import { proveedorRouter } from "./Router/Admin/proveedorRouter.ts";
 import { pedidoRouter } from "./Router/Admin/pedidoRouter.ts";
 import { perfilRouter } from "./Router/Perfil/perfilRouter.ts";
 import { empresaPerfilRouter } from "./Router/Admin/empresaPerfilRouter.ts";
+import { clienteRouter } from "./Router/Cliente/clienteRouter.ts";
 
 const app = new Application();
 
@@ -33,7 +34,7 @@ app.use(async (ctx, next) => {
 const routers = [
   authRouter,
   empresaRouter,
-  clienteRouter,
+  clientesRouter,
   categoriaRouter,
   productoRouter,
   inventarioRouter,
@@ -41,6 +42,7 @@ const routers = [
   pedidoRouter,
   perfilRouter,
   empresaPerfilRouter,
+  clienteRouter,
 ];
 
 routers.forEach((router) => {

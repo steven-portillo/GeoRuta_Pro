@@ -70,10 +70,9 @@ export const editarCategoria = async (
 
     const body = await ctx.request.body.json();
     const nombre = body.nombre ? String(body.nombre).trim() : undefined;
-    const descripcion =
-      body.descripcion !== undefined
-        ? String(body.descripcion).trim()
-        : undefined;
+    const descripcion = body.descripcion !== undefined
+      ? String(body.descripcion).trim()
+      : undefined;
 
     const resultado = await Categoria.Editar(id_categoria, usuario.id_empresa, {
       nombre,
@@ -117,7 +116,11 @@ export const cambiarEstadoCategoria = async (
       usuario.id_empresa,
       body.estado,
     );
-    ctx.response.status = resultado.success ? 200 : 404;
+    ctx.response.status = resultado.success
+      ? 200
+      : ("conflict" in resultado && resultado.conflict)
+      ? 409
+      : 404;
     ctx.response.body = resultado;
   } catch (error) {
     console.error(error);

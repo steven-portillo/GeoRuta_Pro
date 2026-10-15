@@ -1,6 +1,8 @@
 import { conexion } from "../conexion.ts";
 import { hash, compare } from "../../Dependencies/dependencias.ts";
 
+const ID_ROL_SUPERADMIN = 1;
+
 interface LoginData {
   email: string;
   password: string;
@@ -279,5 +281,14 @@ export class Usuario {
       console.error("Error al Registrar:", error);
       return { success: false, message: "Error al registrar empresa" };
     }
+  }
+
+  /** Email del SuperAdmin, para avisarle de nuevas empresas */
+  public static async ObtenerEmailSuperAdmin(): Promise<string | null> {
+    const [superAdmin] = await conexion.query(
+      `SELECT email FROM usuarios WHERE id_rol = ? AND activo = 1 LIMIT 1`,
+      [ID_ROL_SUPERADMIN],
+    );
+    return superAdmin?.email ?? null;
   }
 }

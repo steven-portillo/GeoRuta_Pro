@@ -1,8 +1,8 @@
 import { Context, RouterContext } from "../../Dependencies/dependencias.ts";
 import { Producto } from "../../Model/Admin/ProductoModel.ts";
 import {
-  generarRutaArchivo,
   escribirArchivo,
+  generarRutaArchivo,
   validarArchivo,
 } from "../../Helpers/archivos.ts";
 
@@ -99,7 +99,7 @@ export const crearProducto = async (ctx: Context) => {
     }
 
     const rutasImagenes = archivosValidados.map((archivo) =>
-      generarRutaArchivo(archivo, "productos"),
+      generarRutaArchivo(archivo, "productos")
     );
 
     const resultado = await Producto.Crear(
@@ -152,8 +152,9 @@ export const editarProducto = async (
     const nombreRaw = form.get("nombre");
     const nombre = nombreRaw ? String(nombreRaw).trim() : undefined;
     const descripcionRaw = form.get("descripcion");
-    const descripcion =
-      descripcionRaw !== null ? String(descripcionRaw).trim() : undefined;
+    const descripcion = descripcionRaw !== null
+      ? String(descripcionRaw).trim()
+      : undefined;
     const precio = form.get("precio") ? Number(form.get("precio")) : undefined;
     const stock_minimo = form.get("stock_minimo")
       ? Number(form.get("stock_minimo"))
@@ -174,7 +175,7 @@ export const editarProducto = async (
     }
 
     const rutasImagenes = archivosValidados.map((archivo) =>
-      generarRutaArchivo(archivo, "productos"),
+      generarRutaArchivo(archivo, "productos")
     );
 
     const resultado = await Producto.Editar(
@@ -232,7 +233,11 @@ export const cambiarEstadoProducto = async (
       usuario.id_empresa,
       body.estado,
     );
-    ctx.response.status = resultado.success ? 200 : 404;
+    ctx.response.status = resultado.success
+      ? 200
+      : ("conflict" in resultado && resultado.conflict)
+      ? 409
+      : 404;
     ctx.response.body = resultado;
   } catch (error) {
     console.error(error);

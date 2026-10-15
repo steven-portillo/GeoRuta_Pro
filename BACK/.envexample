@@ -3,3 +3,8 @@ SERVER=http://localhost:8005
 PORT=8005
 
 
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_USER=tu_correo@gmail.com
+SMTP_PASS=la_contraseña_de_aplicación
+SMTP_FROM=tu_correo@gmail.com

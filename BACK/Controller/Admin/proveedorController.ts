@@ -1,5 +1,8 @@
 import { Context, RouterContext } from "../../Dependencies/dependencias.ts";
 import { Proveedor } from "../../Model/Admin/ProveedorModel.ts";
+import { Empresa } from "../../Model/SuperAdmin/EmpresaModel.ts";
+import { enviarCorreo } from "../../Helpers/mailer.ts";
+import { plantillaBienvenidaProveedor } from "../../Helpers/emailTemplates.ts";
 
 /** GET /api/admin/proveedores */
 export const listarProveedores = async (ctx: Context) => {
@@ -101,6 +104,21 @@ export const crearProveedor = async (ctx: Context) => {
       email,
       password,
     });
+    if (resultado.success) {
+      try {
+        const nombreEmpresa = await Empresa.ObtenerNombre(usuario.id_empresa);
+        if (nombreEmpresa) {
+          const correo = plantillaBienvenidaProveedor(nombre, nombreEmpresa);
+          enviarCorreo(email, correo.asunto, correo.html, correo.texto);
+        } else {
+          console.warn(
+            "No se encontró el nombre de la empresa para el correo del proveedor.",
+          );
+        }
+      } catch (error) {
+        console.error("No se pudo preparar el correo del proveedor:", error);
+      }
+    }
     ctx.response.status = resultado.success ? 201 : 400;
     ctx.response.body = resultado;
   } catch (error) {

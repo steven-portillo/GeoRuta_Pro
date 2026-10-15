@@ -36,4 +36,26 @@ export class Empresa {
       return { success: false, message: "Error al cambiar el estado" };
     }
   }
+
+  /** Nombre de la empresa, para el correo de bienvenida del proveedor */
+  static async ObtenerNombre(id_empresa: number): Promise<string | null> {
+    const [empresa] = await conexion.query(
+      `SELECT nombre FROM empresas WHERE id_empresa = ?`,
+      [id_empresa],
+    );
+    return empresa?.nombre ?? null;
+  }
+
+  /** Empresa con los datos de su admin y su estado actual, para el correo de activación */
+  static async ObtenerConAdmin(id_empresa: number) {
+    const [empresa] = await conexion.query(
+      `SELECT e.id_empresa, e.nombre, e.estado,
+              u.nombre AS nombre_admin, u.apellido AS apellido_admin, u.email AS email_admin
+       FROM empresas e
+       INNER JOIN usuarios u ON u.id_empresa = e.id_empresa AND u.id_rol = ?
+       WHERE e.id_empresa = ?`,
+      [ID_ROL_ADMIN, id_empresa],
+    );
+    return empresa ?? null;
+  }
 }

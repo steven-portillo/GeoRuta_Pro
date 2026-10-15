@@ -1,6 +1,6 @@
 @baseUrl = http://localhost:8005
-@tokenSuperAdmin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjgwMDUiLCJzdWIiOiIxIiwicm9sIjoiU1VQRVJBRE1JTiIsImlkX2VtcHJlc2EiOm51bGwsImp0aSI6ImRiNTYwZTI2LTQxZWYtNGVmMy05YmU5LTg5NjE1Mjg4NTI1YiIsImV4cCI6MTc5MTI1NDY2MH0.QcM5J-fWJgxW6tR8MRnaymB4zbkhOMtXZ6MGM3LXtB0
-@tokenAdmin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjgwMDUiLCJzdWIiOiIyIiwicm9sIjoiQURNSU4iLCJpZF9lbXByZXNhIjoxLCJqdGkiOiI1YzliMWY1MC1jYTUzLTQ1YjAtYmZhMC04ZTVlYjAxNWQ4ZjgiLCJleHAiOjE3OTEyNTA4MDV9.bo0j58PWWDFfiEAdgFUQGyhUytJczvUeqDHpUM5PqwI
+@tokenSuperAdmin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjgwMDUiLCJzdWIiOiIxIiwicm9sIjoiU1VQRVJBRE1JTiIsImlkX2VtcHJlc2EiOm51bGwsImp0aSI6ImI0NWRlZDQ3LTIxNTQtNDhhOC1iMmU3LWI4ODk1MTljZDU2MyIsImV4cCI6MTc5MTM1MDU0N30.HyGQnhC-LUd9LIh5ZBQ9-KKtfLtcmV66qikNl6GYfwo
+@tokenAdmin = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjgwMDUiLCJzdWIiOiI4Iiwicm9sIjoiQURNSU4iLCJpZF9lbXByZXNhIjozLCJqdGkiOiJlMjBjODMxYy0wYWRjLTRkNTMtYjIxOC05ODMwOTQ0N2JjZGMiLCJleHAiOjE3OTEzNDQ2NDV9.i685TBnb4O0GpoU1khoIpGaJinfWSjdPxcG21V2lXF0
 
 ### ============ AUTH ============
 
@@ -31,23 +31,23 @@ Content-Type: multipart/form-data; boundary=----GeoRutaBoundary
 ------GeoRutaBoundary
 Content-Disposition: form-data; name="nombreEmpresa"
 
-Distribuidora El Sol
+Empresa Richi
 ------GeoRutaBoundary
 Content-Disposition: form-data; name="descripcionEmpresa"
 
-Distribuidora de abarrotes
+Del richi
 ------GeoRutaBoundary
 Content-Disposition: form-data; name="nombreAdmin"
 
-Carlos
+Richi
 ------GeoRutaBoundary
 Content-Disposition: form-data; name="apellidoAdmin"
 
-Ramírez
+Fonseca
 ------GeoRutaBoundary
 Content-Disposition: form-data; name="emailAdmin"
 
-admin@elsol.com
+josephfonseca2005@gmail.com
 ------GeoRutaBoundary
 Content-Disposition: form-data; name="passwordAdmin"
 
@@ -70,7 +70,7 @@ GET {{baseUrl}}/api/admin/superadmin/empresas
 Authorization: Bearer {{tokenSuperAdmin}}
 
 ### Cambiar estado empresa
-PATCH {{baseUrl}}/api/admin/superadmin/empresas/1/estado
+PATCH {{baseUrl}}/api/admin/superadmin/empresas/3/estado
 Authorization: Bearer {{tokenSuperAdmin}}
 Content-Type: application/json
 
@@ -104,7 +104,7 @@ Nuevo Nombre
 
 ### Obtener perfil propio
 GET {{baseUrl}}/api/perfil
-Authorization: Bearer {{tokenSuperAdmin}}
+Authorization: Bearer {{tokenAdmin}}
 
 ### Editar perfil propio
 PUT {{baseUrl}}/api/perfil
@@ -257,9 +257,9 @@ Authorization: Bearer {{tokenAdmin}}
 Content-Type: application/json
 
 {
-  "nombre": "Carlos",
-  "apellido": "Ramírez",
-  "email": "proveedor@georuta.com",
+  "nombre": "Felipe",
+  "apellido": "Rod",
+  "email": "feliperod3058r@gmail.com",
   "password": "12345678"
 }
 

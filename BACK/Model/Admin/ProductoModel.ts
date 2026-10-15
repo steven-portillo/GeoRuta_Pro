@@ -80,6 +80,21 @@ export class Producto {
     try {
       await conexion.execute("START TRANSACTION");
 
+      const [categoriaBloqueada] = await conexion.query(
+        `SELECT id_categoria FROM categorias
+         WHERE id_categoria = ? AND id_empresa = ? AND activo = 1
+         FOR UPDATE`,
+        [datos.id_categoria, id_empresa],
+      );
+      if (!categoriaBloqueada) {
+        await conexion.execute("ROLLBACK");
+        return {
+          success: false,
+          message:
+            "La categoría no existe, no pertenece a tu empresa, o está inactiva",
+        };
+      }
+
       const productoResult = await conexion.execute(
         `INSERT INTO productos (id_empresa, id_categoria, nombre, descripcion, precio, activo, fecha_creacion)
          VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)`,
@@ -147,6 +162,23 @@ export class Producto {
     try {
       await conexion.execute("START TRANSACTION");
 
+      if (datos.id_categoria !== undefined) {
+        const [categoriaBloqueada] = await conexion.query(
+          `SELECT id_categoria FROM categorias
+           WHERE id_categoria = ? AND id_empresa = ? AND activo = 1
+           FOR UPDATE`,
+          [datos.id_categoria, id_empresa],
+        );
+        if (!categoriaBloqueada) {
+          await conexion.execute("ROLLBACK");
+          return {
+            success: false,
+            message:
+              "La categoría no existe, no pertenece a tu empresa, o está inactiva",
+          };
+        }
+      }
+
       await conexion.execute(
         `UPDATE productos SET id_categoria = ?, nombre = ?, descripcion = ?, precio = ?
          WHERE id_producto = ? AND id_empresa = ?`,
@@ -194,15 +226,49 @@ export class Producto {
     id_empresa: number,
     nuevoEstado: 0 | 1,
   ) {
-    const result = await conexion.execute(
-      `UPDATE productos SET activo = ? WHERE id_producto = ? AND id_empresa = ?`,
-      [nuevoEstado, id_producto, id_empresa],
-    );
+    try {
+      await conexion.execute("START TRANSACTION");
+      const [producto] = await conexion.query(
+        `SELECT id_categoria FROM productos
+         WHERE id_producto = ? AND id_empresa = ?
+         FOR UPDATE`,
+        [id_producto, id_empresa],
+      );
+      if (!producto) {
+        await conexion.execute("ROLLBACK");
+        return { success: false, message: "Producto no encontrado" };
+      }
 
-    if (result.affectedRows === 0) {
-      return { success: false, message: "Producto no encontrado" };
+      if (nuevoEstado === 1) {
+        const [categoria] = await conexion.query(
+          `SELECT id_categoria FROM categorias
+           WHERE id_categoria = ? AND id_empresa = ? AND activo = 1
+           FOR UPDATE`,
+          [producto.id_categoria, id_empresa],
+        );
+        if (!categoria) {
+          await conexion.execute("ROLLBACK");
+          return {
+            success: false,
+            conflict: true,
+            message:
+              "No se puede activar el producto porque su categoría está inactiva",
+          };
+        }
+      }
+
+      await conexion.execute(
+        `UPDATE productos SET activo = ?
+         WHERE id_producto = ? AND id_empresa = ?`,
+        [nuevoEstado, id_producto, id_empresa],
+      );
+      await conexion.execute("COMMIT");
+      return { success: true, message: "Estado actualizado correctamente" };
+    } catch (error) {
+      await conexion.execute("ROLLBACK");
+      console.error("Error CambiarEstado producto:", error);
+      throw error;
     }
-    return { success: true, message: "Estado actualizado correctamente" };
   }
 
   private static async obtenerPropio(id_producto: number, id_empresa: number) {

@@ -88,15 +88,49 @@ export class Categoria {
     id_empresa: number,
     nuevoEstado: 0 | 1,
   ) {
-    const result = await conexion.execute(
-      `UPDATE categorias SET activo = ? WHERE id_categoria = ? AND id_empresa = ?`,
-      [nuevoEstado, id_categoria, id_empresa],
-    );
+    try {
+      await conexion.execute("START TRANSACTION");
+      const [categoria] = await conexion.query(
+        `SELECT id_categoria, activo FROM categorias
+         WHERE id_categoria = ? AND id_empresa = ?
+         FOR UPDATE`,
+        [id_categoria, id_empresa],
+      );
+      if (!categoria) {
+        await conexion.execute("ROLLBACK");
+        return { success: false, message: "Categoría no encontrada" };
+      }
 
-    if (result.affectedRows === 0) {
-      return { success: false, message: "Categoría no encontrada" };
+      if (nuevoEstado === 0 && Number(categoria.activo) === 1) {
+        const [productosActivos] = await conexion.query(
+          `SELECT COUNT(*) AS cantidad
+           FROM productos
+           WHERE id_categoria = ? AND activo = 1`,
+          [id_categoria],
+        );
+        const cantidad = Number(productosActivos.cantidad);
+        if (cantidad > 0) {
+          await conexion.execute("ROLLBACK");
+          return {
+            success: false,
+            conflict: true,
+            message:
+              `No se puede desactivar la categoría porque tiene ${cantidad} producto(s) activo(s). Desactiva o mueve esos productos primero.`,
+          };
+        }
+      }
+
+      await conexion.execute(
+        `UPDATE categorias SET activo = ? WHERE id_categoria = ? AND id_empresa = ?`,
+        [nuevoEstado, id_categoria, id_empresa],
+      );
+      await conexion.execute("COMMIT");
+      return { success: true, message: "Estado actualizado correctamente" };
+    } catch (error) {
+      await conexion.execute("ROLLBACK");
+      console.error("Error CambiarEstado categoría:", error);
+      throw error;
     }
-    return { success: true, message: "Estado actualizado correctamente" };
   }
 
   /** Trae la categoría SOLO si pertenece a la empresa dada — esto es lo que evita que adivinando el ID se toque otra empresa */

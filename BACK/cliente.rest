@@ -1,0 +1,157 @@
+@baseUrl = http://localhost:8005
+@tokenCliente = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjgwMDUiLCJzdWIiOiI0Iiwicm9sIjoiQ0xJRU5URSIsImlkX2VtcHJlc2EiOm51bGwsImp0aSI6IjcxZjI2ZjUyLWExOWUtNDRjNy05NWEzLTgxOGFkODUxMDNjMSIsImV4cCI6MTc5MjExOTY1M30.T0DVGaTWzMZR5ToQ4VskP-58uIq6dCW-3TF-xRX5Qe8
+@idEmpresa = 1
+@idProducto = 18
+@idDireccion = 1
+@idPedido = 1
+@idResena = 1
+
+### Iniciar sesión como cliente
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "jose@gmail.com",
+  "password": "123456"
+}
+
+### Listar empresas disponibles en el catálogo
+GET {{baseUrl}}/api/cliente/empresas
+Authorization: Bearer {{tokenCliente}}
+
+### Listar productos de una empresa
+GET {{baseUrl}}/api/cliente/empresas/{{idEmpresa}}/productos
+Authorization: Bearer {{tokenCliente}}
+
+### Ver detalle de un producto, imágenes y reseñas
+GET {{baseUrl}}/api/cliente/productos/{{idProducto}}
+Authorization: Bearer {{tokenCliente}}
+
+
+### Listar mis direcciones
+GET {{baseUrl}}/api/cliente/direcciones
+Authorization: Bearer {{tokenCliente}}
+
+### Crear una dirección
+# Se deben enviar latitud y longitud juntas o dejar ambas en null.
+POST {{baseUrl}}/api/cliente/direcciones
+Authorization: Bearer {{tokenCliente}}
+Content-Type: application/json
+
+{
+  "alias": "Tienda centro",
+  "direccion_texto": "Calle 10 # 20-30, Duitama",
+  "latitud": 5.8269,
+  "longitud": -73.0341
+}
+
+### Editar una dirección
+# Si la dirección ya fue usada por un pedido, se crea una nueva
+# para conservar intacto el destino histórico del pedido.
+PUT {{baseUrl}}/api/cliente/direcciones/{{idDireccion}}
+Authorization: Bearer {{tokenCliente}}
+Content-Type: application/json
+
+{
+  "alias": "Tienda centro actualizada",
+  "direccion_texto": "Calle 11 # 21-31, Duitama",
+  "latitud": 5.827,
+  "longitud": -73.035
+}
+
+### Desactivar una dirección
+PATCH {{baseUrl}}/api/cliente/direcciones/{{idDireccion}}/estado
+Authorization: Bearer {{tokenCliente}}
+Content-Type: application/json
+
+{
+  "activo": 0
+}
+
+### Reactivar una dirección
+PATCH {{baseUrl}}/api/cliente/direcciones/{{idDireccion}}/estado
+Authorization: Bearer {{tokenCliente}}
+Content-Type: application/json
+
+{
+  "activo": 1
+}
+
+
+### Consultar mi carrito persistente
+GET {{baseUrl}}/api/cliente/carrito
+Authorization: Bearer {{tokenCliente}}
+
+### Agregar o establecer cantidad de un producto en el carrito
+# La cantidad enviada es la cantidad final deseada para ese producto.
+# Usa cantidad 0 para quitarlo del carrito con este mismo endpoint.
+PUT {{baseUrl}}/api/cliente/carrito/items/{{idProducto}}
+Authorization: Bearer {{tokenCliente}}
+Content-Type: application/json
+
+{
+  "cantidad": 2
+}
+
+### Quitar un producto del carrito
+DELETE {{baseUrl}}/api/cliente/carrito/items/{{idProducto}}
+Authorization: Bearer {{tokenCliente}}
+
+
+### Crear pedido desde mi carrito (contraentrega)
+# El backend valida stock, precios, empresa y dirección; no envíes el total.
+# El método de pago queda contra_entrega y el pago inicia como pendiente.
+POST {{baseUrl}}/api/cliente/pedidos
+Authorization: Bearer {{tokenCliente}}
+Content-Type: application/json
+
+{
+  "id_direccion": {{idDireccion}},
+  "observaciones": "Entregar en horario de atención"
+}
+
+### Listar mis pedidos
+GET {{baseUrl}}/api/cliente/pedidos
+Authorization: Bearer {{tokenCliente}}
+
+### Ver detalle de uno de mis pedidos
+GET {{baseUrl}}/api/cliente/pedidos/{{idPedido}}
+Authorization: Bearer {{tokenCliente}}
+
+### Cancelar un pedido propio aún no asignado
+# La cancelación libera el stock reservado y marca el pago como cancelado.
+PATCH {{baseUrl}}/api/cliente/pedidos/{{idPedido}}/cancelar
+Authorization: Bearer {{tokenCliente}}
+Content-Type: application/json
+
+{
+  "motivo": "Ya no necesito el pedido"
+}
+
+
+### Crear reseña de un producto de un pedido entregado
+# Solo se permite si el pedido pertenece al cliente, está entregado
+# e incluye el producto. Solo puede haber una reseña por pedido y producto.
+POST {{baseUrl}}/api/cliente/pedidos/{{idPedido}}/resenas
+Authorization: Bearer {{tokenCliente}}
+Content-Type: application/json
+
+{
+  "id_producto": {{idProducto}},
+  "calificacion": 5,
+  "comentario": "Buen producto y entrega"
+}
+
+### Editar una reseña propia
+PATCH {{baseUrl}}/api/cliente/resenas/{{idResena}}
+Authorization: Bearer {{tokenCliente}}
+Content-Type: application/json
+
+{
+  "calificacion": 4,
+  "comentario": "Actualizo mi comentario"
+}
+
+### Desactivar una reseña propia
+DELETE {{baseUrl}}/api/cliente/resenas/{{idResena}}
+Authorization: Bearer {{tokenCliente}}

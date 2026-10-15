@@ -92,15 +92,13 @@ export class Pedido {
     const [estadoAsignado] = await conexion.query(
       `SELECT id_estado FROM estados_pedido WHERE nombre_estado = 'Asignado'`,
     );
-    const codigoEntrega = String(Math.floor(1000 + Math.random() * 9000));
-
     try {
       await conexion.execute("START TRANSACTION");
 
       await conexion.execute(
-        `INSERT INTO asignacion_pedido (id_pedido, id_proveedor, fecha_asignacion, notas, codigo_entrega)
-       VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?)`,
-        [id_pedido, id_proveedor, notas ?? null, codigoEntrega],
+        `INSERT INTO asignacion_pedido (id_pedido, id_proveedor, fecha_asignacion, notas)
+       VALUES (?, ?, CURRENT_TIMESTAMP, ?)`,
+        [id_pedido, id_proveedor, notas ?? null],
       );
 
       await conexion.execute(
@@ -154,11 +152,17 @@ export class Pedido {
     try {
       await conexion.execute("START TRANSACTION");
 
-      const observacionesNuevas =
-        `${pedido.observaciones ?? ""} | Cancelado: ${motivo}`.trim();
+      const observacionesNuevas = `${
+        pedido.observaciones ?? ""
+      } | Cancelado: ${motivo}`.trim();
       await conexion.execute(
         `UPDATE pedidos SET id_estado = ?, observaciones = ? WHERE id_pedido = ?`,
         [estadoCancelado.id_estado, observacionesNuevas, id_pedido],
+      );
+
+      await conexion.execute(
+        `UPDATE pagos SET estado_pago = 'cancelado' WHERE id_pedido = ?`,
+        [id_pedido],
       );
 
       for (const item of items) {
