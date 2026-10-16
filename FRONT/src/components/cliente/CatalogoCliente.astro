@@ -86,7 +86,7 @@ const { proveedores } = Astro.props;
   </div>
 </div>
 
-<!-- ── checkout: mapa de direccion + metodo de pago + stripe ── -->
+<!-- ── checkout: mapa de direccion + metodo de pago + Wompi ── -->
 <CheckoutCliente />
 
 <script define:vars={{ proveedoresIniciales: proveedores }}>
@@ -573,7 +573,7 @@ const { proveedores } = Astro.props;
     setTimeout(cerrarModalProducto, 700);
   });
 
-  // "confirmar pedido" abre el checkout (CheckoutCliente.astro lo escucha): mapa -> pago -> stripe
+  // "confirmar pedido" abre el checkout (CheckoutCliente.astro lo escucha): mapa -> pago -> Wompi
   document.getElementById('btn-confirmar-pedido')?.addEventListener('click', () => {
     document.dispatchEvent(new CustomEvent('georuta:iniciar-checkout', { detail: { carrito, productosActuales, proveedorActual } }));
   });

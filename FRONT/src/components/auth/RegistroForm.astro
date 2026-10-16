@@ -2,6 +2,7 @@
 // src/components/auth/RegistroForm.astro
 import './auth.css';
 import '../../styles/Forms.css';
+import BotonGoogle from './BotonGoogle.astro';
 ---
 
 <div class="login-page-wrapper">
@@ -177,6 +178,8 @@ import '../../styles/Forms.css';
               <span class="visually-hidden">Cargando...</span>
             </div>
           </button>
+
+                    <BotonGoogle texto="signup_with" />
 
           <div class="text-center">
             <p class="register-prompt mb-0">

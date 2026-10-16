@@ -469,42 +469,42 @@ const datosCliente = {
     }
 
     // ══════════════════ websocket (reemplaza signalr) ══════════════════
-    async function conectarSocket() {
+async function conectarSocket() {
+  try {
+    var res = await fetch('/api/auth/cliente/ws-token');
+    var datosToken = await res.json();
+    if (!datosToken.success) return;
+
+    // mismo host de la pagina: ws://localhost:4321 en local, wss://xxxx.ngrok-free.dev en ngrok
+    var base = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host;
+    var url = base + '/ws/rastreo/' + datos.id + '?token=' + encodeURIComponent(datosToken.token);
+
+    socket = new WebSocket(url);
+
+    socket.onopen = function () {
+      intentosReconexion = 0;
+    };
+
+    socket.onmessage = function (evento) {
       try {
-        var res = await fetch('/api/auth/cliente/ws-token');
-        var datosToken = await res.json();
-        if (!datosToken.success) return;
-
-        // http://localhost:8000 -> ws://localhost:8000 (https pasa a wss solo)
-        var base = datos.urlBackend.replace(/^http/, 'ws');
-        var url = base + '/ws/rastreo/' + datos.id + '?token=' + encodeURIComponent(datosToken.token);
-
-        socket = new WebSocket(url);
-
-        socket.onopen = function () {
-          intentosReconexion = 0;
-        };
-
-        socket.onmessage = function (evento) {
-          try {
-            var mensaje = JSON.parse(evento.data);
-            if (mensaje.tipo === 'ubicacion') {
-              mostrarRepartidor(Number(mensaje.lat), Number(mensaje.lng));
-            }
-          } catch (error) {
-            console.error('mensaje de rastreo invalido:', error);
-          }
-        };
-
-        socket.onclose = function () {
-          if (cerrandoPagina || intentosReconexion >= 5) return;
-          intentosReconexion += 1;
-          setTimeout(conectarSocket, 3000);
-        };
+        var mensaje = JSON.parse(evento.data);
+        if (mensaje.tipo === 'ubicacion') {
+          mostrarRepartidor(Number(mensaje.lat), Number(mensaje.lng));
+        }
       } catch (error) {
-        console.error('no fue posible conectar el rastreo:', error);
+        console.error('mensaje de rastreo invalido:', error);
       }
-    }
+    };
+
+    socket.onclose = function () {
+      if (cerrandoPagina || intentosReconexion >= 5) return;
+      intentosReconexion += 1;
+      setTimeout(conectarSocket, 3000);
+    };
+  } catch (error) {
+    console.error('no fue posible conectar el rastreo:', error);
+  }
+}
 
     window.addEventListener('beforeunload', function () {
       cerrandoPagina = true;

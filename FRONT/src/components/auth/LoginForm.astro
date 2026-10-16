@@ -6,6 +6,7 @@
 
 import './auth.css';
 import '../../styles/Forms.css';
+import BotonGoogle from './BotonGoogle.astro';
 
 interface Props {
   mensajeError: string | null;
@@ -149,6 +150,8 @@ const { mensajeError } = Astro.props;
               <span class="visually-hidden">Cargando...</span>
             </div>
           </button>
+
+                    <BotonGoogle texto="signin_with" />
 
           <div class="text-center">
             <p class="register-prompt mb-0">

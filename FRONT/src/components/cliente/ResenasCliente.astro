@@ -1,28 +1,36 @@
 ---
 // src/components/cliente/ResenasCliente.astro
 
+interface ProductoPendiente {
+  idProducto: number;
+  producto: string;
+  productoImagen: string;
+  cantidad: number;
+}
+
 interface Pendiente {
   idPedido: number;
   fecha: string;
   empresa: string;
   empresaLogo: string;
+  productos: ProductoPendiente[];
+}
+
+interface ProductoEnviado {
   idProducto: number;
   producto: string;
   productoImagen: string;
-  cantidad: number;
-  precioUnitario: number;
+  calificacion: number;
 }
 
 interface Enviada {
-  idResena: number;
   idPedido: number;
-  calificacion: number;
-  comentario: string;
   fecha: string;
-  producto: string;
-  productoImagen: string;
   empresa: string;
   empresaLogo: string;
+  promedio: number;
+  comentario: string;
+  productos: ProductoEnviado[];
 }
 
 interface Props {
@@ -32,131 +40,156 @@ interface Props {
 
 const { pendientes, enviadas } = Astro.props;
 
-function formatearFecha(fecha: string): string {
-  return new Intl.DateTimeFormat('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }).format(
-    new Date(fecha),
-  );
-}
+const ESTRELLAS = [1, 2, 3, 4, 5];
 
-// estrellas ya renderizadas del lado servidor para las reseñas enviadas (no cambian)
-function estrellas(calificacion: number): string {
-  return '★'.repeat(calificacion) + '☆'.repeat(5 - calificacion);
+// "29 jun 2026" (sin puntos ni "de")
+function formatearFecha(fecha: string): string {
+  const partes = new Intl.DateTimeFormat('es-CO', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).formatToParts(new Date(fecha));
+  const tomar = (tipo: string) => partes.find((p) => p.type === tipo)?.value ?? '';
+  return `${tomar('day')} ${tomar('month').replace('.', '')} ${tomar('year')}`;
 }
 ---
 
-<!-- ── tabs ── -->
-<div class="tabs-resenas">
-  <button class="tab-resena activo" id="tab-pendientes" data-tab="pendientes">
-    Pendientes {pendientes.length > 0 && <span class="tab-contador">{pendientes.length}</span>}
-  </button>
-  <button class="tab-resena" id="tab-enviadas" data-tab="enviadas">
-    Enviadas <span class="tab-contador tab-contador-suave">{enviadas.length}</span>
-  </button>
-</div>
+<div class="resenas-raiz">
+  <!-- ── tabs ── -->
+  <div class="tabs-resenas">
+    <button class="tab-resena activo" id="tab-pendientes" data-tab="pendientes">
+      <span class="tab-icono">📝</span> Pendientes de calificar
+      <span class="tab-contador tab-contador-suave">{pendientes.length}</span>
+    </button>
+    <button class="tab-resena" id="tab-enviadas" data-tab="enviadas">
+      <span class="tab-icono">✅</span> Reseñas enviadas
+      <span class="tab-contador">{enviadas.length}</span>
+    </button>
+  </div>
 
-<!-- ── panel: pendientes ── -->
-<div class="panel-resenas" id="panel-pendientes">
-  {pendientes.length === 0 ? (
-    <div class="resenas-vacio">
-      <p>No tienes productos pendientes por reseñar.</p>
-      <p class="resenas-vacio-sub">Aparecerán aquí los productos de tus pedidos ya entregados.</p>
-    </div>
-  ) : (
-    <div class="grilla-resenas">
-      {pendientes.map((item) => (
-        <div class="tarjeta-pendiente">
-          <div class="pendiente-producto">
-            {item.productoImagen ? (
-              <img src={item.productoImagen} alt={item.producto} class="pendiente-imagen" data-fallback="pendiente" />
-            ) : null}
-            <div class="pendiente-imagen-placeholder" style={`display:${item.productoImagen ? 'none' : 'flex'}`}>
-              {item.producto.charAt(0).toUpperCase()}
-            </div>
-            <div class="pendiente-info">
-              <div class="pendiente-nombre">{item.producto}</div>
-              <div class="pendiente-empresa">{item.empresa}</div>
-              <div class="pendiente-meta">Pedido #{item.idPedido} · {formatearFecha(item.fecha)} · {item.cantidad} uds</div>
+  <!-- ── panel: pendientes ── -->
+  <div class="panel-resenas" id="panel-pendientes">
+    {pendientes.length === 0 ? (
+      <div class="resenas-vacio">
+        <p>No tienes pedidos pendientes por calificar.</p>
+        <p class="resenas-vacio-sub">Aparecerán aquí los productos de tus pedidos ya entregados.</p>
+      </div>
+    ) : (
+      <div class="lista-resenas">
+        {pendientes.map((pedido) => (
+          <div class="tarjeta-resena" data-tipo="pendiente" data-id-pedido={pedido.idPedido}>
+            <button type="button" class="resena-cabecera" aria-expanded="false">
+              {pedido.empresaLogo ? (
+                <img src={pedido.empresaLogo} alt={pedido.empresa} class="resena-logo" data-fallback="logo" />
+              ) : null}
+              <div class="resena-logo-placeholder" style={`display:${pedido.empresaLogo ? 'none' : 'flex'}`}>
+                {pedido.empresa.charAt(0).toUpperCase()}
+              </div>
+              <div class="resena-info">
+                <div class="resena-empresa">{pedido.empresa}</div>
+                <div class="resena-meta">
+                  #PED-{pedido.idPedido} · {formatearFecha(pedido.fecha)} · {pedido.productos.length} productos
+                </div>
+              </div>
+              <span class="resena-progreso" data-progreso>0/{pedido.productos.length}</span>
+              <span class="resena-chevron">▲</span>
+            </button>
+
+            <div class="resena-cuerpo">
+              <div class="resena-productos">
+                {pedido.productos.map((item) => (
+                  <div class="fila-producto" data-id-producto={item.idProducto}>
+                    {item.productoImagen ? (
+                      <img src={item.productoImagen} alt={item.producto} class="producto-imagen" data-fallback="producto" />
+                    ) : null}
+                    <div class="producto-imagen-placeholder" style={`display:${item.productoImagen ? 'none' : 'flex'}`}>
+                      {item.producto.charAt(0).toUpperCase()}
+                    </div>
+                    <div class="producto-nombre">{item.producto}</div>
+                    <div class="estrellas-input" data-valor="0">
+                      {ESTRELLAS.map((n) => (
+                        <button type="button" class="estrella-btn" data-valor={n} aria-label={`${n} estrellas`}>★</button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div class="resena-comentario-bloque">
+                <label class="comentario-titulo">💬 Comentario del pedido (opcional)</label>
+                <textarea
+                  class="campo-comentario"
+                  maxlength="500"
+                  rows="3"
+                  placeholder="Cuéntanos qué te pareció tu pedido, el servicio o el repartidor..."
+                ></textarea>
+                <button type="button" class="btn-enviar-pedido" disabled>Enviar reseñas</button>
+              </div>
             </div>
           </div>
-          <button
-            class="btn-escribir-resena"
-            data-accion="abrir-resena"
-            data-id-pedido={item.idPedido}
-            data-id-producto={item.idProducto}
-            data-producto={item.producto}
-            data-empresa={item.empresa}
-            data-imagen={item.productoImagen}
-          >
-            Escribir reseña
-          </button>
-        </div>
-      ))}
-    </div>
-  )}
-</div>
+        ))}
+      </div>
+    )}
+  </div>
 
-<!-- ── panel: enviadas ── -->
-<div class="panel-resenas" id="panel-enviadas" style="display:none;">
-  {enviadas.length === 0 ? (
-    <div class="resenas-vacio">
-      <p>Aún no has enviado ninguna reseña.</p>
-    </div>
-  ) : (
-    <div class="grilla-resenas">
-      {enviadas.map((resena) => (
-        <div class="tarjeta-enviada">
-          <div class="pendiente-producto">
-            {resena.productoImagen ? (
-              <img src={resena.productoImagen} alt={resena.producto} class="pendiente-imagen" data-fallback="enviada" />
-            ) : null}
-            <div class="pendiente-imagen-placeholder" style={`display:${resena.productoImagen ? 'none' : 'flex'}`}>
-              {resena.producto.charAt(0).toUpperCase()}
-            </div>
-            <div class="pendiente-info">
-              <div class="pendiente-nombre">{resena.producto}</div>
-              <div class="pendiente-empresa">{resena.empresa}</div>
-              <div class="enviada-fecha">{formatearFecha(resena.fecha)}</div>
+  <!-- ── panel: enviadas ── -->
+  <div class="panel-resenas" id="panel-enviadas" style="display:none;">
+    {enviadas.length === 0 ? (
+      <div class="resenas-vacio">
+        <p>Aún no has enviado ninguna reseña.</p>
+      </div>
+    ) : (
+      <div class="lista-resenas">
+        {enviadas.map((pedido) => (
+          <div class="tarjeta-resena" data-tipo="enviada">
+            <button type="button" class="resena-cabecera" aria-expanded="false">
+              {pedido.empresaLogo ? (
+                <img src={pedido.empresaLogo} alt={pedido.empresa} class="resena-logo" data-fallback="logo" />
+              ) : null}
+              <div class="resena-logo-placeholder" style={`display:${pedido.empresaLogo ? 'none' : 'flex'}`}>
+                {pedido.empresa.charAt(0).toUpperCase()}
+              </div>
+              <div class="resena-info">
+                <div class="resena-empresa">{pedido.empresa}</div>
+                <div class="resena-meta">
+                  #PED-{pedido.idPedido} · {formatearFecha(pedido.fecha)} · {pedido.productos.length} productos
+                </div>
+              </div>
+              <span class="resena-promedio"><span class="promedio-estrella">★</span> {pedido.promedio.toFixed(1)}</span>
+              <span class="resena-chevron">▲</span>
+            </button>
+
+            <div class="resena-cuerpo">
+              <div class="resena-productos">
+                {pedido.productos.map((item) => (
+                  <div class="fila-producto">
+                    {item.productoImagen ? (
+                      <img src={item.productoImagen} alt={item.producto} class="producto-imagen" data-fallback="producto" />
+                    ) : null}
+                    <div class="producto-imagen-placeholder" style={`display:${item.productoImagen ? 'none' : 'flex'}`}>
+                      {item.producto.charAt(0).toUpperCase()}
+                    </div>
+                    <div class="producto-nombre">{item.producto}</div>
+                    <div class="estrellas-lectura" aria-label={`${item.calificacion} de 5 estrellas`}>
+                      {ESTRELLAS.map((n) => (
+                        <span class={`estrella-fija ${n <= item.calificacion ? 'activa' : ''}`}>★</span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {pedido.comentario && (
+                <div class="resena-comentario-bloque separado">
+                  <div class="comentario-titulo">💬 Comentario del pedido</div>
+                  <p class="comentario-texto">"{pedido.comentario}"</p>
+                </div>
+              )}
             </div>
           </div>
-          <div class="enviada-estrellas">{estrellas(resena.calificacion)}</div>
-          {resena.comentario && <p class="enviada-comentario">"{resena.comentario}"</p>}
-        </div>
-      ))}
-    </div>
-  )}
-</div>
-
-<!-- ── modal: escribir reseña ── -->
-<div id="modal-resena" class="modal-resena-overlay">
-  <div class="modal-resena-caja">
-    <button class="modal-resena-cerrar" id="mr-cerrar">×</button>
-
-    <div class="mr-producto">
-      <img id="mr-imagen" src="" alt="" class="mr-imagen" style="display:none;" />
-      <div id="mr-imagen-placeholder" class="mr-imagen-placeholder"></div>
-      <div>
-        <div id="mr-nombre-producto" class="mr-nombre-producto"></div>
-        <div id="mr-empresa" class="mr-empresa"></div>
+        ))}
       </div>
-    </div>
-
-    <div class="mr-campo">
-      <label>Calificación</label>
-      <div class="mr-estrellas-input" id="mr-estrellas-input">
-        <button type="button" class="mr-estrella" data-valor="1">★</button>
-        <button type="button" class="mr-estrella" data-valor="2">★</button>
-        <button type="button" class="mr-estrella" data-valor="3">★</button>
-        <button type="button" class="mr-estrella" data-valor="4">★</button>
-        <button type="button" class="mr-estrella" data-valor="5">★</button>
-      </div>
-    </div>
-
-    <div class="mr-campo">
-      <label for="mr-comentario">Comentario (opcional)</label>
-      <textarea id="mr-comentario" maxlength="500" rows="4" placeholder="¿Qué te pareció el producto?"></textarea>
-    </div>
-
-    <button class="mr-btn-enviar" id="mr-btn-enviar" disabled>Enviar reseña</button>
+    )}
   </div>
 </div>
 
@@ -185,75 +218,28 @@ function estrellas(calificacion: number): string {
     document.getElementById('tab-enviadas')?.classList.toggle('activo', tab === 'enviadas');
   }
 
-  // ── modal de reseña ──
-  let idPedidoActual = 0;
-  let idProductoActual = 0;
-  let calificacionActual = 0;
+  // cuenta cuantos productos ya tienen estrellas, actualiza el contador de la
+  // cabecera y habilita el boton de enviar solo cuando estan todos calificados
+  function actualizarProgreso(tarjeta: HTMLElement) {
+    const grupos = tarjeta.querySelectorAll<HTMLElement>('.estrellas-input');
+    const calificados = Array.from(grupos).filter((g) => Number(g.dataset.valor) > 0).length;
 
-  function abrirModalResena(el: HTMLElement) {
-    idPedidoActual = Number(el.dataset.idPedido);
-    idProductoActual = Number(el.dataset.idProducto);
-    calificacionActual = 0;
-
-    document.getElementById('mr-nombre-producto')!.textContent = el.dataset.producto ?? '';
-    document.getElementById('mr-empresa')!.textContent = el.dataset.empresa ?? '';
-
-    const imagenUrl = el.dataset.imagen ?? '';
-    const imgEl = document.getElementById('mr-imagen') as HTMLImageElement;
-    const placeholderEl = document.getElementById('mr-imagen-placeholder')!;
-    if (imagenUrl) {
-      imgEl.src = imagenUrl;
-      imgEl.style.display = 'block';
-      placeholderEl.style.display = 'none';
-    } else {
-      imgEl.style.display = 'none';
-      placeholderEl.style.display = 'flex';
-      placeholderEl.textContent = (el.dataset.producto || 'P').charAt(0).toUpperCase();
+    const progreso = tarjeta.querySelector<HTMLElement>('[data-progreso]');
+    if (progreso) {
+      progreso.textContent = `${calificados}/${grupos.length}`;
+      progreso.classList.toggle('completo', calificados === grupos.length);
     }
 
-    (document.getElementById('mr-comentario') as HTMLTextAreaElement).value = '';
-    pintarEstrellas(0);
-    actualizarBotonEnviar();
-
-    document.getElementById('modal-resena')!.classList.add('abierto');
+    const boton = tarjeta.querySelector<HTMLButtonElement>('.btn-enviar-pedido');
+    if (boton) boton.disabled = calificados < grupos.length;
   }
 
-  function cerrarModalResena() {
-    document.getElementById('modal-resena')!.classList.remove('abierto');
-  }
-
-  function pintarEstrellas(valor: number) {
-    document.querySelectorAll('.mr-estrella').forEach((btn) => {
-      const estrellaValor = Number((btn as HTMLElement).dataset.valor);
-      btn.classList.toggle('activa', estrellaValor <= valor);
-    });
-  }
-
-  function actualizarBotonEnviar() {
-    const boton = document.getElementById('mr-btn-enviar') as HTMLButtonElement;
-    boton.disabled = calificacionActual < 1;
-  }
-
-  document.querySelectorAll('.mr-estrella').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      calificacionActual = Number((btn as HTMLElement).dataset.valor);
-      pintarEstrellas(calificacionActual);
-      actualizarBotonEnviar();
-    });
-  });
-
-  document.getElementById('mr-cerrar')?.addEventListener('click', cerrarModalResena);
-  document.getElementById('modal-resena')?.addEventListener('click', function (e) {
-    if (e.target === this) cerrarModalResena();
-  });
-
-  document.querySelectorAll('[data-accion="abrir-resena"]').forEach((btn) => {
-    btn.addEventListener('click', () => abrirModalResena(btn as HTMLElement));
-  });
-
-  document.getElementById('mr-btn-enviar')?.addEventListener('click', async () => {
-    const boton = document.getElementById('mr-btn-enviar') as HTMLButtonElement;
-    const comentario = (document.getElementById('mr-comentario') as HTMLTextAreaElement).value.trim();
+  async function enviarResena(tarjeta: HTMLElement, boton: HTMLButtonElement) {
+    const calificaciones = Array.from(tarjeta.querySelectorAll<HTMLElement>('.fila-producto')).map((fila) => ({
+      idProducto: Number(fila.dataset.idProducto),
+      calificacion: Number(fila.querySelector<HTMLElement>('.estrellas-input')?.dataset.valor),
+    }));
+    const comentario = tarjeta.querySelector<HTMLTextAreaElement>('.campo-comentario')?.value.trim() ?? '';
 
     boton.disabled = true;
     boton.textContent = 'Enviando...';
@@ -263,9 +249,8 @@ function estrellas(calificacion: number): string {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          idPedido: idPedidoActual,
-          idProducto: idProductoActual,
-          calificacion: calificacionActual,
+          idPedido: Number(tarjeta.dataset.idPedido),
+          calificaciones,
           comentario: comentario || undefined,
         }),
       });
@@ -274,35 +259,66 @@ function estrellas(calificacion: number): string {
       if (!data.success) {
         mostrarToast(data.message || 'No fue posible enviar la reseña', true);
         boton.disabled = false;
-        boton.textContent = 'Enviar reseña';
+        boton.textContent = 'Enviar reseñas';
         return;
       }
 
       mostrarToast('¡Reseña enviada correctamente!');
-      // recarga para que el item pase de "pendientes" a "enviadas" con datos reales del servidor
+      // recarga para que el pedido pase de "pendientes" a "enviadas" con los datos reales
       setTimeout(() => window.location.reload(), 700);
     } catch (err) {
       console.error('error enviando la reseña:', err);
       mostrarToast('Error al enviar la reseña', true);
       boton.disabled = false;
-      boton.textContent = 'Enviar reseña';
+      boton.textContent = 'Enviar reseñas';
+    }
+  }
+
+  // un solo listener para toda la vista (delegacion de eventos)
+  document.querySelector('.resenas-raiz')?.addEventListener('click', (evento) => {
+    const objetivo = evento.target as HTMLElement;
+
+    // desplegar / plegar la tarjeta
+    const cabecera = objetivo.closest<HTMLElement>('.resena-cabecera');
+    if (cabecera) {
+      const tarjeta = cabecera.closest<HTMLElement>('.tarjeta-resena')!;
+      const abierta = tarjeta.classList.toggle('abierta');
+      cabecera.setAttribute('aria-expanded', String(abierta));
+      return;
+    }
+
+    // calificar un producto con estrellas
+    const estrella = objetivo.closest<HTMLElement>('.estrella-btn');
+    if (estrella) {
+      const grupo = estrella.closest<HTMLElement>('.estrellas-input')!;
+      const valor = Number(estrella.dataset.valor);
+      grupo.dataset.valor = String(valor);
+      grupo.querySelectorAll<HTMLElement>('.estrella-btn').forEach((btn) => {
+        btn.classList.toggle('activa', Number(btn.dataset.valor) <= valor);
+      });
+      actualizarProgreso(grupo.closest<HTMLElement>('.tarjeta-resena')!);
+      return;
+    }
+
+    // enviar la reseña completa del pedido
+    const enviar = objetivo.closest<HTMLButtonElement>('.btn-enviar-pedido');
+    if (enviar && !enviar.disabled) {
+      enviarResena(enviar.closest<HTMLElement>('.tarjeta-resena')!, enviar);
     }
   });
 
-  // fallback de imagen rota
-  document.querySelectorAll('.grilla-resenas').forEach((grilla) => {
-    grilla.addEventListener(
-      'error',
-      (evento) => {
-        const img = evento.target as HTMLImageElement;
-        if (!img.dataset?.fallback) return;
-        img.style.display = 'none';
-        const placeholder = img.nextElementSibling as HTMLElement | null;
-        if (placeholder) placeholder.style.display = 'flex';
-      },
-      true,
-    );
-  });
+  // imagen rota -> placeholder con inicial (el evento error no burbujea, por eso captura)
+  document.querySelector('.resenas-raiz')?.addEventListener(
+    'error',
+    (evento) => {
+      const img = evento.target as HTMLImageElement;
+      if (!img.dataset?.fallback) return;
+      img.style.display = 'none';
+      const placeholder = img.nextElementSibling as HTMLElement | null;
+      if (placeholder) placeholder.style.display = 'flex';
+    },
+    true,
+  );
 </script>
 
 <style>
@@ -315,30 +331,31 @@ function estrellas(calificacion: number): string {
   }
 
   .tab-resena {
-    padding: 0.65rem 1rem;
+    padding: 0.7rem 1.1rem;
     border: none;
     background: none;
-    font-size: 0.85rem;
+    font-size: 0.88rem;
     font-weight: 700;
-    color: var(--secondary-400);
+    color: var(--secondary-500);
     cursor: pointer;
     border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 7px;
     transition: color 0.15s;
   }
 
   .tab-resena.activo {
-    color: var(--primary-700);
-    border-bottom-color: var(--primary-700);
+    color: var(--primary-900);
+    border-bottom-color: var(--primary-900);
   }
 
   .tab-contador {
-    background: var(--primary-700);
+    background: var(--primary-900);
     color: white;
-    font-size: 0.68rem;
-    padding: 1px 7px;
+    font-size: 0.7rem;
+    padding: 1px 8px;
     border-radius: 20px;
     font-weight: 700;
   }
@@ -363,245 +380,264 @@ function estrellas(calificacion: number): string {
     margin-top: 4px;
   }
 
-  /* ── grilla ── */
-  .grilla-resenas {
+  /* ── lista de tarjetas ── */
+  .lista-resenas {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
+    /* align-items: start para que al desplegar una tarjeta no estire a las vecinas */
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
+    gap: 14px;
+    align-items: start;
   }
 
-  .tarjeta-pendiente,
-  .tarjeta-enviada {
+  .tarjeta-resena {
     background: white;
     border: 1px solid var(--secondary-200);
-    border-radius: 14px;
-    padding: 1rem 1.1rem;
+    border-radius: 16px;
+    overflow: hidden;
+    transition: border-color 0.15s, box-shadow 0.15s;
   }
 
-  .pendiente-producto {
+  .tarjeta-resena.abierta {
+    border-color: #3b82f6;
+    box-shadow: 0 6px 24px rgba(59, 130, 246, 0.12);
+  }
+
+  /* ── cabecera (boton que despliega) ── */
+  .resena-cabecera {
+    width: 100%;
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 0.75rem;
+    padding: 0.9rem 1rem;
+    border: none;
+    background: white;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    transition: background 0.15s;
   }
 
-  .pendiente-imagen,
-  .pendiente-imagen-placeholder {
-    width: 52px;
-    height: 52px;
+  .resena-cabecera:hover {
+    background: #f8fafc;
+  }
+
+  .tarjeta-resena.abierta .resena-cabecera {
+    background: #eff6ff;
+  }
+
+  .resena-logo,
+  .resena-logo-placeholder {
+    width: 42px;
+    height: 42px;
     border-radius: 10px;
     flex-shrink: 0;
     object-fit: contain;
-    border: 1px solid var(--secondary-100);
   }
 
-  .pendiente-imagen-placeholder {
-    background: var(--secondary-100);
-    display: flex;
+  .resena-logo-placeholder {
+    background: var(--primary-900);
+    color: white;
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    color: var(--secondary-400);
-    font-size: 1.2rem;
   }
 
-  .pendiente-info {
+  .resena-info {
     flex: 1;
     min-width: 0;
   }
 
-  .pendiente-nombre {
-    font-weight: 700;
-    font-size: 0.88rem;
-    color: var(--secondary-800);
-  }
-
-  .pendiente-empresa {
-    font-size: 0.76rem;
-    color: var(--secondary-500);
-  }
-
-  .pendiente-meta {
-    font-size: 0.7rem;
-    color: var(--secondary-400);
-    margin-top: 2px;
-  }
-
-  .enviada-fecha {
-    font-size: 0.7rem;
-    color: var(--secondary-400);
-    margin-top: 2px;
-  }
-
-  .btn-escribir-resena {
-    width: 100%;
-    padding: 0.55rem;
-    border-radius: 8px;
-    border: 1px solid var(--primary-600);
-    background: white;
-    color: var(--primary-700);
-    font-weight: 700;
-    font-size: 0.82rem;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-
-  .btn-escribir-resena:hover {
-    background: var(--primary-50);
-  }
-
-  .enviada-estrellas {
-    color: #f59e0b;
-    font-size: 1.1rem;
-    letter-spacing: 2px;
-    margin-bottom: 6px;
-  }
-
-  .enviada-comentario {
-    font-size: 0.82rem;
-    color: var(--secondary-600);
-    font-style: italic;
-    line-height: 1.5;
-  }
-
-  /* ── modal ── */
-  .modal-resena-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    z-index: 9300;
-    background: rgba(15, 23, 42, 0.55);
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-  }
-
-  .modal-resena-overlay.abierto {
-    display: flex;
-  }
-
-  .modal-resena-caja {
-    background: white;
-    border-radius: 18px;
-    width: min(440px, 96vw);
-    padding: 2rem;
-    position: relative;
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
-  }
-
-  .modal-resena-cerrar {
-    position: absolute;
-    top: 14px;
-    right: 14px;
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    border: none;
-    background: var(--secondary-100);
-    color: var(--secondary-600);
-    font-size: 1.3rem;
-    line-height: 1;
-    cursor: pointer;
-  }
-
-  .modal-resena-cerrar:hover {
-    background: var(--secondary-200);
+  .resena-empresa {
+    font-weight: 800;
+    font-size: 0.95rem;
     color: var(--secondary-900);
   }
 
-  .mr-producto {
+  .resena-meta {
+    font-size: 0.74rem;
+    color: var(--secondary-400);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .resena-promedio {
+    font-weight: 800;
+    font-size: 0.9rem;
+    color: #92400e;
+    white-space: nowrap;
+  }
+
+  .promedio-estrella {
+    color: #f59e0b;
+  }
+
+  .resena-progreso {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 20px;
+    background: var(--secondary-100);
+    color: var(--secondary-500);
+    white-space: nowrap;
+  }
+
+  .resena-progreso.completo {
+    background: #dcfce7;
+    color: #16a34a;
+  }
+
+  .resena-chevron {
+    color: #3b82f6;
+    font-size: 0.8rem;
+    transition: transform 0.2s;
+    /* cerrada apunta hacia abajo, abierta hacia arriba */
+    transform: rotate(180deg);
+  }
+
+  .tarjeta-resena.abierta .resena-chevron {
+    transform: rotate(0deg);
+  }
+
+  /* ── cuerpo desplegable ── */
+  .resena-cuerpo {
+    display: none;
+    max-height: 70vh;
+    overflow-y: auto;
+    padding: 0.9rem 1rem 1.1rem;
+  }
+
+  .tarjeta-resena.abierta .resena-cuerpo {
+    display: block;
+  }
+
+  .resena-productos {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .fila-producto {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 1.25rem;
-    padding-right: 1.5rem;
+    padding: 0.55rem 0.75rem;
+    background: #f8fafc;
+    border: 1px solid var(--secondary-100);
+    border-radius: 12px;
   }
 
-  .mr-imagen,
-  .mr-imagen-placeholder {
-    width: 52px;
-    height: 52px;
-    border-radius: 10px;
+  .producto-imagen,
+  .producto-imagen-placeholder {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
     flex-shrink: 0;
     object-fit: contain;
+    background: white;
     border: 1px solid var(--secondary-100);
   }
 
-  .mr-imagen-placeholder {
-    background: var(--secondary-100);
-    display: flex;
+  .producto-imagen-placeholder {
     align-items: center;
     justify-content: center;
     font-weight: 700;
     color: var(--secondary-400);
+    background: var(--secondary-100);
   }
 
-  .mr-nombre-producto {
+  .producto-nombre {
+    flex: 1;
+    min-width: 0;
     font-weight: 700;
-    font-size: 0.92rem;
+    font-size: 0.86rem;
     color: var(--secondary-800);
   }
 
-  .mr-empresa {
-    font-size: 0.76rem;
-    color: var(--secondary-500);
-  }
-
-  .mr-campo {
-    margin-bottom: 1.1rem;
-  }
-
-  .mr-campo label {
-    display: block;
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: var(--secondary-500);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin-bottom: 6px;
-  }
-
-  .mr-estrellas-input {
+  /* ── estrellas ── */
+  .estrellas-input,
+  .estrellas-lectura {
     display: flex;
-    gap: 4px;
+    gap: 2px;
+    flex-shrink: 0;
   }
 
-  .mr-estrella {
-    font-size: 1.8rem;
+  .estrella-btn {
     background: none;
     border: none;
-    cursor: pointer;
-    color: var(--secondary-200);
+    padding: 0 1px;
+    font-size: 1.5rem;
     line-height: 1;
-    padding: 2px;
+    color: var(--secondary-200);
+    cursor: pointer;
     transition: color 0.1s, transform 0.1s;
   }
 
-  .mr-estrella:hover {
-    transform: scale(1.1);
+  .estrella-btn:hover {
+    transform: scale(1.15);
   }
 
-  .mr-estrella.activa {
+  .estrella-btn.activa {
     color: #f59e0b;
   }
 
-  .mr-campo textarea {
+  .estrella-fija {
+    font-size: 1.4rem;
+    line-height: 1;
+    color: var(--secondary-200);
+  }
+
+  .estrella-fija.activa {
+    color: #f59e0b;
+  }
+
+  /* ── comentario general ── */
+  .resena-comentario-bloque {
+    margin-top: 1rem;
+    padding-top: 0.9rem;
+    border-top: 1px dashed var(--secondary-200);
+  }
+
+  .comentario-titulo {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--secondary-600);
+    margin-bottom: 8px;
+  }
+
+  .campo-comentario {
     width: 100%;
-    padding: 0.65rem 0.8rem;
+    padding: 0.7rem 0.85rem;
     border: 1px solid var(--secondary-200);
-    border-radius: 8px;
+    border-radius: 10px;
     font-size: 0.85rem;
+    font-family: inherit;
     resize: vertical;
     outline: none;
-    font-family: inherit;
+    background: #f8fafc;
   }
 
-  .mr-campo textarea:focus {
-    border-color: var(--primary-400);
+  .campo-comentario:focus {
+    border-color: #3b82f6;
+    background: white;
   }
 
-  .mr-btn-enviar {
+  .comentario-texto {
+    margin: 0;
+    padding: 0.75rem 0.9rem;
+    background: #f8fafc;
+    border: 1px solid var(--secondary-200);
+    border-radius: 10px;
+    font-size: 0.84rem;
+    font-style: italic;
+    color: var(--secondary-600);
+    line-height: 1.5;
+  }
+
+  .btn-enviar-pedido {
     width: 100%;
+    margin-top: 0.8rem;
     padding: 0.75rem;
     border-radius: 10px;
     border: none;
@@ -613,18 +649,12 @@ function estrellas(calificacion: number): string {
     transition: background 0.15s, opacity 0.15s;
   }
 
-  .mr-btn-enviar:disabled {
-    opacity: 0.5;
+  .btn-enviar-pedido:disabled {
+    opacity: 0.45;
     cursor: default;
   }
 
-  .mr-btn-enviar:hover:not(:disabled) {
+  .btn-enviar-pedido:hover:not(:disabled) {
     background: var(--primary-700);
-  }
-
-  @media (max-width: 768px) {
-    .grilla-resenas {
-      grid-template-columns: 1fr;
-    }
   }
 </style>

@@ -1,4 +1,5 @@
-// proxy BFF: POST /pago/crear-intencion -> { clientSecret, publishableKey, totalUsd, totalCop }
+// proxy bff: post /pago/crear-intencion -> { urlCheckout, referencia, totalCop }
+// el navegador redirige a urlCheckout para pagar en la pagina de wompi
 import type { APIRoute } from 'astro';
 import { llamarBackend, obtenerToken } from '../../../../../lib/Backend';
 

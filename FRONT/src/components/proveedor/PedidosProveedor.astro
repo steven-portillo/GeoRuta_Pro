@@ -572,7 +572,7 @@ const datosJson = JSON.stringify({ pedidos: pedidosIniciales, error: error ?? nu
   let idRastreo: number | null = null;
 
   function alertaGps(mensaje: string) {
-    if (obtener('banner-gps')) return;
+    obtener('banner-gps')?.remove();
 
     const banner = document.createElement('div');
     banner.id = 'banner-gps';
@@ -592,7 +592,18 @@ const datosJson = JSON.stringify({ pedidos: pedidosIniciales, error: error ?? nu
     setTimeout(() => banner.remove(), 8000);
   }
 
-  function pedirPermisoUbicacion(): Promise<boolean> {
+    // traduce el codigo de error de geolocation a un mensaje que el repartidor entienda
+  function textoErrorGps(error: GeolocationPositionError): string {
+    if (error.code === error.PERMISSION_DENIED) {
+      return '⚠️ Debes permitir el acceso a tu ubicación (candado junto a la url → ubicación → permitir).';
+    }
+    if (error.code === error.POSITION_UNAVAILABLE) {
+      return '⚠️ No se pudo obtener tu posición. Activa los servicios de ubicación del sistema o simula una ubicación en devtools → sensors.';
+    }
+    return '⚠️ Se agotó el tiempo esperando tu ubicación. Intenta de nuevo.';
+  }
+
+    function pedirPermisoUbicacion(): Promise<boolean> {
     return new Promise((resolve) => {
       if (!navigator.geolocation) {
         alertaGps('Tu navegador no soporta geolocalización.');
@@ -602,14 +613,13 @@ const datosJson = JSON.stringify({ pedidos: pedidosIniciales, error: error ?? nu
       navigator.geolocation.getCurrentPosition(
         () => resolve(true),
         (error) => {
-          if (error.code === error.PERMISSION_DENIED) {
-            alertaGps(
-              '⚠️ Debes permitir el acceso a tu ubicación para que el cliente pueda rastrearte en tiempo real.',
-            );
-          }
+          // ahora TODOS los errores se muestran y quedan en consola
+          console.warn('error de gps al pedir permiso:', error.code, error.message);
+          alertaGps(textoErrorGps(error));
           resolve(false);
         },
-        { timeout: 5000 },
+        // timeout mas largo y se acepta una posicion en cache de hasta 1 minuto
+        { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 },
       );
     });
   }
@@ -625,19 +635,19 @@ const datosJson = JSON.stringify({ pedidos: pedidosIniciales, error: error ?? nu
   }
 
   async function abrirSocket(idPedido: number): Promise<WebSocket> {
-    const token = await obtenerTokenWs();
-    if (!token) throw new Error('no se pudo obtener el token del websocket');
+  const token = await obtenerTokenWs();
+  if (!token) throw new Error('no se pudo obtener el token del websocket');
 
-    // http://localhost:8000 → ws://localhost:8000 (https → wss)
-    const base = String(import.meta.env.PUBLIC_BACKEND_URL ?? '').replace(/^http/, 'ws');
-    const url = `${base}/ws/rastreo/${idPedido}?token=${encodeURIComponent(token)}`;
+  // mismo host de la pagina: ws://localhost:4321 en local, wss://xxxx.ngrok-free.dev en ngrok
+  const base = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`;
+  const url = `${base}/ws/rastreo/${idPedido}?token=${encodeURIComponent(token)}`;
 
-    return await new Promise<WebSocket>((resolve, reject) => {
-      const ws = new WebSocket(url);
-      ws.onopen = () => resolve(ws);
-      ws.onerror = () => reject(new Error('no se pudo abrir el websocket'));
-    });
-  }
+  return await new Promise<WebSocket>((resolve, reject) => {
+    const ws = new WebSocket(url);
+    ws.onopen = () => resolve(ws);
+    ws.onerror = () => reject(new Error('no se pudo abrir el websocket'));
+  });
+}
 
   async function conectar(idPedido: number) {
     const ws = await abrirSocket(idPedido);
@@ -676,8 +686,11 @@ const datosJson = JSON.stringify({ pedidos: pedidosIniciales, error: error ?? nu
           }),
         );
       },
-      (error) => console.warn('error de gps:', error.message),
-      { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 },
+            (error) => {
+        console.warn('error de gps:', error.code, error.message);
+        alertaGps(textoErrorGps(error));
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 2000 },
     );
   }
 
@@ -749,10 +762,6 @@ const datosJson = JSON.stringify({ pedidos: pedidosIniciales, error: error ?? nu
       boton.disabled = true;
     }
 
-    if (!(await pedirPermisoUbicacion())) {
-      pintarBanner(idPedido);
-      return;
-    }
 
     try {
       await iniciarRastreo(idPedido);

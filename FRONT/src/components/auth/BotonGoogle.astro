@@ -1,0 +1,174 @@
+---
+// src/components/auth/BotonGoogle.astro
+// boton oficial "continuar con google" + separador. sirve para login y registro:
+// el backend crea la cuenta si el correo no existe (ver AuthGoogle.model.ts).
+// necesita que la pagina tenga #formAlert y #formAlertMessage (los dos formularios los tienen)
+
+interface Props {
+  // signin_with = "Acceder con Google", signup_with = "Registrarse con Google"
+  texto?: 'signin_with' | 'signup_with' | 'continue_with';
+}
+
+const { texto = 'continue_with' } = Astro.props;
+---
+
+<div class="google-separador"><span>o</span></div>
+
+<div class="google-contenedor" id="googleContenedor" data-texto={texto}>
+  <div id="googleBoton"></div>
+</div>
+
+<style>
+  .google-separador {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 1.1rem 0 0.9rem;
+    color: #94a3b8;
+    font-size: 0.85rem;
+  }
+
+  .google-separador::before,
+  .google-separador::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #e2e8f0;
+  }
+
+  .google-contenedor {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1rem;
+    min-height: 44px;
+  }
+
+  /* mientras se valida con el backend, el boton no se puede volver a pulsar */
+  .google-contenedor.cargando {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+</style>
+
+<script>
+  // mismo mapa de rutas por rol que usa LoginForm.astro
+  const RUTA_POR_ROL: Record<string, string> = {
+    CLIENTE: '/cliente/inicio',
+    ADMIN: '/admin/inicio',
+    PROVEEDOR: '/proveedor/inicio',
+    SUPERADMIN: '/superadmin/inicio',
+  };
+
+  const CLIENT_ID = import.meta.env.PUBLIC_GOOGLE_CLIENT_ID as string | undefined;
+
+  const contenedor = document.getElementById('googleContenedor');
+  const boton = document.getElementById('googleBoton');
+  const formAlert = document.getElementById('formAlert');
+  const formAlertMessage = document.getElementById('formAlertMessage');
+
+  function mostrarAlerta(tipo: 'danger' | 'success', mensaje: string) {
+    if (!formAlert || !formAlertMessage) return;
+    formAlertMessage.textContent = mensaje;
+    formAlert.className = `alert-custom alert-custom-${tipo} d-flex`;
+  }
+
+  function ocultarAlerta() {
+    formAlert?.classList.add('d-none');
+    formAlert?.classList.remove('d-flex');
+  }
+
+  // google llama a esta funcion cuando el usuario elige su cuenta y acepta
+  async function alRecibirCredencial(respuestaGoogle: { credential?: string }) {
+    if (!respuestaGoogle.credential) {
+      mostrarAlerta('danger', 'No se recibió la credencial de Google');
+      return;
+    }
+
+    ocultarAlerta();
+    contenedor?.classList.add('cargando');
+
+    try {
+      const respuesta = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credencial: respuestaGoogle.credential }),
+      });
+      const resultado = await respuesta.json();
+
+      if (!resultado.success) {
+        contenedor?.classList.remove('cargando');
+        mostrarAlerta('danger', resultado.message ?? 'No fue posible iniciar sesión con Google');
+        return;
+      }
+
+      mostrarAlerta('success', 'Acceso con Google exitoso. Redirigiendo a tu panel...');
+      const destino = RUTA_POR_ROL[resultado.usuario.rol] ?? '/';
+      setTimeout(() => {
+        window.location.href = destino;
+      }, 1000);
+    } catch {
+      contenedor?.classList.remove('cargando');
+      mostrarAlerta('danger', 'No fue posible conectar con el servidor');
+    }
+  }
+
+  // carga el script oficial de google una sola vez y espera a que este listo
+  function cargarScriptGoogle(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if ((window as any).google?.accounts?.id) {
+        resolve();
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client?hl=es';
+      script.async = true;
+      script.defer = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('no se pudo cargar el script de google'));
+      document.head.appendChild(script);
+    });
+  }
+
+  async function iniciar() {
+    if (!contenedor || !boton) return;
+
+    // sin client id no tiene sentido mostrar el boton
+    if (!CLIENT_ID) {
+      console.error('falta PUBLIC_GOOGLE_CLIENT_ID en el .env de astro (y reiniciar astro dev)');
+      contenedor.classList.add('d-none');
+      return;
+    }
+
+    try {
+      await cargarScriptGoogle();
+    } catch (error) {
+      console.error(error);
+      contenedor.classList.add('d-none');
+      return;
+    }
+
+    const google = (window as any).google;
+
+    google.accounts.id.initialize({
+      client_id: CLIENT_ID,
+      callback: alRecibirCredencial,
+    });
+
+    // el ancho del boton de google va en pixeles (entre 200 y 400): se ajusta al del formulario
+    const ancho = Math.min(400, Math.max(200, contenedor.clientWidth || 320));
+
+    google.accounts.id.renderButton(boton, {
+      type: 'standard',
+      theme: 'outline',
+      size: 'large',
+      text: contenedor.dataset.texto ?? 'continue_with',
+      shape: 'rectangular',
+      logo_alignment: 'left',
+      width: ancho,
+      locale: 'es',
+    });
+  }
+
+  iniciar();
+</script>

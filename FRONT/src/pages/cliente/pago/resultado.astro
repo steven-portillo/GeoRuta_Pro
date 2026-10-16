@@ -1,0 +1,36 @@
+---
+// src/pages/cliente/pago/resultado.astro
+import ClienteLayout from '../../../layouts/ClienteLayout.astro';
+import ResultadoPagoCliente from '../../../components/cliente/ResultadoPagoCliente.astro';
+import { llamarBackend, obtenerToken } from '../../../lib/Backend';
+
+const token = obtenerToken(Astro.cookies);
+
+// wompi vuelve con ?pedido=<id>; si falta o no es valido, no hay nada que mostrar
+const idPedido = Number(Astro.url.searchParams.get('pedido'));
+if (!Number.isInteger(idPedido) || idPedido <= 0) {
+  return Astro.redirect('/cliente/pedidos');
+}
+
+// wompi agrega ?id=<transaccion> al volver; se pasa al componente para verificar ese pago
+const idTransaccion = Astro.url.searchParams.get('id') ?? '';
+
+const respuestaCuenta = await llamarBackend('/cliente/perfil/cuenta', { token });
+const perfil = respuestaCuenta.datos.data as {
+  nombre: string;
+  apellido: string;
+  imagenUrl: string;
+};
+
+const iniciales = `${perfil.nombre?.[0] ?? ''}${perfil.apellido?.[0] ?? ''}`.toUpperCase();
+---
+
+<ClienteLayout
+  titulo="Resultado del pago"
+  vistaActual="pedidos"
+  nombreUsuario={`${perfil.nombre} ${perfil.apellido}`}
+  inicialesUsuario={iniciales}
+  imagenUrl={perfil.imagenUrl || null}
+>
+    <ResultadoPagoCliente idPedido={idPedido} idTransaccion={idTransaccion} />
+</ClienteLayout>

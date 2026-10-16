@@ -9,23 +9,28 @@ interface PendienteResena {
   fecha: string;
   empresa: string;
   empresaLogo: string;
-  idProducto: number;
-  producto: string;
-  productoImagen: string;
-  cantidad: number;
-  precioUnitario: number;
+  productos: {
+    idProducto: number;
+    producto: string;
+    productoImagen: string;
+    cantidad: number;
+    precioUnitario: number;
+  }[];
 }
 
 interface EnviadaResena {
-  idResena: number;
   idPedido: number;
-  calificacion: number;
-  comentario: string;
   fecha: string;
-  producto: string;
-  productoImagen: string;
   empresa: string;
   empresaLogo: string;
+  promedio: number;
+  comentario: string;
+  productos: {
+    idProducto: number;
+    producto: string;
+    productoImagen: string;
+    calificacion: number;
+  }[];
 }
 
 const token = obtenerToken(Astro.cookies);

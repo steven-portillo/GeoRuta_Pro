@@ -402,10 +402,111 @@ nav {
     padding: 1.5rem 2rem 3rem;
 }
 
+/* escritorio: el contenedor "desaparece" y menu/buscador siguen siendo items de la barra */
+.top-colapsable {
+    display: contents;
+}
+
+/* el boton hamburguesa no existe en escritorio */
+.top-hamburguesa {
+    display: none;
+    width: 46px;
+    height: 46px;
+    flex-shrink: 0;
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.1);
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+    .top-hamburguesa:hover,
+    .top-hamburguesa[aria-expanded="true"] {
+        background: var(--primary-600);
+    }
+
+    .top-hamburguesa svg {
+        width: 22px;
+        height: 22px;
+        fill: var(--white);
+    }
+
 @media (max-width: 900px) {
-    .top-menu,
-    .top-buscador {
+    .barra-superior.nueva-barra {
+        gap: 0.75rem;
+        padding: 0 1rem;
+    }
+
+    .top-hamburguesa {
+        display: flex;
+    }
+
+    /* los iconos se van al extremo derecho */
+    .top-acciones {
+        margin-left: auto;
+    }
+
+    /* el panel cuelga justo debajo de la barra (la barra es sticky, asi que es su referencia) */
+    .top-colapsable {
         display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        flex-direction: column;
+        gap: 0.9rem;
+        padding: 1rem;
+        background: var(--primary-900);
+        border-top: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.3);
+    }
+
+    .top-colapsable.abierto {
+        display: flex;
+    }
+
+    /* el menu pasa a ser una lista vertical con zonas de toque grandes */
+    .top-menu {
+        flex: none;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.25rem;
+    }
+
+    .top-link {
+        padding: 0.85rem 1rem;
+        font-size: 1rem;
+    }
+
+    .top-buscador {
+        flex: none;
+        width: 100%;
+    }
+}
+
+/* celulares angostos: se compacta la barra para que quepan todos los iconos */
+@media (max-width: 480px) {
+    .top-logo-texto {
+        display: none;
+    }
+
+    .barra-superior.nueva-barra {
+        gap: 0.5rem;
+        padding: 0 0.75rem;
+    }
+
+    .top-acciones {
+        gap: 0.4rem;
+    }
+
+    .icon-btn,
+    .avatar-navbar,
+    .top-hamburguesa,
+    .logo-icono {
+        width: 40px;
+        height: 40px;
     }
 }
 

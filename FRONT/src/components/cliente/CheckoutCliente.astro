@@ -4,7 +4,7 @@
 // cuando el pedido queda creado, emite 'georuta:pedido-creado' para que el catalogo vacie el carrito.
 ---
 
-<!-- leaflet (mapa) y stripe.js: solo se necesitan en esta vista -->
+<!-- leaflet (mapa): solo se necesita en esta vista -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script is:inline src="https://js.stripe.com/v3/"></script>
@@ -69,7 +69,7 @@
           <input type="radio" name="ck-metodo" value="online" checked />
           <div>
             <div class="ck-opcion-titulo">💳 Pagar en línea</div>
-            <div class="ck-opcion-desc">Tarjeta de crédito o débito (Stripe)</div>
+            <div class="ck-opcion-desc">Tarjeta, PSE, Nequi y más con Wompi</div>
           </div>
         </label>
         <label class="ck-opcion">
@@ -86,37 +86,6 @@
       <div class="ck-acciones">
         <button type="button" class="ck-btn ck-btn-secundario" id="ck-btn-atras">Atrás</button>
         <button type="button" class="ck-btn ck-btn-oscuro" id="ck-btn-finalizar">Hacer pedido</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════ modal 3: pago con tarjeta (stripe payment element) ═══════════ -->
-<div id="ck-stripe" class="ck-overlay ck-overlay-alto" role="dialog" aria-modal="true" aria-labelledby="ck-stripe-titulo">
-  <div class="ck-caja ck-caja-pago">
-    <div class="ck-cabecera">
-      <div>
-        <h3 class="ck-titulo" id="ck-stripe-titulo">🔒 Pago seguro con tarjeta</h3>
-        <p class="ck-subtitulo">Procesado por Stripe — modo de prueba</p>
-      </div>
-    </div>
-
-    <div class="ck-cuerpo">
-      <div class="ck-resumen">
-        <div class="ck-resumen-fila ck-resumen-total"><span>Total a pagar (USD)</span><strong id="ck-stripe-total"></strong></div>
-        <p class="ck-nota">Convertido desde COP según la tasa de cambio configurada.</p>
-      </div>
-
-      <div id="ck-payment-element" class="ck-payment-element"></div>
-      <div id="ck-msg-stripe" class="ck-msg"></div>
-
-      <div class="ck-acciones">
-        <button type="button" class="ck-btn ck-btn-secundario" id="ck-btn-cancelar-stripe">Cancelar</button>
-        <button type="button" class="ck-btn ck-btn-oscuro" id="ck-btn-pagar">Pagar ahora</button>
-      </div>
-
-      <div class="ck-prueba">
-        💡 Modo prueba: usa la tarjeta <strong>4242 4242 4242 4242</strong>, cualquier fecha futura y cualquier CVC.
       </div>
     </div>
   </div>
@@ -139,10 +108,6 @@
     let direccionGuardada = null; // { id, lat, lng } -> evita guardar la misma direccion dos veces
     let pedidoCreado = null; // id del pedido ya creado en este checkout (por si el pago online se reintenta)
     let metodoPago = 'online';
-
-    let stripe = null;
-    let elementos = null;
-    let idPedidoStripe = null;
 
     const $ = (id) => document.getElementById(id);
     const formatoCOP = (n) => '$' + Number(n).toLocaleString('es-CO');
@@ -478,19 +443,21 @@
           bloquearMetodo(true);
         }
 
-        if (metodoPago === 'online') {
+                if (metodoPago === 'online') {
           mensaje(msg, '⏳ Preparando pago seguro...', true);
 
           const intento = await post('/api/auth/cliente/pago/crear-intencion', { idPedido: pedidoCreado });
-          if (!intento.success) {
+          if (!intento.success || !intento.urlCheckout) {
             mensaje(msg, '❌ ' + (intento.message || 'No se pudo iniciar el pago') + ' Puedes reintentar.', false);
             btn.textContent = 'Reintentar pago';
             btn.disabled = false;
             return;
           }
 
-          cerrar('ck-pago');
-          abrirStripe(intento.clientSecret, intento.publishableKey, pedidoCreado, intento.totalUsd);
+          // el pedido ya existe: se vacia el carrito antes de salir hacia wompi
+          document.dispatchEvent(new CustomEvent('georuta:pedido-creado'));
+          mensaje(msg, '🔒 Redirigiendo a Wompi para completar el pago...', true);
+          window.location.href = intento.urlCheckout;
           return;
         }
 
@@ -502,64 +469,6 @@
         mensaje(msg, '❌ Error de conexión. Intenta de nuevo.', false);
         btn.textContent = 'Hacer pedido';
         btn.disabled = false;
-      }
-    }
-
-    // ══════════════════ paso 3: stripe ══════════════════
-    function abrirStripe(clientSecret, publishableKey, idPedido, totalUsd) {
-      idPedidoStripe = idPedido;
-      $('ck-stripe-total').textContent = '$' + Number(totalUsd).toFixed(2) + ' USD';
-      limpiarMensaje($('ck-msg-stripe'));
-
-      const btn = $('ck-btn-pagar');
-      btn.textContent = 'Pagar ahora';
-      btn.disabled = false;
-
-      if (!stripe) stripe = Stripe(publishableKey);
-      elementos = stripe.elements({ clientSecret });
-      elementos.create('payment').mount('#ck-payment-element');
-
-      abrir('ck-stripe');
-    }
-
-    function cerrarStripe() {
-      cerrar('ck-stripe');
-      $('ck-payment-element').innerHTML = '';
-      elementos = null;
-    }
-
-    async function pagarConTarjeta() {
-      if (!stripe || !elementos) return;
-
-      const btn = $('ck-btn-pagar');
-      const msg = $('ck-msg-stripe');
-      btn.textContent = 'Procesando...';
-      btn.disabled = true;
-
-      const { error, paymentIntent } = await stripe.confirmPayment({
-        elements: elementos,
-        // solo se usa si el banco pide redireccion (3d secure); con tarjetas de prueba no pasa
-        confirmParams: { return_url: window.location.origin + '/cliente/pedidos' },
-        redirect: 'if_required',
-      });
-
-      if (error) {
-        mensaje(msg, '❌ ' + (error.message || 'Error al procesar el pago.'), false);
-        btn.textContent = 'Pagar ahora';
-        btn.disabled = false;
-        return;
-      }
-
-      if (paymentIntent && paymentIntent.status === 'succeeded') {
-        mensaje(msg, '✅ ¡Pago exitoso! Registrando tu pedido...', true);
-        try {
-          // el backend verifica con stripe, marca el pago como aprobado y envia el recibo
-          await llamar('/api/auth/cliente/pago/exito/' + idPedidoStripe);
-        } catch (_) {}
-        document.dispatchEvent(new CustomEvent('georuta:pedido-creado'));
-        setTimeout(() => { window.location.href = '/cliente/pedidos'; }, 1200);
-      } else {
-        mensaje(msg, '⏳ Procesando, espera un momento...', true);
       }
     }
 
@@ -623,17 +532,18 @@
       });
     });
 
-    // cancelar el pago con tarjeta devuelve al paso anterior; el pedido ya existe, asi que
-    // "Hacer pedido" solo vuelve a pedir la intencion de pago, no crea otro pedido
-    $('ck-btn-cancelar-stripe').addEventListener('click', () => {
-      cerrarStripe();
-      abrirPago();
-      $('ck-btn-finalizar').textContent = 'Reintentar pago';
-      mensaje($('ck-msg-pago'), 'Tu pedido #' + idPedidoStripe + ' quedó pendiente de pago.', false);
+        // si el cliente vuelve atras desde wompi, el navegador puede restaurar esta pagina con el boton
+    // deshabilitado; el pedido ya existe, asi que solo se rehabilita para reintentar el pago
+    window.addEventListener('pageshow', (e) => {
+      if (!e.persisted || !pedidoCreado) return;
+      const btn = $('ck-btn-finalizar');
+      btn.disabled = false;
+      btn.textContent = 'Reintentar pago';
+      limpiarMensaje($('ck-msg-pago'));
     });
     $('ck-btn-pagar').addEventListener('click', pagarConTarjeta);
 
-    // cerrar con la X, con "Cancelar", o clic fuera de la caja (el modal de stripe no se cierra asi)
+    // cerrar con la X, con "Cancelar", o clic fuera de la caja 
     document.querySelectorAll('[data-ck-cerrar]').forEach((el) => {
       el.addEventListener('click', () => cerrar('ck-' + el.dataset.ckCerrar));
     });
@@ -653,7 +563,6 @@
 <style is:global>
   .ck-overlay { display: none; position: fixed; inset: 0; z-index: 9400; background: rgba(15, 23, 42, 0.55); align-items: center; justify-content: center; padding: 1rem; }
   .ck-overlay.ck-abierto { display: flex; }
-  .ck-overlay-alto { z-index: 9500; }
 
   .ck-caja { background: #fff; border-radius: 18px; max-height: 94vh; overflow-y: auto; display: flex; flex-direction: column; box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25); font-family: var(--font-body); }
   .ck-caja-mapa { width: min(680px, 96vw); overflow: hidden; }
@@ -701,9 +610,6 @@
   .ck-opcion input { accent-color: var(--primary-600); width: 18px; height: 18px; flex-shrink: 0; }
   .ck-opcion-titulo { font-weight: 700; font-size: 0.92rem; color: var(--secondary-800); }
   .ck-opcion-desc { font-size: 0.78rem; color: var(--secondary-500); margin-top: 1px; }
-
-  .ck-payment-element { margin-bottom: 1rem; min-height: 60px; }
-  .ck-prueba { margin-top: 1rem; padding: 0.7rem 0.9rem; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; font-size: 0.78rem; color: #92400e; }
 
   .ck-msg { display: none; margin-bottom: 0.9rem; padding: 0.6rem 0.9rem; border-radius: 8px; font-size: 0.83rem; font-weight: 600; }
   .ck-msg-visible { display: block; }

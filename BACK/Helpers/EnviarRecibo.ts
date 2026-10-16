@@ -1,4 +1,4 @@
-import { SMTPClient } from "../Dependencies/Dependencias.ts";
+import { enviarCorreo } from "./EnviarCorreo.ts";
 import { Pago } from "../Models/Pago.model.ts";
 
 // arma el HTML del recibo y lo envia por SMTP; nunca lanza — el recibo jamas debe romper el flujo de pago
@@ -81,27 +81,14 @@ export async function enviarReciboEmail(idPedido: number): Promise<void> {
       </body>
       </html>`;
 
-    const smtp = new SMTPClient({
-  connection: {
-    hostname: Deno.env.get("SMTP_HOST") ?? "",
-    port: Number(Deno.env.get("SMTP_PORT") ?? 587),
-    tls: false, // 587 = STARTTLS, no TLS directo — tls:true es solo para el puerto 465
-    auth: {
-      username: Deno.env.get("SMTP_USER") ?? "",
-      password: Deno.env.get("SMTP_PASSWORD") ?? "",
-    },
-  },
-});
-
-    await smtp.send({
-      from: Deno.env.get("SMTP_USER") ?? "",
-      to: email,
-      subject: `Recibo de tu pedido #PED-${idPedido} — GeoRuta`,
-      content: "Tu recibo está disponible en este correo.",
+          await enviarCorreo({
+      para: email,
+      asunto: `Recibo de tu pedido #PED-${idPedido} — GeoRuta`,
+      texto: "Tu recibo está disponible en este correo.",
       html,
     });
 
-    await smtp.close();
+   
   } catch (error) {
     // el recibo no debe bloquear el flujo de pago si falla
     console.error("Error enviando recibo:", error);

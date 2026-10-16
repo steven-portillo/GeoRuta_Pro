@@ -1,0 +1,146 @@
+---
+// resultado del pago en wompi: consulta el estado real al backend y lo muestra.
+// si wompi aun no lo confirma (pendiente), vuelve a consultar unas cuantas veces.
+interface Props {
+  idPedido: number;
+  idTransaccion?: string;
+}
+const { idPedido, idTransaccion = '' } = Astro.props;
+---
+
+<section class="rp-contenedor" id="rp-contenedor" data-id-pedido={idPedido}>
+  <div class="rp-caja">
+    <div class="rp-icono" id="rp-icono">⏳</div>
+    <h1 class="rp-titulo" id="rp-titulo">Verificando tu pago...</h1>
+    <p class="rp-texto" id="rp-texto">Estamos confirmando tu pago #{idPedido} con Wompi. No cierres esta página.</p>
+
+    <div class="rp-acciones">
+      <button type="button" class="rp-btn rp-btn-oscuro" id="rp-btn-reintentar" hidden>Reintentar pago</button>
+      <button type="button" class="rp-btn rp-btn-secundario" id="rp-btn-verificar" hidden>Verificar de nuevo</button>
+      <a class="rp-btn rp-btn-secundario" href="/cliente/pedidos">Ver mis pedidos</a>
+    </div>
+  </div>
+</section>
+
+<script>
+  type Estado = 'aprobado' | 'rechazado' | 'pendiente' | 'error';
+
+  const INTENTOS_MAXIMOS = 6;
+  const ESPERA_MS = 3000;
+
+  const contenedor = document.getElementById('rp-contenedor') as HTMLElement;
+  const idPedido = Number(contenedor.dataset.idPedido);
+
+  // wompi vuelve con ?id=<transaccion>; se lee directo de la url del navegador
+  const idTransaccion = new URLSearchParams(window.location.search).get('id') ?? '';
+
+  const icono = document.getElementById('rp-icono') as HTMLElement;
+  const titulo = document.getElementById('rp-titulo') as HTMLElement;
+  const texto = document.getElementById('rp-texto') as HTMLElement;
+  const btnReintentar = document.getElementById('rp-btn-reintentar') as HTMLButtonElement;
+  const btnVerificar = document.getElementById('rp-btn-verificar') as HTMLButtonElement;
+
+  const esperar = (ms: number) => new Promise((resolver) => setTimeout(resolver, ms));
+
+  // pinta la pantalla segun el estado; los botones solo aparecen donde tienen sentido
+  function pintar(estado: Estado | 'verificando') {
+    btnReintentar.hidden = true;
+    btnVerificar.hidden = true;
+
+    if (estado === 'verificando') {
+      icono.textContent = '⏳';
+      titulo.textContent = 'Verificando tu pago...';
+      texto.textContent = `Estamos confirmando tu pago #${idPedido} con Wompi. No cierres esta página.`;
+    } else if (estado === 'aprobado') {
+      icono.textContent = '✅';
+      titulo.textContent = '¡Pago aprobado!';
+      texto.textContent = `Tu pedido #${idPedido} quedó pagado y pasó a preparación. Te enviamos el recibo por correo.`;
+    } else if (estado === 'rechazado') {
+      icono.textContent = '❌';
+      titulo.textContent = 'El pago no fue aprobado';
+      texto.textContent = `Tu pedido #${idPedido} sigue sin pagar. Puedes intentarlo de nuevo con otro medio de pago.`;
+      btnReintentar.hidden = false;
+    } else if (estado === 'pendiente') {
+      icono.textContent = '🕒';
+      titulo.textContent = 'Aún no recibimos la confirmación';
+      texto.textContent =
+        'Si ya pagaste, puede tardar unos minutos en reflejarse: verifica de nuevo o revisa Mis pedidos más tarde.';
+      btnVerificar.hidden = false;
+    } else {
+      icono.textContent = '⚠️';
+      titulo.textContent = 'No pudimos verificar tu pago';
+      texto.textContent = 'Hubo un problema de conexión. Intenta verificar de nuevo.';
+      btnVerificar.hidden = false;
+    }
+  }
+
+  // una sola consulta al backend, enviando el id de la transaccion de wompi
+  async function consultar(): Promise<Estado> {
+    try {
+      const consulta = idTransaccion ? `?transaccion=${encodeURIComponent(idTransaccion)}` : '';
+      const url = `/api/auth/cliente/pago/exito/${idPedido}${consulta}`;
+      console.log('verificando pago en:', url); // temporal: quitar despues de la prueba
+
+      const respuesta = await fetch(url);
+      const datos = await respuesta.json();
+      if (!respuesta.ok || !datos.success) return 'error';
+      return datos.estado as Estado;
+    } catch {
+      return 'error';
+    }
+  }
+
+  // consulta varias veces mientras el estado siga pendiente (wompi a veces tarda unos segundos)
+  async function verificar() {
+    pintar('verificando');
+
+    let estado: Estado = 'pendiente';
+    for (let intento = 0; intento < INTENTOS_MAXIMOS; intento++) {
+      estado = await consultar();
+      if (estado !== 'pendiente') break;
+      await esperar(ESPERA_MS);
+    }
+
+    pintar(estado);
+
+    // pago aprobado: se lleva al cliente a sus pedidos despues de que alcance a leer el resultado
+    if (estado === 'aprobado') {
+      setTimeout(() => {
+        window.location.href = '/cliente/pedidos';
+      }, 3500);
+    }
+  }
+
+  // reintento tras un rechazo: pide una referencia nueva y vuelve a abrir el checkout de wompi
+  async function reintentarPago() {
+    btnReintentar.disabled = true;
+    btnReintentar.textContent = 'Preparando...';
+
+    try {
+      const respuesta = await fetch('/api/auth/cliente/pago/crear-intencion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idPedido }),
+      });
+      const datos = await respuesta.json();
+
+      if (!datos.success || !datos.urlCheckout) {
+        texto.textContent = datos.message || 'No se pudo iniciar el pago. Intenta de nuevo.';
+        btnReintentar.disabled = false;
+        btnReintentar.textContent = 'Reintentar pago';
+        return;
+      }
+
+      window.location.href = datos.urlCheckout;
+    } catch {
+      texto.textContent = 'Error de conexión. Intenta de nuevo.';
+      btnReintentar.disabled = false;
+      btnReintentar.textContent = 'Reintentar pago';
+    }
+  }
+
+  btnReintentar.addEventListener('click', reintentarPago);
+  btnVerificar.addEventListener('click', verificar);
+
+  verificar();
+</script>

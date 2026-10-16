@@ -114,12 +114,17 @@ export const EsquemaCrearPedido = z.object({
   items: z.array(EsquemaItemPedido).min(1, "el carrito está vacío"),
 });
 
+// una sola peticion por pedido: lista de productos con su calificacion + comentario general
 export const EsquemaGuardarResena = z.object({
   idPedido: z.number().int().positive(),
-  idProducto: z.number().int().positive(),
-  calificacion: z.number().int()
-    .min(1, "la calificación debe ser entre 1 y 5")
-    .max(5, "la calificación debe ser entre 1 y 5"),
+  calificaciones: z.array(
+    z.object({
+      idProducto: z.number().int().positive(),
+      calificacion: z.number().int()
+        .min(1, "la calificación debe ser entre 1 y 5")
+        .max(5, "la calificación debe ser entre 1 y 5"),
+    }),
+  ).min(1, "debes calificar al menos un producto"),
   comentario: z.string().max(500).optional(),
 });
 
@@ -135,7 +140,7 @@ export const EsquemaEliminarDireccion = z.object({
   idDireccion: z.number().int().positive(),
 });
 
-// payment_intents: creacion de pagos en Stripe
+// pago con wompi: creacion del intento de pago
 
 export const EsquemaCrearIntencion = z.object({
   idPedido: z.number().int().positive(),
@@ -152,4 +157,21 @@ export const EsquemaActualizarPerfilSuperAdmin = z.object({
   nombre: z.string().min(2, "el nombre debe tener al menos 2 caracteres").max(100),
   apellido: z.string().min(2, "el apellido debe tener al menos 2 caracteres").max(100),
   email: z.string().email("el correo no es válido"),
+});
+
+// paso 1 de la recuperacion: el usuario pide que le enviemos un codigo
+export const EsquemaSolicitarRecuperacion = z.object({
+  email: z.string().email("el correo no es válido"),
+});
+
+// paso 2: llega el codigo de 6 digitos junto con la contraseña nueva
+export const EsquemaRestablecerPassword = z.object({
+  email: z.string().email("el correo no es válido"),
+  codigo: z.string().regex(/^\d{6}$/, "el código debe tener 6 dígitos"),
+  password: z.string().min(8, "la contraseña debe tener al menos 8 caracteres"),
+});
+
+// el id token (credencial) que entrega el boton de google; el backend lo verifica aparte
+export const EsquemaLoginGoogle = z.object({
+  credencial: z.string().min(20, "falta la credencial de google"),
 });

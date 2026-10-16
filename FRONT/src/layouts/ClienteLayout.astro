@@ -41,8 +41,20 @@ const tieneFoto = Boolean(imagenUrl);
   </head>
   <body>
     <div class="contenedor-principal">
-      <!-- ══ barra superior ══ -->
+            <!-- ══ barra superior ══ -->
       <div class="barra-superior nueva-barra">
+        <!-- ── boton hamburguesa (solo se ve en movil) ── -->
+        <button
+          type="button"
+          class="top-hamburguesa"
+          id="btn-menu-movil"
+          aria-label="Abrir menú"
+          aria-expanded="false"
+          aria-controls="panel-menu-movil"
+        >
+          <svg viewBox="0 0 24 24"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"></path></svg>
+        </button>
+
         <!-- ── logo ── -->
         <a class="top-logo" href="/cliente/inicio" title="Ir al inicio">
           <div class="logo-icono">
@@ -56,27 +68,28 @@ const tieneFoto = Boolean(imagenUrl);
           <span class="top-logo-texto">Geo<span>Ruta</span></span>
         </a>
 
-        <!-- ── menu ── -->
-        <div class="top-menu">
-          <a class={`top-link ${vistaActual === 'inicio' ? 'activo' : ''}`} href="/cliente/inicio">Inicio</a>
-          <a class={`top-link ${vistaActual === 'catalogo' ? 'activo' : ''}`} href="/cliente/catalogo">Catálogo</a>
-          <a class={`top-link ${vistaActual === 'pedidos' ? 'activo' : ''}`} href="/cliente/pedidos">Mis pedidos</a>
-          <a class={`top-link ${vistaActual === 'resenas' ? 'activo' : ''}`} href="/cliente/resenas">Reseñas</a>
-        </div>
+        <!-- ── menu + buscador: en escritorio son hijos directos de la barra, en movil forman un panel ── -->
+        <div class="top-colapsable" id="panel-menu-movil">
+          <div class="top-menu">
+            <a class={`top-link ${vistaActual === 'inicio' ? 'activo' : ''}`} href="/cliente/inicio">Inicio</a>
+            <a class={`top-link ${vistaActual === 'catalogo' ? 'activo' : ''}`} href="/cliente/catalogo">Catálogo</a>
+            <a class={`top-link ${vistaActual === 'pedidos' ? 'activo' : ''}`} href="/cliente/pedidos">Mis pedidos</a>
+            <a class={`top-link ${vistaActual === 'resenas' ? 'activo' : ''}`} href="/cliente/resenas">Reseñas</a>
+          </div>
 
-        <!-- ── buscador ── -->
-        <div class="top-buscador">
-          <input type="text" id="campo-busqueda-top" placeholder="Buscar productos..." />
-          <button id="btn-buscar-top">
-            <svg viewBox="0 0 24 24">
-              <path
-                d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5
-                6.5 6.5 0 109.5 16a6.471 6.471 0 004.23-1.57l.27.28v.79
-                L20 21.5 21.5 20l-6-6zm-6 0C7.01 14 5 11.99 5 9.5S7.01
-                5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
-              ></path>
-            </svg>
-          </button>
+          <div class="top-buscador">
+            <input type="text" id="campo-busqueda-top" placeholder="Buscar productos..." />
+            <button id="btn-buscar-top">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5
+                  6.5 6.5 0 109.5 16a6.471 6.471 0 004.23-1.57l.27.28v.79
+                  L20 21.5 21.5 20l-6-6zm-6 0C7.01 14 5 11.99 5 9.5S7.01
+                  5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
+                ></path>
+              </svg>
+            </button>
+          </div>
         </div>
 
         <!-- ── acciones ── -->
@@ -130,12 +143,43 @@ const tieneFoto = Boolean(imagenUrl);
     </div>
 
     <script>
+
+      // ── menu movil de la topbar ──
+const botonMenu = document.getElementById('btn-menu-movil');
+const panelMenu = document.getElementById('panel-menu-movil');
+
+function cambiarMenuMovil(abrir: boolean): void {
+  panelMenu?.classList.toggle('abierto', abrir);
+  botonMenu?.setAttribute('aria-expanded', String(abrir));
+  botonMenu?.setAttribute('aria-label', abrir ? 'Cerrar menú' : 'Abrir menú');
+}
+
+botonMenu?.addEventListener('click', () => {
+  cambiarMenuMovil(!panelMenu?.classList.contains('abierto'));
+});
+
+// cierra al tocar fuera de la barra o al presionar escape
+document.addEventListener('click', (evento) => {
+  const destino = evento.target as HTMLElement;
+  if (!destino.closest('.barra-superior')) cambiarMenuMovil(false);
+});
+document.addEventListener('keydown', (evento) => {
+  if (evento.key === 'Escape') cambiarMenuMovil(false);
+});
+
+// si se agranda la ventana a escritorio, el panel no debe quedar "abierto" en el limbo
+window.matchMedia('(min-width: 901px)').addEventListener('change', (cambio) => {
+  if (cambio.matches) cambiarMenuMovil(false);
+});
       // busca desde la topbar: si no estamos en /cliente/catalogo, navega hacia
       // alla guardando el texto en sessionStorage para que esa pagina lo recoja
       // al cargar (evita mandar el texto por query string)
       function buscarDesdeTopbar(): void {
         const campo = document.getElementById('campo-busqueda-top') as HTMLInputElement | null;
         const texto = campo?.value.trim() ?? '';
+
+        // en movil, cierra el panel para que se vean los resultados del catalogo
+        cambiarMenuMovil(false);
 
         if (!window.location.pathname.startsWith('/cliente/catalogo')) {
           sessionStorage.setItem('busqueda-producto', texto);

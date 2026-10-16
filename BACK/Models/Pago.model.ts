@@ -109,15 +109,20 @@ export class Pago {
     }
   }
 
-  // guarda la referencia del PaymentIntent apenas se crea, antes de que el cliente pague
-  public async GuardarReferenciaStripe(
+  // aprueba el pago: pedido pasa a pagado + "En preparacion", pago pasa a "aprobado" — todo en una transaccion
+    // guarda la referencia del intento de pago apenas se crea, antes de que el cliente pague.
+  // si el pago anterior fue rechazado, vuelve a "pendiente" para permitir el reintento;
+  // un pago ya aprobado nunca se toca
+  public async GuardarReferencia(
     idPedido: number,
-    referenciaExt: string,
+    referencia: string,
   ): Promise<{ success: boolean; message: string }> {
     try {
       await conexion.execute(
-        `UPDATE pagos SET referencia_ext = ?, pasarela = 'stripe' WHERE id_pedido = ?`,
-        [referenciaExt, idPedido],
+        `UPDATE pagos
+         SET referencia_ext = ?, pasarela = 'wompi', estado_pago = 'pendiente'
+         WHERE id_pedido = ? AND estado_pago <> 'aprobado'`,
+        [referencia, idPedido],
       );
       return { success: true, message: "Referencia guardada" };
     } catch (error) {
@@ -126,44 +131,72 @@ export class Pago {
     }
   }
 
-  // referencia guardada de un pedido, para revalidar su estado contra Stripe en /pago/exito
-  public async ObtenerReferenciaPago(
+  // total del pedido en cop, para comparar contra el monto que reporta wompi
+  public async ObtenerTotalPedido(
     idPedido: number,
-  ): Promise<{ success: boolean; message: string; data?: string }> {
+  ): Promise<{ success: boolean; message: string; data?: number }> {
     try {
-      const { rows } = await conexion.execute(`SELECT referencia_ext FROM pagos WHERE id_pedido = ?`, [idPedido]);
-      const referencia = (rows?.[0] as { referencia_ext: string | null })?.referencia_ext;
-
-      if (!referencia) return { success: false, message: "Sin referencia de pago" };
-      return { success: true, message: "Referencia obtenida", data: referencia };
+      const { rows } = await conexion.execute(`SELECT total FROM pedidos WHERE id_pedido = ?`, [idPedido]);
+      if (!rows || rows.length === 0) return { success: false, message: "Pedido no encontrado" };
+      return { success: true, message: "Total obtenido", data: Number((rows[0] as { total: number }).total) };
     } catch (error) {
       console.error(error);
-      return { success: false, message: "No fue posible obtener la referencia de pago" };
+      return { success: false, message: "No fue posible obtener el total del pedido" };
     }
   }
 
-  // aprueba el pago: pedido pasa a pagado + "En preparacion", pago pasa a "aprobado" — todo en una transaccion
-  public async MarcarAprobado(idPedido: number, paymentId: string): Promise<{ success: boolean; message: string }> {
+  // aprueba el pago en una sola transaccion. conserva la referencia GR-... en referencia_ext
+  // y guarda el id de la transaccion de wompi en respuesta_raw.
+  // data.nuevo es true solo la primera vez: asi el recibo no se envia dos veces
+  // cuando llegan juntos el webhook y la confirmacion del navegador
+  public async MarcarAprobado(
+    idPedido: number,
+    idTransaccion: string,
+  ): Promise<{ success: boolean; message: string; data?: { nuevo: boolean } }> {
     try {
+      let nuevo = false;
+
       await conexion.transaction(async (conn) => {
-        await conn.execute(
+        const { affectedRows } = await conn.execute(
           `UPDATE pedidos
            SET pago_confirmado = 1,
                id_estado = (SELECT id_estado FROM estados_pedido WHERE nombre_estado = 'En preparacion')
            WHERE id_pedido = ? AND pago_confirmado = 0`,
           [idPedido],
         );
+        nuevo = Number(affectedRows) > 0;
 
         await conn.execute(
-          `UPDATE pagos SET estado_pago = 'aprobado', referencia_ext = ?, fecha_pago = NOW() WHERE id_pedido = ?`,
-          [paymentId, idPedido],
+          `UPDATE pagos
+           SET estado_pago = 'aprobado', fecha_pago = IFNULL(fecha_pago, NOW()), respuesta_raw = ?
+           WHERE id_pedido = ?`,
+          [JSON.stringify({ idTransaccion }), idPedido],
         );
       });
 
-      return { success: true, message: "Pago aprobado" };
+      return { success: true, message: "Pago aprobado", data: { nuevo } };
     } catch (error) {
       console.error(error);
       return { success: false, message: "No fue posible marcar el pago como aprobado" };
+    }
+  }
+
+  // marca el intento como rechazado (declinado, anulado o con error). nunca pisa un pago aprobado
+  public async MarcarRechazado(
+    idPedido: number,
+    idTransaccion: string,
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      await conexion.execute(
+        `UPDATE pagos
+         SET estado_pago = 'rechazado', respuesta_raw = ?
+         WHERE id_pedido = ? AND estado_pago <> 'aprobado'`,
+        [JSON.stringify({ idTransaccion }), idPedido],
+      );
+      return { success: true, message: "Pago marcado como rechazado" };
+    } catch (error) {
+      console.error(error);
+      return { success: false, message: "No fue posible marcar el pago como rechazado" };
     }
   }
 
@@ -299,6 +332,33 @@ export class Pago {
     } catch (error) {
       console.error(error);
       return { success: false, message: "No fue posible obtener la serie de ingresos" };
+    }
+  }
+    // referencia y estado del pago de un pedido, solo si el pedido es de ese cliente
+  public async ObtenerPagoDePedido(
+    idPedido: number,
+    idCliente: number,
+  ): Promise<{ success: boolean; message: string; data?: { referencia: string | null; estadoPago: string } }> {
+    try {
+      const { rows } = await conexion.execute(
+        `SELECT pg.referencia_ext, pg.estado_pago
+         FROM pagos pg
+         INNER JOIN pedidos p ON pg.id_pedido = p.id_pedido
+         WHERE pg.id_pedido = ? AND p.id_cliente = ?`,
+        [idPedido, idCliente],
+      );
+
+      if (!rows || rows.length === 0) return { success: false, message: "Pago no encontrado" };
+
+      const fila = rows[0] as { referencia_ext: string | null; estado_pago: string };
+      return {
+        success: true,
+        message: "Pago obtenido",
+        data: { referencia: fila.referencia_ext, estadoPago: fila.estado_pago },
+      };
+    } catch (error) {
+      console.error(error);
+      return { success: false, message: "No fue posible consultar el pago" };
     }
   }
 }

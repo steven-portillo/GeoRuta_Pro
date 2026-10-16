@@ -428,16 +428,20 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
     text-decoration: none;
   }
 
-  .grilla-pedidos {
+    .grilla-pedidos {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    /* minmax(0, 1fr) permite que cada columna se encoja por debajo del
+       ancho de su contenido; con 1fr solo, la direccion larga la estiraba */
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
   }
 
   .tarjeta-pedido {
-    display: block;            
-    text-decoration: none;     
-    color: inherit;            
+    display: block;
+    /* un item de grid no baja de su contenido minimo a menos que se lo permitas */
+    min-width: 0;
+    text-decoration: none;
+    color: inherit;
     background: white;
     border: 1px solid var(--secondary-200);
     border-radius: 14px;
@@ -537,13 +541,13 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
   }
 
 
-  @media (max-width: 900px) {
+    @media (max-width: 900px) {
     .grilla-metricas {
       grid-template-columns: repeat(3, 1fr);
     }
 
     .grilla-pedidos {
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 
@@ -553,7 +557,7 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
     }
 
     .grilla-pedidos {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
     }
 
     .mped-datos-grid {

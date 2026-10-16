@@ -21,6 +21,7 @@ import clienteResenasRoutes from "./Routes/Cliente/ClienteResenasRoutes.ts";
 import pagoRoutes from "./Routes/PagoRoutes.ts";
 import SuperAdminEmpresasRoutes from "./Routes/SuperAdmin/SuperAdminEmpresasRoutes.ts";
 import superadminperfilroutes from "./Routes/SuperAdmin/SuperAdminPerfilRoutes.ts";
+import recuperacionRoutes from "./Routes/RecuperacionRoutes.ts";
 
 const app = new Application();
 
@@ -101,6 +102,8 @@ app.use(SuperAdminEmpresasRoutes.allowedMethods());
 app.use(superadminperfilroutes.routes());
 app.use(superadminperfilroutes.allowedMethods());
 
+app.use(recuperacionRoutes.routes());
+app.use(recuperacionRoutes.allowedMethods());
 
 //cambios pendientes
 const PORT = 8000;

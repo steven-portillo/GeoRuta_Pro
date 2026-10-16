@@ -25,6 +25,14 @@ export default defineConfig({
       // cuenta/plan (.ngrok-free.app, .ngrok-free.dev, .ngrok.io), asi que
       // se cubren todos en vez de solo uno
       allowedHosts: ['.ngrok-free.app', '.ngrok-free.dev', '.ngrok.io'],
+      // reenvia el websocket de rastreo hacia el backend deno
+    proxy: {
+      '/ws/rastreo': {
+        target: 'http://localhost:8000',
+        ws: true,
+        changeOrigin: true,
+      },
     },
   },
+},
 });
