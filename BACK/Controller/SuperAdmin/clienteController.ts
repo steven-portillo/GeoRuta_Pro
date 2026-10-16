@@ -81,6 +81,7 @@ export const editarCliente = async (
   ctx: RouterContext<string>,
 ) => {
   try {
+
     const id_usuario = Number(ctx.params.id);
     const form = await ctx.request.body.formData();
 

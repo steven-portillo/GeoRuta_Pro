@@ -1,22 +1,36 @@
 ---
+import MapaLayout from "../../layouts/MapaLayout.astro";
 const token = Astro.cookies.get("token")?.value;
-import "leaflet/dist/leaflet.css";
 ---
 
 <div id="datostoken" data-token={token}></div>
 
-<div id="mapa" style="height: 70vh; width: 100%;"></div>
-
+<MapaLayout rol="admin" placeholder="Buscar repartidor" vacio="Tu empresa no tiene repartidores activos" hint="Esperando ubicaciones…" leyenda={["repartidor"]}>
+  <div slot="sidebar-pie" id="panelRepartidor" class="mapa-resumen">
+    <h2>Resumen del día</h2>
+    <p id="panelVacio" class="mapa-vacio">Selecciona un repartidor</p>
+    <div id="panelDatos" hidden>
+      <div class="mapa-fila"><strong id="panelNombre"></strong><span id="panelEstado" class="mapa-badge mapa-badge--off">Inactivo</span></div>
+      <div class="mapa-fila"><span>En tránsito</span><strong id="panelTransito">0</strong></div>
+      <div class="mapa-fila"><span>Entregados hoy</span><strong id="panelEntregados">0</strong></div>
+    </div>
+  </div>
+</MapaLayout>
 
 <script>
   import L from "leaflet";
   import { WsUbicacionCliente } from "../../utils/wsCliente.ts";
+import { initMapaUi, marcarSeleccion } from "../public/mapa/mapaUi.ts"; 
 
   const datos = document.getElementById("datostoken") as HTMLElement;
   const token = datos.dataset.token ?? "";
   const WS_URL = import.meta.env.PUBLIC_WS_URL;
 
-  // ---------- Iconos ----------
+
+  const API_DENO = import.meta.env.PUBLIC_API_DENO;
+
+
+  //        Iconos 
   const iconRepartidor = L.icon({
     iconUrl: "/pins/repartidor.png",
     iconSize: [40, 40],
@@ -30,6 +44,8 @@ import "leaflet/dist/leaflet.css";
     attribution:
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   }).addTo(map);
+
+  initMapaUi(map);
 
   const marcadoresProveedor = new Map<number, any>();
 
@@ -48,7 +64,7 @@ import "leaflet/dist/leaflet.css";
     `;
   }
 
-  function upsertMarcadorProveedor(
+    function upsertMarcadorProveedor(
     proveedorId: number,
     lat: number,
     lng: number,
@@ -56,21 +72,17 @@ import "leaflet/dist/leaflet.css";
   ) {
     const key = Number(proveedorId);
     const latLng = L.latLng(lat, lng);
-    const html = popupRepartidor(
-      meta?.nombre ?? "Mi ubicación",
-      meta?.empresa ?? "",
-      key,
-    );
-    console.log(
-      "Upsert marcador proveedor " + key + " lat: " + lat + " lng: " + lng,
-    );
-    if (marcadoresProveedor.has(key)) {
-      marcadoresProveedor.get(key).setLatLng(latLng);
-    } else {
-      const marker = L.marker(latLng, { icon: iconRepartidor }).addTo(map);
-      marker.bindPopup(`Repartidor #${html}`);
-      marcadoresProveedor.set(key, marker);
+    const html = popupRepartidor(meta?.nombre ?? "", meta?.empresa ?? "", key);
+    const existente = marcadoresProveedor.get(key);
+    if (existente) {
+      existente.setLatLng(latLng);
+      if (meta?.nombre) existente.setPopupContent(html);
+      return;
     }
+    const marker = L.marker(latLng, { icon: iconRepartidor }).addTo(map);
+    marker.bindPopup(html);
+    marker.on("click", () => marcarSeleccion(key));
+    marcadoresProveedor.set(key, marker);
   }
 
   function quitarMarcadorProveedor(proveedorId: number) {
@@ -82,22 +94,140 @@ import "leaflet/dist/leaflet.css";
     }
   }
 
+  function setWsBadge(
+    estado: "conectando" | "conectado" | "reconectando" | "cerrado",
+  ) {
+    const el = document.getElementById("wsEstado");
+    if (!el) return;
+    el.classList.remove("ws-badge--off", "ws-badge--on", "ws-badge--wait");
+
+    if (estado === "conectado") {
+      el.textContent = "En línea";
+      el.classList.add("ws-badge--on");
+    } else if (estado === "reconectando" || estado === "conectando") {
+      el.textContent =
+        estado === "conectando" ? "Conectando…" : "Reconectando…";
+      el.classList.add("ws-badge--wait");
+    } else {
+      el.textContent = "Desconectado";
+      el.classList.add("ws-badge--off");
+    }
+  }
+
+
+   //                Lista de repartidores
+  function iniciales(n: string) {
+    return (
+      n.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "?"
+    );
+  }
+
+  // Acepta "activo" | "descanso" | "En_descanso" | "inactivo" n
+  function normEstado(e: string) {
+    const s = String(e ?? "").toLowerCase();
+    if (s.includes("desc")) return "En_descanso";
+    if (s === "activo") return "Activo";
+    return "Inactivo";
+  }
+
+  let cargandoLista = false;
+
+  async function cargarRepartidores() {
+    if (cargandoLista) return;
+    cargandoLista = true;
+    try {
+      const res = await fetch(`${API_DENO}/admin/mapa/repartidores`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        console.error("Repartidores HTTP", res.status, await res.text());
+        return;
+      }
+      const lista: any[] = (await res.json()).data ?? [];
+
+      const lista$ = document.getElementById("mapaLista");
+      if (!lista$) return;
+      const seleccionado = (
+        lista$.querySelector(".mapa-item.is-selected") as HTMLElement | null
+      )?.dataset.id;
+
+      lista$.innerHTML = lista
+        .map((r) => {
+          const estado = normEstado(r.estado);
+          const nombre = String(r.nombre ?? "");
+          const avatar = r.foto_url
+            ? `<img src="${escapeHtml(r.foto_url)}" alt="" />`
+            : escapeHtml(iniciales(nombre));
+          return `
+        <li class="mapa-item" data-id="${r.id_proveedor}"
+            data-lat="${r.lat ?? ""}" data-lng="${r.lng ?? ""}"
+            data-estado="${estado}" data-nombre="${escapeHtml(nombre)}"
+            data-transito="${r.pedidos_en_transito}" data-entregados="${r.pedidos_entregados_hoy}"
+            data-search="${escapeHtml(`${nombre} ${r.empresa}`)}">
+          <button type="button" class="mapa-card">
+            <span class="mapa-avatar">${avatar}</span>
+            <span class="mapa-textos">
+              <span class="mapa-t1">${escapeHtml(nombre)}</span>
+              <span class="mapa-t2">${escapeHtml(r.empresa ?? "")}</span>
+            </span>
+            <span class="mapa-dot" title="${estado.replace("_", " ")}"></span>
+          </button>
+        </li>`;
+        })
+        .join("");
+
+      //        Pines
+      let enRuta = 0;
+      for (const r of lista) {
+        const estado = normEstado(r.estado);
+        if (estado === "Inactivo" || r.lat == null || r.lng == null) {
+          if (estado === "Inactivo") quitarMarcadorProveedor(Number(r.id_proveedor));
+          continue;
+        }
+        enRuta++;
+        upsertMarcadorProveedor(Number(r.id_proveedor), Number(r.lat), Number(r.lng), {
+          nombre: r.nombre,
+          empresa: r.empresa,
+        });
+      }
+
+      const hint = document.getElementById("mapaHint");
+      if (hint) hint.textContent = enRuta ? `${enRuta} en ruta` : "Sin repartidores en ruta";
+
+      document.getElementById("mapaBusqueda")?.dispatchEvent(new Event("input"));
+      if (seleccionado) marcarSeleccion(seleccionado);
+    } catch (e) {
+      console.error("cargarRepartidores", e);
+    } finally {
+      cargandoLista = false;
+    }
+  }
+
   const cliente = new WsUbicacionCliente(WS_URL, token, {
-    onEstado: (e) => console.log("[WS Admin]", e),
+    onEstado: (e) => {
+      console.log("[WS Cliente]", e);
+      setWsBadge(e);
+    },
     onMensaje: (msg) => {
       if (msg.tipo === "ActualizarUbicacion") {
-        upsertMarcadorProveedor(
-          Number(msg.proveedorId),
-          Number(msg.lat),
-          Number(msg.lng),
-          {
-            nombre: String(msg.nombre ?? ""),
-            empresa: String(msg.empresa ?? ""),
-          },
-        );
+        const id = Number(msg.proveedorId);
+        const lat = Number(msg.lat);
+        const lng = Number(msg.lng);
+        upsertMarcadorProveedor(id, lat, lng, {
+          nombre: String(msg.nombre ?? ""),
+          empresa: String(msg.empresa ?? ""),
+        });
+        const li = document.querySelector<HTMLElement>(`.mapa-item[data-id="${id}"]`);
+        if (li) {
+          li.dataset.lat = String(lat);
+          li.dataset.lng = String(lng);
+        } else {
+          cargarRepartidores();
+        }
       }
       if (msg.tipo === "ProveedorTerminoRuta") {
         quitarMarcadorProveedor(Number(msg.proveedorId));
+        setTimeout(cargarRepartidores, 1500);
       }
     },
   });
@@ -106,6 +236,9 @@ import "leaflet/dist/leaflet.css";
     cliente.enviar({ tipo: "UnirseComoAdmin" });
   });
 
+  
   cliente.conectar();
+  cargarRepartidores();
+  setInterval(cargarRepartidores, 30000);
   window.addEventListener("beforeunload", () => cliente.cerrar());
 </script>

@@ -11,8 +11,12 @@ import { pedidoRouter } from "./Router/Admin/pedidoRouter.ts";
 import { proveedorRouter } from "./Router/Admin/proveedorRouter.ts";
 import { empresaRouter } from "./Router/Admin/empresaRouter.ts";
 //´mapra
-import { PruebasRouter } from "./Router/Mapa/pruebasRouter.ts";
+//ws
 import { manejarWsUbicacion } from "./ws/ubicacionHub.ts";
+//consultas varias para la ui del mapa
+import { ProveedorMapaRouter } from "./Router/Mapa/proveedorMapaRouter.ts";
+import { AdminMapaRouter} from "./Router/Mapa/adminMapaRouter.ts"
+import { ClienteMapaRouter} from "./Router/Mapa/clienteMapaRouter.ts"
 
 import { perfilRouter } from "./Router/Perfil/perfilRouter.ts";
 
@@ -22,7 +26,7 @@ import { servirArchivos } from "./Middlewares/archivos.middleware.ts";
 const app = new Application();
 
 app.use(servirArchivos);
-// CORS
+
 app.use(async (ctx, next) => {
   const { pathname } = ctx.request.url;
 
@@ -62,11 +66,12 @@ const routers = [
   proveedorRouter,
   empresaRouter,
   pedidoRouter,
-  //rutas de mapa(prueba)
-  PruebasRouter,
-
+  //rutas de mapa por rol
+  AdminMapaRouter,
+  ProveedorMapaRouter,
+  ClienteMapaRouter,
   //rutas publicas
-  perfilRouter
+  perfilRouter,
 ];
 
 routers.forEach((router) => {

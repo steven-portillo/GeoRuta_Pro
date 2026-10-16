@@ -1,7 +1,7 @@
 ---
-import "leaflet/dist/leaflet.css";
+import MapaLayout from "../../layouts/MapaLayout.astro";
 const token = Astro.cookies.get("token")?.value;
-const API_DENO = import.meta.env.API_DENO ?? "http://127.0.0.1:8005";
+const API_DENO = import.meta.env.API_DENO;
 const headers = { Authorization: `Bearer ${token}` };
 
 const cargarPedidoIds = async (): Promise<number[]> => {
@@ -31,15 +31,59 @@ const pedidoIdsJson = JSON.stringify(pedidoIds);
 
 <div id="datospagina" data-token={token ?? ""} data-ids={pedidoIdsJson}></div>
 
-<div id="mapa" style="height: 70vh; width: 100%;"></div>
+<MapaLayout
+  rol="cliente"
+  placeholder="Buscar por empresa"
+  vacio="No tienes pedidos en ruta"
+  leyenda={["repartidor"]}
+>
+  <div
+    slot="modal"
+    id="modalPedido"
+    class="mapa-modal"
+    hidden
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="modalTitulo"
+  >
+    <div class="mapa-modal-caja">
+      <div class="mapa-modal-cab">
+        <h2 id="modalTitulo">Pedido <span id="modalNumero"></span></h2>
+        <button
+          type="button"
+          class="mapa-modal-x"
+          data-cerrar
+          aria-label="Cerrar">×</button
+        >
+      </div>
+      <p><strong>Empresa:</strong> <span id="modalEmpresa">----</span></p>
+      <p><strong>Repartidor:</strong> <span id="modalRepartidor">----</span></p>
+      <p><strong>Dirección:</strong> <span id="modalDireccion">----</span></p>
+      <table class="mapa-factura">
+        <thead><tr><th>Ítem</th><th>Cant.</th><th>Subtotal</th></tr></thead>
+        <tbody id="modalItems"></tbody>
+        <tfoot
+          ><tr><td colspan="2">Total</td><td id="modalTotal">----</td></tr
+          ></tfoot
+        >
+      </table>
+      <div class="mapa-codigo">
+        Código de entrega: <span id="modalCodigo">----</span>
+      </div>
+    </div>
+  </div>
+</MapaLayout>
+
 <script>
   import L from "leaflet";
   import { WsUbicacionCliente } from "../../utils/wsCliente.ts";
+  import { initMapaUi, marcarSeleccion } from "../public/mapa/mapaUi.ts";
 
   const datos = document.getElementById("datospagina") as HTMLElement;
   const token = datos.dataset.token ?? "";
   const pedidoIds: number[] = JSON.parse(datos.dataset.ids || "[]");
   const WS_URL = import.meta.env.PUBLIC_WS_URL;
+  const API_DENO = import.meta.env.PUBLIC_API_DENO;
 
   const iconRepartidor = L.icon({
     iconUrl: "/pins/repartidor.png",
@@ -53,6 +97,7 @@ const pedidoIdsJson = JSON.stringify(pedidoIds);
     maxZoom: 19,
     attribution: "&copy; OpenStreetMap",
   }).addTo(map);
+  initMapaUi(map);
 
   const marcadoresProveedor = new Map<number, any>();
 
@@ -63,7 +108,7 @@ const pedidoIdsJson = JSON.stringify(pedidoIds);
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;");
   }
-
+  //mkdas del mapa(visual sobre todo)
   function popupRepartidor(nombre: string, empresa: string, id: number) {
     return `
       <strong>${escapeHtml(nombre || `${id}`)}</strong><br/>
@@ -79,19 +124,17 @@ const pedidoIdsJson = JSON.stringify(pedidoIds);
   ) {
     const key = Number(proveedorId);
     const latLng = L.latLng(lat, lng);
-    const html = popupRepartidor(
-      meta?.nombre ?? "Mi ubicación",
-      meta?.empresa ?? "",
-      key,
-    );
-    if (marcadoresProveedor.has(key)) {
-      marcadoresProveedor.get(key).setLatLng(latLng);
-    } else {
-      const marker = L.marker(latLng, { icon: iconRepartidor }).addTo(map);
-      marker.bindPopup(`Repartidor #${html}`);
-      marcadoresProveedor.set(key, marker);
-      map.panTo(latLng);
+    const html = popupRepartidor(meta?.nombre ?? "", meta?.empresa ?? "", key);
+    const existente = marcadoresProveedor.get(key);
+    if (existente) {
+      existente.setLatLng(latLng);
+      if (meta?.nombre) existente.setPopupContent(html);
+      return;
     }
+    const marker = L.marker(latLng, { icon: iconRepartidor }).addTo(map);
+    marker.bindPopup(html);
+    marker.on("click", () => marcarSeleccion(key));
+    marcadoresProveedor.set(key, marker);
   }
 
   function quitarMarcadorProveedor(proveedorId: number) {
@@ -103,43 +146,272 @@ const pedidoIdsJson = JSON.stringify(pedidoIds);
     }
   }
 
-  const cliente = new WsUbicacionCliente(WS_URL, token, {
-    onEstado: (e) => console.log("[WS Cliente]", e),
-    onMensaje: (msg) => {
-  if (msg.tipo === "ActualizarUbicacion") {
-    // Si el hub algún día manda ubicaciones en descanso, no pintar
-    if (msg.modo === "descanso") {
-      quitarMarcadorProveedor(Number(msg.proveedorId));
-      return;
+  function setWsBadge(
+    estado: "conectando" | "conectado" | "reconectando" | "cerrado",
+  ) {
+    const el = document.getElementById("wsEstado");
+    if (!el) return;
+    el.classList.remove("ws-badge--off", "ws-badge--on", "ws-badge--wait");
+
+    if (estado === "conectado") {
+      el.textContent = "En línea";
+      el.classList.add("ws-badge--on");
+    } else if (estado === "reconectando" || estado === "conectando") {
+      el.textContent =
+        estado === "conectando" ? "Conectando…" : "Reconectando…";
+      el.classList.add("ws-badge--wait");
+    } else {
+      el.textContent = "Desconectado";
+      el.classList.add("ws-badge--off");
     }
-    upsertMarcadorProveedor(
-      Number(msg.proveedorId),
-      Number(msg.lat),
-      Number(msg.lng),
-      {
-        nombre: String(msg.nombre ?? ""),
-        empresa: String(msg.empresa ?? ""),
-      },
+  }
+
+  // ---------- Lista de repartidores (panel derecho) ----------
+  function iniciales(n: string) {
+    return (
+      n
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((p) => p[0])
+        .join("")
+        .toUpperCase() || "?"
     );
   }
 
-  if (msg.tipo === "ProveedorEnDescanso") {
-    console.log("Descanso recibido", msg);
-    quitarMarcadorProveedor(Number(msg.proveedorId));
+  // Acepta "activo" | "descanso" | "En_descanso" | "inactivo"
+  function normEstado(e: string) {
+    const s = String(e ?? "").toLowerCase();
+    if (s.includes("desc")) return "En_descanso";
+    if (s === "activo") return "Activo";
+    return "Inactivo";
   }
 
-  if (msg.tipo === "ProveedorTerminoRuta") {
-    quitarMarcadorProveedor(Number(msg.proveedorId));
+  function actualizarCard(
+    id: number,
+    c: { estado?: string; lat?: number | null; lng?: number | null },
+  ) {
+    const li = document.querySelector<HTMLElement>(
+      `.mapa-item[data-id="${id}"]`,
+    );
+    if (!li) return;
+    if (c.estado) {
+      li.dataset.estado = c.estado;
+      const dot = li.querySelector<HTMLElement>(".mapa-dot");
+      if (dot) dot.title = c.estado.replace("_", " ");
+    }
+    if (c.lat !== undefined)
+      li.dataset.lat = c.lat == null ? "" : String(c.lat);
+    if (c.lng !== undefined)
+      li.dataset.lng = c.lng == null ? "" : String(c.lng);
   }
 
-  if (msg.tipo === "ProveedorReanudo") {
-    console.log("Reanudó", msg.proveedorId);
+  function renderLista(rows: any[]) {
+    const lista = document.getElementById("mapaLista");
+    if (!lista) return;
+
+    const grupos = new Map<number, any>();
+    for (const r of rows) {
+      const id = Number(r.id_proveedor);
+      const g = grupos.get(id);
+      if (g) g.pedidos.push(Number(r.id_pedido));
+      else grupos.set(id, { ...r, pedidos: [Number(r.id_pedido)] });
+    }
+
+    lista.innerHTML = [...grupos.values()]
+      .map((g) => {
+        const estado = normEstado(g.estado);
+
+        const visible = estado === "Activo" && g.lat != null && g.lng != null;
+        const nombre = String(g.nombre ?? "");
+        const avatar = g.foto_url
+          ? `<img src="${escapeHtml(g.foto_url)}" alt="" />`
+          : escapeHtml(iniciales(nombre));
+        const botones = g.pedidos
+          .map(
+            (p: number) =>
+              `<button type="button" class="mapa-btn-pedido" data-pedido="${p}">${
+                g.pedidos.length > 1 ? "Ver pedido #" + p : "Ver pedido"
+              }</button>`,
+          )
+          .join("");
+        return `
+      <li class="mapa-item" data-id="${g.id_proveedor}"
+          data-lat="${visible ? g.lat : ""}" data-lng="${visible ? g.lng : ""}"
+          data-estado="${estado}" data-search="${escapeHtml(g.empresa ?? "")}">
+        <button type="button" class="mapa-card">
+          <span class="mapa-avatar">${avatar}</span>
+          <span class="mapa-textos">
+            <span class="mapa-t1">${escapeHtml(nombre)}</span>
+            <span class="mapa-t2">${escapeHtml(g.empresa ?? "")}</span>
+          </span>
+          <span class="mapa-dot" title="${estado.replace("_", " ")}"></span>
+        </button>
+        <div class="mapa-card-acciones">${botones}</div>
+      </li>`;
+      })
+      .join("");
+
+    document.getElementById("mapaBusqueda")?.dispatchEvent(new Event("input"));
   }
 
-  if (msg.tipo === "unido") {
-    console.log("Unido a pedidos", msg.pedidos);
+  async function cargarRepartidores(ajustarMapa = false) {
+    try {
+      const res = await fetch(`${API_DENO}/cliente/mapa/repartidores`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        console.error("Repartidores HTTP", res.status, await res.text());
+        return;
+      }
+      const rows: any[] = (await res.json()).data ?? [];
+      const seleccionado = (
+        document.querySelector(
+          "#mapaLista .mapa-item.is-selected",
+        ) as HTMLElement | null
+      )?.dataset.id;
+
+      renderLista(rows);
+
+      // Pines
+      const visibles = new Set<number>();
+      const puntos: [number, number][] = [];
+      for (const r of rows) {
+        if (normEstado(r.estado) !== "Activo" || r.lat == null || r.lng == null)
+          continue;
+        const id = Number(r.id_proveedor);
+        upsertMarcadorProveedor(id, Number(r.lat), Number(r.lng), {
+          nombre: r.nombre,
+          empresa: r.empresa,
+        });
+        visibles.add(id);
+        puntos.push([Number(r.lat), Number(r.lng)]);
+      }
+      for (const id of [...marcadoresProveedor.keys()]) {
+        if (!visibles.has(id)) quitarMarcadorProveedor(id);
+      }
+
+      if (ajustarMapa && puntos.length) {
+        map.fitBounds(puntos, { padding: [50, 50], maxZoom: 16 });
+      }
+      if (seleccionado) marcarSeleccion(seleccionado);
+    } catch (e) {
+      console.error("cargarRepartidores", e);
+    }
   }
-},
+
+  //      Modal de pedido
+  const COP = new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    maximumFractionDigits: 0,
+  });
+  const setTxt = (id: string, t: string) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = t;
+  };
+  let pedidoEnModal = 0;
+
+  async function cargarDetallePedido(idPedido: number) {
+    pedidoEnModal = idPedido;
+    ["modalEmpresa", "modalRepartidor"].forEach((i) => setTxt(i, "----"));
+    setTxt("modalDireccion", "Cargando…");
+    setTxt("modalTotal", "----");
+    const tbody = document.getElementById("modalItems");
+    if (tbody) tbody.innerHTML = "";
+
+    try {
+      const res = await fetch(
+        `${API_DENO}/cliente/mapa/pedido-detalle/${idPedido}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (pedidoEnModal !== idPedido) return;
+      if (!res.ok) {
+        setTxt("modalDireccion", "No se pudo cargar el pedido");
+        return;
+      }
+      const d = (await res.json()).data;
+
+      setTxt("modalNumero", "#" + d.id_pedido);
+      setTxt("modalEmpresa", d.empresa || "----");
+      setTxt("modalRepartidor", d.repartidor || "----");
+      setTxt("modalDireccion", d.direccion_texto || "----");
+      setTxt("modalTotal", COP.format(Number(d.total ?? 0)));
+
+      const items: any[] = d.items ?? [];
+      if (tbody) {
+        tbody.innerHTML = items.length
+          ? items
+              .map(
+                (i) => `<tr>
+              <td>${escapeHtml(i.producto ?? "")}</td>
+              <td>${Number(i.cantidad ?? 0)}</td>
+              <td>${COP.format(Number(i.subtotal ?? 0))}</td></tr>`,
+              )
+              .join("")
+          : `<tr><td colspan="3">Sin detalle de productos</td></tr>`;
+      }
+    } catch (e) {
+      console.error("detalle pedido", e);
+      if (pedidoEnModal === idPedido)
+        setTxt("modalDireccion", "No se pudo cargar el pedido");
+    }
+  }
+
+  document.addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>(
+      ".mapa-btn-pedido",
+    );
+    if (b) cargarDetallePedido(Number(b.dataset.pedido));
+  });
+
+  const cliente = new WsUbicacionCliente(WS_URL, token, {
+    onEstado: (e) => {
+      console.log("[WS Cliente]", e);
+      setWsBadge(e);
+    },
+    onMensaje: (msg) => {
+      const id = Number(msg.proveedorId);
+
+
+      if (msg.tipo === "ProveedorEnDescanso") {
+        quitarMarcadorProveedor(Number(msg.proveedorId));
+        actualizarCard(id, { estado: "En_descanso" });
+      }
+
+      if (msg.tipo === "ActualizarUbicacion") {
+        if (msg.modo === "descanso") {
+          quitarMarcadorProveedor(Number(msg.proveedorId));
+          return;
+        }
+        upsertMarcadorProveedor(
+          Number(msg.proveedorId),
+          Number(msg.lat),
+          Number(msg.lng),
+          {
+            nombre: String(msg.nombre ?? ""),
+            empresa: String(msg.empresa ?? ""),
+          },
+        );
+        actualizarCard(id, { estado: "Activo" });
+      }
+
+      if (msg.tipo === "ProveedorReanudo") {
+        actualizarCard(id, { estado: "Activo" });
+      }
+
+      if (msg.tipo === "ProveedorTerminoRuta") {
+        quitarMarcadorProveedor(id);
+        actualizarCard(id, { estado: "Inactivo", lat: null, lng: null });
+        setTimeout(() => cargarRepartidores(), 1500);
+      }
+
+      if (msg.tipo === "unido") {
+        console.log("Unido a pedidos", msg.pedidos);
+      }
+    },
   });
 
   cliente.setDespuesDeAuth(() => {
@@ -147,5 +419,6 @@ const pedidoIdsJson = JSON.stringify(pedidoIds);
   });
 
   cliente.conectar();
+  cargarRepartidores(true);
   window.addEventListener("beforeunload", () => cliente.cerrar());
 </script>

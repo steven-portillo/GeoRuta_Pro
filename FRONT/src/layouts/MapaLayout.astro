@@ -1,0 +1,81 @@
+---
+import "leaflet/dist/leaflet.css";
+import "../components/public/mapa/mapa.css";
+
+// rol: "admin" | "cliente" | "repartidor"
+// leyenda: ["repartidor"] y/o ["destino"]
+const {
+  rol,
+  titulo = "Mapa en tiempo real",
+  subtitulo = "Seguimiento de rutas GeoRuta",
+  placeholder = "Buscar",
+  vacio = "Sin resultados",
+  hint = "",
+  leyenda = ["repartidor"],
+} = Astro.props;
+---
+
+<section class="mapa-page" data-rol={rol}>
+  <header class="mapa-toolbar">
+    <div>
+      <h1 class="mapa-title">{titulo}</h1>
+      <p class="mapa-subtitle">{subtitulo}</p>
+    </div>
+    <div class="mapa-toolbar__right">
+      {hint && <p class="mapa-hint" id="mapaHint">{hint}</p>}
+      <span id="wsEstado" class="ws-badge ws-badge--off">Desconectado</span>
+    </div>
+  </header>
+
+  <div class="mapa-body">
+    <div>
+      <div class="mapa-shell">
+        <div id="mapa" class="mapa-canvas"></div>
+
+        <aside class="mapa-legend">
+          {leyenda.includes("repartidor") && (
+            <div class="legend-item">
+              <img src="/pins/repartidor.png" alt="" width="28" height="28" />
+              <span>Repartidor</span>
+            </div>
+          )}
+          {leyenda.includes("destino") && (
+            <div class="legend-item">
+              <img src="/pins/tienda.png" alt="" width="28" height="28" />
+              <span>Destino / entrega</span>
+            </div>
+          )}
+        </aside>
+
+        <button type="button" id="btnPanel" class="mapa-toggle" aria-controls="panelLateral" aria-expanded="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+          <span>Lista</span>
+        </button>
+      </div>
+      <slot name="bajo-mapa" />
+    </div>
+
+    <aside id="panelLateral" class="mapa-panel" aria-label="Lista">
+      <button type="button" class="mapa-panel-cerrar" data-cerrar-panel aria-label="Cerrar lista">×</button>
+      <div class="mapa-buscador">
+        <label for="mapaBusqueda" class="mapa-sr">{placeholder}</label>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="mapaBusqueda" type="search" placeholder={placeholder} autocomplete="off" />
+      </div>
+      <!--
+        HOOK: aquí van las cards (vacío por ahora). Formato de cada una:
+        <li class="mapa-item" data-id data-lat data-lng data-search>
+          <button type="button" class="mapa-card">
+            <span class="mapa-avatar">LG</span>
+            <span class="mapa-textos"><span class="mapa-t1">Nombre</span><span class="mapa-t2">Empresa</span></span>
+          </button>
+        </li>
+      -->
+      <ul id="mapaLista" class="mapa-lista"><slot /></ul>
+      <p id="mapaVacio" class="mapa-vacio">{vacio}</p>
+      <slot name="sidebar-pie" />
+    </aside>
+  </div>
+
+  <slot name="modal" />
+</section>

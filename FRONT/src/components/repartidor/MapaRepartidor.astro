@@ -1,26 +1,116 @@
 ---
+import MapaLayout from "../../layouts/MapaLayout.astro";
 const token = Astro.cookies.get("token")?.value;
-import "leaflet/dist/leaflet.css";
 ---
 
 <div id="datostoken" data-token={token}></div>
-<div id="mapa" style="height: 70vh; width: 100%;"></div>
-<button type="button" id="btnIniciarRuta">Iniciar ruta</button>
-<button type="button" id="btnDescanso">Descanso</button>
-<button type="button" id="btnReanudar">Reanudar</button>
-<button type="button" id="btnTerminarRuta">Terminar ruta</button>
 
+<MapaLayout
+  rol="repartidor"
+  placeholder="Buscar por nombre o dirección"
+  vacio="Nadie en ruta"
+  leyenda={["repartidor", "destino"]}
+>
+  <div slot="bajo-mapa" id="accionesRuta" class="mapa-acciones ruta-idle">
+    <div class="mapa-burbujas" role="group" aria-label="Controles de ruta">
+      <button
+        type="button"
+        id="btnIniciarRuta"
+        class="mapa-burbuja"
+        aria-label="Iniciar ruta"
+        title="Iniciar ruta"
+      >
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
+          ><path d="M8 5v14l11-7z"></path></svg
+        ></button
+      >
+      <button
+        type="button"
+        id="btnDescanso"
+        class="mapa-burbuja"
+        aria-label="Descanso"
+        title="Descanso"
+        disabled
+      >
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
+          ><path d="M7 5h4v14H7zm6 0h4v14h-4z"></path></svg
+        ></button
+      >
+      <button
+        type="button"
+        id="btnReanudar"
+        class="mapa-burbuja"
+        aria-label="Reanudar"
+        title="Reanudar"
+        disabled
+      >
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
+          ><path d="M8 5v14l11-7z"></path></svg
+        ></button
+      >
+      <button
+        type="button"
+        id="btnTerminarRuta"
+        class="mapa-burbuja"
+        aria-label="Terminar ruta"
+        title="Terminar ruta"
+        disabled
+      >
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
+          ><path d="M6 6h12v12H6z"></path></svg
+        ></button
+      >
+    </div>
+  </div>
+</MapaLayout>
 <script>
   import L from "leaflet";
   import { WsUbicacionCliente } from "../../utils/wsCliente.ts";
+  import {
+    initMapaUi,
+    marcarSeleccion,
+    setFaseRutaUI as setFaseRuta,
+  } from "../public/mapa/mapaUi.ts";
+  import { init } from "astro/virtual-modules/prefetch.js";
 
   const datos = document.getElementById("datostoken") as HTMLElement;
   const token = datos.dataset.token ?? "";
   const API_DENO = import.meta.env.PUBLIC_API_DENO;
   const WS_URL = import.meta.env.PUBLIC_WS_URL;
   const MARCADOR_YO = -1;
+  const btnIniciar = document.getElementById(
+    "btnIniciarRuta",
+  ) as HTMLButtonElement | null;
+  const btnDescanso = document.getElementById(
+    "btnDescanso",
+  ) as HTMLButtonElement | null;
+  const btnReanudar = document.getElementById(
+    "btnReanudar",
+  ) as HTMLButtonElement | null;
+  const btnTerminar = document.getElementById(
+    "btnTerminarRuta",
+  ) as HTMLButtonElement | null;
 
-  // ---------- Iconos ----------
+  setFaseRuta("idle");
+
+  btnIniciar?.addEventListener("click", () => {
+    cliente.enviar({ tipo: "EmpezarRuta" });
+    iniciarGps(enviarThrottled);
+  });
+  btnDescanso?.addEventListener("click", () => {
+    cliente.enviar({ tipo: "Descanso" });
+    setFaseRuta("descanso");
+  });
+  btnReanudar?.addEventListener("click", () => {
+    cliente.enviar({ tipo: "ReanudarRuta" });
+    enviarUbicacionYa();
+    setFaseRuta("activo");
+  });
+  btnTerminar?.addEventListener("click", () => {
+    cliente.enviar({ tipo: "TerminarRuta" });
+  });
+
+  //           Iconos
   const iconRepartidor = L.icon({
     iconUrl: "/pins/repartidor.png",
     iconSize: [40, 40],
@@ -35,13 +125,14 @@ import "leaflet/dist/leaflet.css";
     popupAnchor: [0, -32],
   });
 
-  // ---------- Mapa ----------
+  //             Mapa
   const map = L.map("mapa").setView([5.794323, -73.062859], 13);
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: "&copy; OpenStreetMap",
   }).addTo(map);
+  initMapaUi(map);
 
   const marcadores = new Map<number, L.Marker>();
 
@@ -60,12 +151,19 @@ import "leaflet/dist/leaflet.css";
     `;
   }
 
-  function popupTienda(nombre: string, direccion: string, idPedido: number) {
+  function popupTienda(
+    nombre: string,
+    direccion: string,
+    idPedido: number,
+    urlDetalle?: string,
+  ) {
+    const href = urlDetalle || `/repartidor/detalle/${idPedido}/confirmar`;
     return `
-      <strong>${escapeHtml(nombre || "Destino")}</strong><br/>
-      <span>${escapeHtml(direccion || "")}</span><br/>
-      <small>Pedido #${idPedido}</small>
-    `;
+    <div class="mapa-popup-destino">
+      <strong>${escapeHtml(nombre || "Destino")}</strong>
+      <small>${escapeHtml(direccion || "")}</small>
+      <a href="${escapeHtml(href)}">Ver detalle / Confirmar entrega</a>
+    </div>`;
   }
 
   function upsertMarcadorRepartidor(
@@ -94,9 +192,31 @@ import "leaflet/dist/leaflet.css";
     marcadores.set(key, marker);
   }
 
+  //            Destinos (tiendas) + lista del panel
+  const marcadoresDestino = new Map<number, L.Marker>();
 
+  function renderLista(destinos: any[]) {
+    const lista = document.getElementById("mapaLista");
+    if (!lista) return;
+    lista.innerHTML = destinos
+      .map(
+        (d) => `
+      <li class="mapa-item" data-id="${d.id_pedido}" data-lat="${d.lat}" data-lng="${d.lng}"
+          data-search="${escapeHtml(`${d.nombre_cliente} ${d.direccion_texto}`)}">
+        <button type="button" class="mapa-card">
+          <span class="mapa-avatar mapa-avatar--tienda"><img src="/pins/tienda.png" alt="" /></span>
+          <span class="mapa-textos">
+            <span class="mapa-t1">${escapeHtml(d.nombre_cliente || "Cliente")}</span>
+            <span class="mapa-t2">${escapeHtml(d.direccion_texto || "Sin dirección")}</span>
+          </span>
+        </button>
+      </li>`,
+      )
+      .join("");
+    // reaplica el filtro del buscador y actualiza el "sin resultados"
+    document.getElementById("mapaBusqueda")?.dispatchEvent(new Event("input"));
+  }
 
-  // ---------- Destinos (tiendas) ----------
   async function cargarDestinos() {
     try {
       const res = await fetch(`${API_DENO}/proveedor/mapa/destinos-en-ruta`, {
@@ -109,23 +229,35 @@ import "leaflet/dist/leaflet.css";
 
       const json = await res.json();
       const destinos = json.data ?? [];
+
+      marcadoresDestino.forEach((m) => map.removeLayer(m));
+      marcadoresDestino.clear();
+
       const grupo = L.featureGroup();
+      const validos: any[] = [];
 
       for (const d of destinos) {
         const lat = Number(d.lat);
         const lng = Number(d.lng);
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+        const idPedido = Number(d.id_pedido);
 
         const pin = L.marker([lat, lng], { icon: iconTienda }).addTo(map);
         pin.bindPopup(
           popupTienda(
             d.nombre_cliente ?? "Cliente",
             d.direccion_texto ?? "",
-            Number(d.id_pedido),
+            idPedido,
+            d.url_detalle,
           ),
         );
+        pin.on("click", () => marcarSeleccion(idPedido));
+        marcadoresDestino.set(idPedido, pin);
         grupo.addLayer(pin);
+        validos.push({ ...d, lat, lng });
       }
+
+      renderLista(validos);
 
       if (grupo.getLayers().length > 0) {
         map.fitBounds(grupo.getBounds().pad(0.2));
@@ -135,7 +267,13 @@ import "leaflet/dist/leaflet.css";
     }
   }
 
-  // ---------- GPS ----------
+  // Al elegir una card: initMapaUi ya centra el mapa; aquí abrimos el popup del pin
+  document.getElementById("mapaLista")?.addEventListener("click", (e) => {
+    const li = (e.target as HTMLElement).closest<HTMLElement>(".mapa-item");
+    const m = li && marcadoresDestino.get(Number(li.dataset.id));
+    if (m) setTimeout(() => m.openPopup(), 700); // espera a que termine el flyTo
+  });
+  //        GPS
   let watchId: number | null = null;
 
   function crearEnviarUbicacionThrottled(clienteWs: {
@@ -182,12 +320,102 @@ import "leaflet/dist/leaflet.css";
     );
   }
 
-  // ---------- WebSocket ----------
+  // Envía la posición actual ya, sin esperar a que el GPS detecte un cambio.
+  function enviarUbicacionYa() {
+    navigator.geolocation?.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        upsertMarcadorRepartidor(MARCADOR_YO, lat, lng, {
+          nombre: "Mi ubicación",
+          empresa: "",
+        });
+        cliente.enviar({ tipo: "EnviarUbicacion", lat, lng });
+      },
+      (err) => console.error("GPS", err),
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 },
+    );
+  }
+
+  //    WebSocket
+  function setWsBadge(
+    estado: "conectando" | "conectado" | "reconectando" | "cerrado",
+  ) {
+    const el = document.getElementById("wsEstado");
+    if (!el) return;
+    el.classList.remove("ws-badge--off", "ws-badge--on", "ws-badge--wait");
+
+    if (estado === "conectado") {
+      el.textContent = "En línea";
+      el.classList.add("ws-badge--on");
+    } else if (estado === "reconectando" || estado === "conectando") {
+      el.textContent =
+        estado === "conectando" ? "Conectando…" : "Reconectando…";
+      el.classList.add("ws-badge--wait");
+    } else {
+      el.textContent = "Desconectado";
+      el.classList.add("ws-badge--off");
+    }
+  }
+
   const cliente = new WsUbicacionCliente(WS_URL, token, {
-    onEstado: (e) => console.log("[WS Proveedor]", e),
+    onEstado: (e) => {
+      console.log("[WS Cliente]", e);
+      setWsBadge(e);
+    },
     onMensaje: (msg) => {
-      if (msg.tipo === "Error") console.warn(msg.mensaje);
-      if (msg.tipo === "ruta_iniciada") console.log("Ruta iniciada en servidor");
+      if (msg.tipo === "Error") {
+        const texto = String(msg.mensaje ?? "Error");
+        console.warn(texto);
+        if (
+          msg.codigo === "RUTA_CON_PENDIENTES" ||
+          texto.toLowerCase().includes("tránsito") ||
+          texto.toLowerCase().includes("transito")
+        ) {
+          alert(texto);
+        }
+        return;
+      }
+
+      if (msg.tipo === "estado_ruta") {
+        const modo = String(msg.modo ?? "inactivo");
+        if (modo === "activo") {
+          setFaseRuta("activo");
+          iniciarGps(enviarThrottled);
+        } else if (modo === "descanso") {
+          setFaseRuta("descanso");
+          iniciarGps(enviarThrottled);
+        } else {
+          setFaseRuta("idle");
+          detenerGps();
+        }
+
+        if (msg.lat != null && msg.lng != null) {
+          upsertMarcadorRepartidor(
+            MARCADOR_YO,
+            Number(msg.lat),
+            Number(msg.lng),
+            {
+              nombre: "Mi ubicación",
+            },
+          );
+        }
+        return;
+      }
+
+      if (msg.tipo === "ruta_iniciada") {
+        setFaseRuta("activo");
+        cargarDestinos();
+        return;
+      }
+
+      if (msg.tipo === "ruta_terminada") {
+        alert("Ruta terminada correctamente.");
+        detenerGps();
+        setFaseRuta("idle");
+        cargarDestinos(); // limpia pines y lista
+        return;
+      }
     },
   });
 
@@ -199,26 +427,6 @@ import "leaflet/dist/leaflet.css";
   cargarDestinos();
 
   const enviarThrottled = crearEnviarUbicacionThrottled(cliente);
-
-  document.getElementById("btnIniciarRuta")?.addEventListener("click", () => {
-    cliente.enviar({ tipo: "EmpezarRuta" });
-    iniciarGps(enviarThrottled);
-  });
-
-  document.getElementById("btnDescanso")?.addEventListener("click", () => {
-    console.log("descanso")
-    cliente.enviar({ tipo: "Descanso" });
-  });
-
-  document.getElementById("btnReanudar")?.addEventListener("click", () => {
-    console.log("reanuda")
-    cliente.enviar({ tipo: "ReanudarRuta" });
-  });
-
-  document.getElementById("btnTerminarRuta")?.addEventListener("click", () => {
-    cliente.enviar({ tipo: "TerminarRuta" });
-    detenerGps();
-  });
 
   window.addEventListener("beforeunload", () => {
     detenerGps();

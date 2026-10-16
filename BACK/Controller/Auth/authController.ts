@@ -48,6 +48,7 @@ export const iniciarSesion = async (ctx: Context) => {
         nombre: result.data.nombre,
         rol: result.data.rol,
         idEmpresa: result.data.idEmpresa,
+        empresa: result.data.empresa,
       });
       response.status = 200;
       response.body = {

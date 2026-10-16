@@ -107,6 +107,7 @@ export class Usuario {
           rol: string;
           idRol: number;
           idEmpresa: number | null;
+          empresa: string | null;
         };
       }
     | { success: false; message: string }
@@ -123,20 +124,21 @@ export class Usuario {
       }
 
       const [usuario] = await conexion.query(
-        `SELECT u.*, r.nombre_rol AS rol
+        `SELECT u.*, r.nombre_rol AS rol, e.nombre as empresa
         FROM usuarios u
         INNER JOIN roles r ON u.id_rol = r.id_rol
+        left join empresas e on u.id_empresa = e.id_empresa
         WHERE u.email = ?`,
         [email],
       );
 
       if (!usuario) {
-        return { success: false, message: "Credenciales incorrectas" };
+        return { success: false, message: "Credenciales incorrectas em" };
       }
 
       const passwordValido = await compare(password, usuario.password_hash);
       if (!passwordValido) {
-        return { success: false, message: "Credenciales incorrectas" };
+        return { success: false, message: "Credenciales incorrectas pass" };
       }
 
       if (!usuario.activo) {
@@ -158,6 +160,7 @@ export class Usuario {
           rol: usuario.rol,
           idRol: usuario.id_rol,
           idEmpresa: usuario.id_empresa,
+          empresa: usuario.empresa,
         },
       };
     } catch (error) {
