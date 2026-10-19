@@ -164,6 +164,8 @@ const inicialEmpresaInicial = (p.empresaNombre || 'E').charAt(0).toUpperCase();
 </div>
 
 <script>
+  import { resolverUrlBackend } from '../../lib/Backend';
+
   // mismo flujo que cargarPerfilAdmin/guardarPerfilAdmin/guardarEmpresaAdmin/subirFotoAdmin/
   // subirLogoEmpresa del original, pero contra los proxies bff propios en vez de /Admin/*.
   // los datos iniciales ya vienen renderizados por ssr, asi que aqui no hay carga inicial,
@@ -182,8 +184,7 @@ const inicialEmpresaInicial = (p.empresaNombre || 'E').charAt(0).toUpperCase();
 
   // el backend responde rutas relativas ("/img/...") que sirve deno, no astro
   function urlAbsolutaBackend(url: string): string {
-    if (/^(https?:|data:|blob:)/.test(url)) return url;
-    return `${import.meta.env.PUBLIC_BACKEND_URL ?? ''}${url}`;
+    return resolverUrlBackend(url) ?? url;
   }
 
   function actualizarAvatarAdmin(urlFoto: string | null) {
@@ -307,6 +308,9 @@ const inicialEmpresaInicial = (p.empresaNombre || 'E').charAt(0).toUpperCase();
     const archivo = input.files[0];
     if (archivo.size > 2 * 1024 * 1024) { alert('La imagen no puede superar 2MB.'); return; }
 
+    const fotoAnterior = document.querySelector('#admin-avatar-grande img')?.getAttribute('src') ?? null;
+    const fotoSidebarAnterior = document.querySelector('.sidebar-profile-avatar img')?.getAttribute('src') ?? null;
+
     // preview inmediata con el archivo local, antes de que responda el backend
     const lector = new FileReader();
     lector.onload = (ev) => {
@@ -320,9 +324,24 @@ const inicialEmpresaInicial = (p.empresaNombre || 'E').charAt(0).toUpperCase();
     try {
       const res = await fetch('/api/auth/admin/perfil/foto', { method: 'POST', body: formData });
       const data = await res.json();
-      if (data.success) actualizarAvatarAdmin(data.imagenUrl + '?t=' + Date.now());
+      if (!res.ok || !data.success || !data.imagenUrl) {
+        throw new Error(data.message ?? 'El servidor no confirmó la actualización de la foto.');
+      }
+      actualizarAvatarAdmin(data.imagenUrl + '?t=' + Date.now());
     } catch (err) {
       console.error('Error subiendo foto:', err);
+      actualizarAvatarAdmin(fotoAnterior);
+      const avatarSidebar = document.querySelector('.sidebar-profile-avatar');
+      if (avatarSidebar && fotoSidebarAnterior) {
+        avatarSidebar.innerHTML = `<img src="${fotoSidebarAnterior}" alt="Foto de perfil">`;
+      }
+      mostrarMsgAdmin(
+        document.getElementById('msg-datos-admin'),
+        err instanceof Error ? `✗ ${err.message}` : '✗ No se pudo actualizar la foto.',
+        false,
+      );
+    } finally {
+      input.value = '';
     }
   });
 

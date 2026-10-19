@@ -2,7 +2,7 @@
 // src/pages/cliente/perfil.astro
 import ClienteLayout from '../../layouts/ClienteLayout.astro';
 import PerfilCliente from '../../components/cliente/PerfilCliente.astro';
-import { llamarBackend, obtenerToken } from '../../lib/Backend';
+import { llamarBackend, obtenerToken, resolverUrlBackend } from '../../lib/Backend';
 
 const token = obtenerToken(Astro.cookies);
 
@@ -19,6 +19,7 @@ const perfil = respuesta.datos.data as {
   fechaCreacion: string;
   estadoCuenta: string;
 };
+perfil.imagenUrl = resolverUrlBackend(perfil.imagenUrl) ?? '';
 
 const iniciales = `${perfil.nombre?.[0] ?? ''}${perfil.apellido?.[0] ?? ''}`.toUpperCase();
 ---

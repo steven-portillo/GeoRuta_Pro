@@ -1,6 +1,7 @@
 ---
 
 import '../styles/global.css';
+import { resolverUrlBackend } from '../lib/Backend';
 
 interface Props {
   // titulo de la pestaña del navegador
@@ -21,7 +22,8 @@ const {
   imagenUrl = null,
 } = Astro.props;
 
-const tieneFoto = Boolean(imagenUrl);
+const fotoUsuario = resolverUrlBackend(imagenUrl);
+const tieneFoto = Boolean(fotoUsuario);
 ---
 
 <!DOCTYPE html>
@@ -115,7 +117,7 @@ const tieneFoto = Boolean(imagenUrl);
 
           <a class="avatar-navbar" href="/cliente/perfil" title="Mi perfil">
             {tieneFoto ? (
-              <img src={imagenUrl!} alt="Foto de perfil" class="foto-navbar" />
+              <img src={fotoUsuario!} alt="Foto de perfil" class="foto-navbar" />
             ) : (
               <span>{inicialesUsuario}</span>
             )}

@@ -414,7 +414,8 @@ const { pedidosIniciales, metricasIniciales } = Astro.props;
           </div>`;
         })
         .join('');
-    } catch {
+    } catch (error) {
+      console.error('Error al cargar repartidores disponibles:', error);
       lista.innerHTML = `<p style="color:#ef4444;padding:1rem">Error al cargar repartidores.</p>`;
     }
   }
@@ -455,7 +456,8 @@ const { pedidosIniciales, metricasIniciales } = Astro.props;
         btn.textContent = 'Asignar repartidor';
         btn.disabled = false;
       }
-    } catch {
+    } catch (error) {
+      console.error('Error al asignar el repartidor:', error);
       msg.textContent = '❌ Error de conexión.';
       msg.className = 'admin-msg-err';
       msg.style.display = 'block';

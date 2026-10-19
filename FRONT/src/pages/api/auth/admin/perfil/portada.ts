@@ -1,16 +1,19 @@
-// src/pages/api/auth/admin/perfil/portada.ts
-// proxy BFF para la portada de la empresa (POST /admin/perfil/portada-empresa, multipart)
 import type { APIRoute } from 'astro';
-import { llamarBackend, obtenerToken } from '../../../../../lib/Backend';
+import { obtenerToken } from '../../../../../lib/Backend';
 
-export const POST: APIRoute = async ({ request, cookies }) => {
-  const token = obtenerToken(cookies);
-  const formData = await request.formData();
+export const POST: APIRoute = ({ cookies }) => {
+  if (!obtenerToken(cookies)) {
+    return new Response(
+      JSON.stringify({ success: false, message: 'No autorizado' }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } },
+    );
+  }
 
-  const respuesta = await llamarBackend('/admin/perfil/portada-empresa', { metodo: 'POST', cuerpo: formData, token });
-
-  return new Response(JSON.stringify(respuesta.datos), {
-    status: respuesta.status,
-    headers: { 'Content-Type': 'application/json' },
-  });
+  return new Response(
+    JSON.stringify({
+      success: false,
+      message: 'El esquema actual de empresa no incluye una imagen de portada.',
+    }),
+    { status: 501, headers: { 'Content-Type': 'application/json' } },
+  );
 };

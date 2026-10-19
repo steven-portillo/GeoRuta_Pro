@@ -7,8 +7,34 @@ import { llamarBackend, obtenerToken } from '../../lib/Backend';
 
 const token = obtenerToken(Astro.cookies);
 
-const respuesta = await llamarBackend<EmpresaSuperAdmin[]>('/superadmin/empresas', { token });
-const empresas = respuesta.datos.data ?? [];
+const respuesta = await llamarBackend<{
+  success: boolean;
+  data?: EmpresaSuperAdmin[];
+  message?: string;
+}>('/api/admin/superadmin/empresas', { token });
+
+if (respuesta.status === 401) {
+  Astro.cookies.delete('token', { path: '/' });
+  return Astro.redirect('/login?error=sesion_expirada');
+}
+
+if (respuesta.status === 403) {
+  return Astro.redirect('/login?error=sin_permisos');
+}
+
+if (
+  respuesta.status < 200 || respuesta.status >= 300 ||
+  !respuesta.datos.success || !Array.isArray(respuesta.datos.data)
+) {
+  console.error('No se pudieron cargar las empresas:', respuesta.datos.message);
+  Astro.response.status = 502;
+  throw new Error(respuesta.datos.message ?? 'No se pudieron cargar las empresas');
+}
+
+const empresas = respuesta.datos.data.map((empresa) => ({
+  ...empresa,
+  estado: Boolean(Number(empresa.estado)),
+}));
 ---
 
 <SuperAdminLayout titulo="Empresas" vistaActual="empresas">

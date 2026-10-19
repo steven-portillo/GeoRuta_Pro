@@ -1,0 +1,38 @@
+@baseUrl = http://localhost:8005
+
+
+
+### Iniciar sesión
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+	"email": "deivyd@gmail.com",
+	"password": 12345678
+}
+
+### empresas
+GET {{baseUrl}}/api/admin/superadmin/clientes
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjgwMDUiLCJzdWIiOiIxIiwicm9sIjoiU1VQRVJBRE1JTiIsImp0aSI6IjEzYWNiYTE5LTcyMmQtNDI2Yi1hNjQ5LTY3MWNmZWMzYjVkYSIsImV4cCI6MTc5MDE2NzM2MX0.2AXetfgja-ciTP0O8QC6k4IMK2tqQo8VDAAluOVadoA
+
+
+###
+PUT {{baseUrl}}/api/admin/superadmin/clientes/4
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjgwMDUiLCJzdWIiOiIxIiwicm9sIjoiU1VQRVJBRE1JTiIsImp0aSI6IjEzYWNiYTE5LTcyMmQtNDI2Yi1hNjQ5LTY3MWNmZWMzYjVkYSIsImV4cCI6MTc5MDE2NzM2MX0.2AXetfgja-ciTP0O8QC6k4IMK2tqQo8VDAAluOVadoA
+Content-Type: multipart/form-data; boundary=----GeoRutaBoundary
+
+------GeoRutaBoundary
+Content-Disposition: form-data; name="nombre"
+
+Jose B
+------GeoRutaBoundary--
+
+### perfil
+PATCH {{baseUrl}}/api/admin/superadmin/perfil/password
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjgwMDUiLCJzdWIiOiIxIiwicm9sIjoiU1VQRVJBRE1JTiIsImp0aSI6IjEzYWNiYTE5LTcyMmQtNDI2Yi1hNjQ5LTY3MWNmZWMzYjVkYSIsImV4cCI6MTc5MDE2NzM2MX0.2AXetfgja-ciTP0O8QC6k4IMK2tqQo8VDAAluOVadoA
+Content-Type: application/json
+
+{
+	"passwordActual": "123456",
+	"passwordNueva": "12345678"
+}

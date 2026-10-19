@@ -1,21 +1,55 @@
-GET http://localhost:8001/producto
+@baseUrl = http://localhost:8005
 
-###
-GET http://localhost:8001/stock
 
-###
-POST http://localhost:8001/pagos/checkout
+### Registrar cliente
+POST {{baseUrl}}/api/auth/register
 Content-Type: application/json
 
 {
-  "id_producto": 1,
-  "cantidad": 2
+	"nombre": "Emanem",
+	"apellido": "Alvarez",
+	"email": "emmuthat22@gmail.com",
+	"password": "123456"
 }
 
-### Login con Google
-POST http://localhost:8001/auth/google
+
+### Iniciar sesión
+POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
 {
-  "credential": ""
+	"email": "deivyd@gmail.com",
+	"password": "12345678"
 }
+
+
+### Registrar empresa (con logo)
+POST {{baseUrl}}/api/auth/register-empresa
+Content-Type: multipart/form-data; boundary=----GeoRutaBoundary
+
+------GeoRutaBoundary
+Content-Disposition: form-data; name="nombreEmpresa"
+
+pepsi
+------GeoRutaBoundary
+Content-Disposition: form-data; name="nombreAdmin"
+
+Cristian
+------GeoRutaBoundary
+Content-Disposition: form-data; name="apellidoAdmin"
+
+Torres
+------GeoRutaBoundary
+Content-Disposition: form-data; name="emailAdmin"
+
+cristian@gmail.com
+------GeoRutaBoundary
+Content-Disposition: form-data; name="passwordAdmin"
+
+12345678
+------GeoRutaBoundary
+Content-Disposition: form-data; name="logoEmpresa"; filename="logo.png"
+Content-Type: image/png
+
+< C:\Users\deivy\Desktop\logo.png
+------GeoRutaBoundary--

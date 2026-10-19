@@ -1,9 +1,5 @@
 ---
 // src/components/auth/LoginForm.astro
-// componente de presentacion + logica de submit. el proceso de login
-// (endpoint, contrato de respuesta, redireccion por rol) es el mismo que
-// ya funcionaba; lo unico que cambio es la UI/validacion.
-
 import './auth.css';
 import '../../styles/Forms.css';
 
@@ -13,6 +9,7 @@ interface Props {
 
 const { mensajeError } = Astro.props;
 ---
+
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 
 <div class="login-page-wrapper">
@@ -37,39 +34,39 @@ const { mensajeError } = Astro.props;
       <ul class="lv-features">
         <li>
           <div class="lv-feat-icon">
-            <svg viewBox="0 0 24 24"
-              ><path
+            <svg viewBox="0 0 24 24">
+              <path
                 d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
-              ></path></svg
-            >
+              ></path>
+            </svg>
           </div>
           Rastreo GPS en tiempo real
         </li>
         <li>
           <div class="lv-feat-icon">
-            <svg viewBox="0 0 24 24"
-              ><path
+            <svg viewBox="0 0 24 24">
+              <path
                 d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45C5.16 12.37 5 12.82 5 13.3 5 15.1 6.9 18 9 18h12v-2H9.42a.25.25 0 01-.25-.25l.03-.12.9-1.63H19c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1 1 0 0023.44 6H5.21l-.94-2H1z"
-              ></path></svg
-            >
+              ></path>
+            </svg>
           </div>
           Gestión completa de pedidos
         </li>
         <li>
           <div class="lv-feat-icon">
-            <svg viewBox="0 0 24 24"
-              ><path
+            <svg viewBox="0 0 24 24">
+              <path
                 d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"
-              ></path></svg
-            >
+              ></path>
+            </svg>
           </div>
           Control de inventario automático
         </li>
         <li>
           <div class="lv-feat-icon">
-            <svg viewBox="0 0 24 24"
-              ><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"></path></svg
-            >
+            <svg viewBox="0 0 24 24">
+              <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"></path>
+            </svg>
           </div>
           Acceso seguro por rol
         </li>
@@ -151,23 +148,33 @@ const { mensajeError } = Astro.props;
             </div>
           </button>
 
+          <!-- Separador -->
           <div class="text-center my-3">
-            <span class="text-muted"> </span>
+            <span style="color:#94a3b8;font-size:0.85rem">o</span>
           </div>
 
-          <div id="g_id_onload"
+          <!-- Google Sign-In -->
+          <div
+            id="g_id_onload"
             data-client_id="326172460152-tf164aeq7s3p3nqotj1ml221dgsrl6i0.apps.googleusercontent.com"
-            data-callback="handleCredentialResponse">
+            data-callback="handleCredentialResponse"
+            data-auto_prompt="false"
+          >
           </div>
 
-          <div class="g_id_signin"
+          <div
+            class="g_id_signin"
             data-type="standard"
             data-size="large"
             data-theme="outline"
-            data-text="signin_with">
+            data-text="signin_with"
+            data-shape="rectangular"
+            data-logo_alignment="left"
+            data-width="100%"
+          >
           </div>
 
-          <div class="text-center">
+          <div class="text-center mt-3">
             <p class="register-prompt mb-0">
               ¿No tienes una cuenta? <a href="/registro" class="forgot-link">Regístrate aquí</a>
             </p>
@@ -184,9 +191,6 @@ const { mensajeError } = Astro.props;
 <script>
   import { validarFormatoEmail, validarPassword, attachFieldValidation } from '../../utils/validaciones';
 
-  // redirige segun el rol que devuelve el backend — solo CLIENTE esta migrado
-  // en Astro por ahora; los demas roles quedan listos para cuando se migren
-  // sus vistas (mismo mapa de prefijos que usa middleware.ts)
   const RUTA_POR_ROL: Record<string, string> = {
     CLIENTE: '/cliente/inicio',
     ADMIN: '/admin/inicio',
@@ -217,6 +221,9 @@ const { mensajeError } = Astro.props;
   const validarEmail = attachFieldValidation(emailInput, emailError, validarFormatoEmail);
   const validarPasswordCampo = attachFieldValidation(passwordInput, passwordError, (valor) => validarPassword(valor));
 
+  // ============================================================
+  // Login con email / password
+  // ============================================================
   if (loginForm && submitBtn && emailInput && passwordInput && formAlert && formAlertMessage) {
     loginForm.addEventListener('submit', async (evento) => {
       evento.preventDefault();
@@ -246,7 +253,6 @@ const { mensajeError } = Astro.props;
       submitBtn.disabled = true;
 
       try {
-        // mismo endpoint y mismo cuerpo que ya usaba el formulario anterior
         const respuesta = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -254,8 +260,6 @@ const { mensajeError } = Astro.props;
         });
         const resultado = await respuesta.json();
 
-        // mismo contrato de respuesta que ya manejaba el formulario anterior:
-        // { success: boolean, message?: string, usuario?: { rol: string } }
         if (!resultado.success) {
           btnText.textContent = 'Iniciar Sesión';
           btnSpinner.classList.add('d-none');
@@ -276,7 +280,8 @@ const { mensajeError } = Astro.props;
         formAlertMessage.textContent = 'Inicio de sesión exitoso. Redirigiendo a tu panel...';
         formAlert.className = 'alert-custom alert-custom-success d-flex';
 
-        const destino = RUTA_POR_ROL[resultado.usuario.rol] ?? '/';
+        const rol = resultado.usuario?.rol ?? resultado.data?.rol ?? '';
+        const destino = RUTA_POR_ROL[rol] ?? '/';
         setTimeout(() => {
           window.location.href = destino;
         }, 1200);
@@ -291,34 +296,57 @@ const { mensajeError } = Astro.props;
         formAlert.className = 'alert-custom alert-custom-danger d-flex';
       }
     });
-
-    (window as any).handleCredentialResponse = async (response: any) => {
-      try {
-        const respuesta = await fetch('/api/auth/google', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ credential: response.credential }),
-        });
-
-        const resultado = await respuesta.json();
-
-        if (!resultado.success) {
-          formAlertMessage!.textContent = resultado.message ?? 'Error al iniciar sesión con Google';
-          formAlert!.className = 'alert-custom alert-custom-danger d-flex';
-          return;
-        }
-
-        formAlertMessage!.textContent = 'Inicio de sesión exitoso. Redirigiendo...';
-        formAlert!.className = 'alert-custom alert-custom-success d-flex';
-
-        const destino = RUTA_POR_ROL[resultado.usuario.rol] ?? '/';
-        setTimeout(() => {
-          window.location.href = destino;
-        }, 1000);
-      } catch (error) {
-        formAlertMessage!.textContent = 'No fue posible conectar con el servidor';
-        formAlert!.className = 'alert-custom alert-custom-danger d-flex';
-      }
-    };
   }
+
+  // ============================================================
+  // Login con Google
+  // ============================================================
+  (window as any).handleCredentialResponse = async (response: any) => {
+    if (!formAlert || !formAlertMessage) return;
+
+    try {
+      formAlert.classList.add('d-none');
+
+      const res = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: response.credential }),
+      });
+
+      const resultado = await res.json();
+
+      if (!resultado.success) {
+        formAlertMessage.textContent = resultado.message ?? 'Error al iniciar sesión con Google';
+        formAlert.className = 'alert-custom alert-custom-danger d-flex';
+        return;
+      }
+
+      formAlertMessage.textContent = 'Inicio de sesión exitoso. Redirigiendo...';
+      formAlert.className = 'alert-custom alert-custom-success d-flex';
+
+      const rol = resultado.usuario?.rol ?? resultado.data?.rol ?? '';
+      const destino = RUTA_POR_ROL[rol] ?? '/';
+      setTimeout(() => {
+        window.location.href = destino;
+      }, 1000);
+    } catch {
+      formAlertMessage.textContent = 'No fue posible conectar con el servidor';
+      formAlert.className = 'alert-custom alert-custom-danger d-flex';
+    }
+  };
 </script>
+
+<style>
+  /* Botón de Google a todo el ancho */
+  .g_id_signin {
+    width: 100% !important;
+    display: flex !important;
+    justify-content: center;
+  }
+
+  .g_id_signin > div,
+  .g_id_signin iframe {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+</style>

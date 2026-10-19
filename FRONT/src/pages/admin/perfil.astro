@@ -2,13 +2,25 @@
 // src/pages/admin/perfil.astro
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import PerfilAdmin from '../../components/admin/PerfilAdmin.astro';
-import { llamarBackend, obtenerToken } from '../../lib/Backend';
+import { llamarBackend, obtenerToken, resolverUrlBackend } from '../../lib/Backend';
 
 const token = obtenerToken(Astro.cookies);
 
-const respuestaPerfil = await llamarBackend('/admin/perfil', { token });
+const [respuestaPerfil, respuestaEmpresa] = await Promise.all([
+  llamarBackend('/admin/perfil', { token }),
+  llamarBackend('/admin/empresa', { token }),
+]);
 
-const perfil = (respuestaPerfil.datos.data ?? {
+const perfilUsuario = respuestaPerfil.datos.data ?? {};
+const empresa = respuestaEmpresa.datos.data ?? {};
+const imagenPerfil = perfilUsuario.imagenUrl ?? perfilUsuario.imagen_url ?? '';
+const perfil = ({
+  ...perfilUsuario,
+  imagenUrl: resolverUrlBackend(imagenPerfil) ?? '',
+  empresaNombre: empresa.nombre ?? '',
+  empresaDesc: empresa.descripcion ?? '',
+  empresaLogo: resolverUrlBackend(empresa.logo_url) ?? '',
+} ?? {
   nombre: '',
   apellido: '',
   email: '',

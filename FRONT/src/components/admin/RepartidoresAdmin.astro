@@ -31,7 +31,13 @@ const { repartidoresIniciales, token } = Astro.props;
 
 // se resuelve aqui (frontmatter, corre en el servidor) y no dentro del script
 // define:vars, porque ahi import.meta.env si se reemplaza en build time
-const backendUrlPublico = import.meta.env.PUBLIC_BACKEND_URL;
+const backendUrlPublico = (
+  import.meta.env.API_DENO ||
+  import.meta.env.PUBLIC_API_DENO ||
+  import.meta.env.PUBLIC_BACKEND_URL ||
+  import.meta.env.BACKEND_URL ||
+  'http://127.0.0.1:8005'
+).replace(/\/+$/, '');
 ---
 
 <!-- leaflet: mapa de ubicacion en tiempo real dentro del modal "ver repartidor" -->
@@ -162,7 +168,11 @@ const backendUrlPublico = import.meta.env.PUBLIC_BACKEND_URL;
 </div>
 
 <script define:vars={{ repartidoresIniciales, token, backendUrlPublico }}>
-  let repartidores = repartidoresIniciales;
+  let repartidores = repartidoresIniciales.map((r) => ({
+    ...r,
+    enTransito: Number(r.enTransito ?? 0),
+    totalAsignados: Number(r.totalAsignados ?? 0),
+  }));
   let repSeleccionado = null;
   let mapaUbicacionRep = null;
   let marcadorRepartidorAdmin = null;
@@ -180,24 +190,39 @@ const backendUrlPublico = import.meta.env.PUBLIC_BACKEND_URL;
   const fmt = (n) => '$' + Number(n).toLocaleString('es-CO');
 
   // ============================================================
-  // lista + metricas (calculadas en el cliente, igual que en el original)
+  // lista + metricas
   // ============================================================
-  async function refrescarRepartidores() {
-    const res = await fetch('/api/auth/admin/repartidores');
-    const data = await res.json();
-    if (!data.success) return;
-    repartidores = data.data;
-
-    const disponibles = repartidores.filter((r) => r.enTransito === 0).length;
-    const enEntrega = repartidores.filter((r) => r.enTransito > 0).length;
-    const setM = (id, v) => {
+  function actualizarMetricas() {
+    const disponibles = repartidores.filter((r) => Number(r.enTransito ?? 0) === 0).length;
+    const enEntrega = repartidores.filter((r) => Number(r.enTransito ?? 0) > 0).length;
+    const setM = (id, valor) => {
       const el = document.getElementById(id);
-      if (el) el.textContent = v;
+      if (el) el.textContent = String(valor);
     };
+
     setM('m-rep-disponibles', disponibles);
     setM('m-rep-entrega', enEntrega);
     setM('m-rep-total', repartidores.length);
+  }
 
+  async function refrescarRepartidores() {
+    const res = await fetch('/api/auth/admin/repartidores');
+    if (!res.ok) {
+      throw new Error(`No se pudieron actualizar los repartidores (${res.status})`);
+    }
+
+    const data = await res.json();
+    if (!data.success || !Array.isArray(data.data)) {
+      throw new Error(data.message ?? 'El backend devolvió una lista de repartidores no válida');
+    }
+
+    repartidores = data.data.map((r) => ({
+      ...r,
+      enTransito: Number(r.enTransito ?? 0),
+      totalAsignados: Number(r.totalAsignados ?? 0),
+    }));
+
+    actualizarMetricas();
     renderRepartidores();
   }
 
@@ -273,7 +298,7 @@ const backendUrlPublico = import.meta.env.PUBLIC_BACKEND_URL;
 
     if (!nombre || nombre.length < 2) return mostrarMensaje('El nombre debe tener al menos 2 caracteres.', false);
     if (!email || !email.includes('@')) return mostrarMensaje('Correo inválido.', false);
-    if (!password || password.length < 6) return mostrarMensaje('La contraseña debe tener mínimo 6 caracteres.', false);
+    if (!password || password.length < 8) return mostrarMensaje('La contraseña debe tener mínimo 8 caracteres.', false);
 
     const original = btn.textContent;
     btn.textContent = 'Guardando...';
@@ -287,10 +312,13 @@ const backendUrlPublico = import.meta.env.PUBLIC_BACKEND_URL;
       const data = await res.json();
       if (data.success) {
         mostrarMensaje('✅ ' + data.message, true);
-        setTimeout(() => {
-          cerrarModalRepartidor();
-          refrescarRepartidores();
-        }, 1200);
+        cerrarModalRepartidor();
+        try {
+          await refrescarRepartidores();
+        } catch (error) {
+          console.error('El repartidor se creó, pero no se pudo actualizar la lista:', error);
+          alert('El repartidor se creó, pero no se pudo actualizar el listado. Recarga la página para ver los datos.');
+        }
       } else {
         mostrarMensaje('❌ ' + data.message, false);
       }
@@ -555,6 +583,7 @@ const backendUrlPublico = import.meta.env.PUBLIC_BACKEND_URL;
     if (boton) verRepartidor(Number(boton.dataset.id));
   });
 
+  actualizarMetricas();
   renderRepartidores();
 </script>
 

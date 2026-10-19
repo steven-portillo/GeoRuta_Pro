@@ -2,22 +2,38 @@
 // src/pages/admin/inicio.astro
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import InicioAdmin from '../../components/admin/InicioAdmin.astro';
-import { llamarBackend, obtenerToken } from '../../lib/Backend';
 
-const token = obtenerToken(Astro.cookies);
+const BACKEND_URL = import.meta.env.API_DENO || 'http://127.0.0.1:8005';
+const token = Astro.cookies.get('token')?.value;
 
-const [respuestaPerfil, respuestaMetricas] = await Promise.all([
-  llamarBackend('/admin/perfil', { token }),
-  llamarBackend('/admin/inicio/metricas', { token }),
-]);
-
-const perfil = respuestaPerfil.datos.data as { nombre: string; apellido: string };
-const metricas = (respuestaMetricas.datos.data ?? {
+let perfil = { nombre: '', apellido: '' };
+let metricas = {
   productos: 0,
   pendientes: 0,
   enTransito: 0,
   repartidores: 0,
-}) as import('../../components/admin/InicioAdmin.astro').MetricasInicio;
+};
+
+if (token) {
+  const [resPerfil, resMetricas] = await Promise.all([
+    fetch(`${BACKEND_URL}/api/perfil`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+    fetch(`${BACKEND_URL}/api/admin/inicio/metricas`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  ]);
+
+  const dataPerfil = await resPerfil.json();
+  const dataMetricas = await resMetricas.json();
+
+  if (dataPerfil.success) {
+    perfil = dataPerfil.data;
+  }
+  if (dataMetricas.success && dataMetricas.data) {
+    metricas = dataMetricas.data;
+  }
+}
 
 const iniciales = `${perfil.nombre?.[0] ?? ''}${perfil.apellido?.[0] ?? ''}`.toUpperCase();
 ---
@@ -28,5 +44,9 @@ const iniciales = `${perfil.nombre?.[0] ?? ''}${perfil.apellido?.[0] ?? ''}`.toU
   nombreAdmin={`${perfil.nombre} ${perfil.apellido}`}
   inicialesAdmin={iniciales}
 >
-  <InicioAdmin nombre={perfil.nombre} apellido={perfil.apellido} metricas={metricas} />
+  <InicioAdmin
+    nombre={perfil.nombre}
+    apellido={perfil.apellido}
+    metricas={metricas}
+  />
 </AdminLayout>

@@ -124,11 +124,17 @@ const { categoriasIniciales } = Astro.props;
   // ============================================================
   async function refrescarCategorias() {
     const res = await fetch('/api/auth/admin/categorias');
-    const data = await res.json();
-    if (data.success) {
-      categorias = data.data;
-      renderLista();
+    if (!res.ok) {
+      throw new Error(`No se pudieron cargar las categorías (${res.status})`);
     }
+
+    const data = await res.json();
+    if (!data.success || !Array.isArray(data.data)) {
+      throw new Error(data.message ?? 'El backend devolvió una lista de categorías no válida');
+    }
+
+    categorias = data.data;
+    renderLista();
   }
 
   function mostrarMensaje(elId, texto, ok) {
@@ -154,12 +160,21 @@ const { categoriasIniciales } = Astro.props;
         body: JSON.stringify({ nombre }),
       });
       const data = await res.json();
-      if (data.success) {
-        mostrarMensaje('msg-nueva-cat', '✓ ' + data.message, true);
+      if (res.ok && data.success) {
+        mostrarMensaje('msg-nueva-cat', '✓ ' + (data.message ?? 'Categoría creada'), true);
         input.value = '';
-        await refrescarCategorias();
+        try {
+          await refrescarCategorias();
+        } catch (error) {
+          console.error('La categoría se creó, pero no se pudo actualizar la lista:', error);
+          mostrarMensaje(
+            'msg-nueva-cat',
+            'La categoría se creó, pero no se pudo actualizar la lista. Recarga la página.',
+            false,
+          );
+        }
       } else {
-        mostrarMensaje('msg-nueva-cat', '✗ ' + data.message, false);
+        mostrarMensaje('msg-nueva-cat', '✗ ' + (data.message ?? 'Error'), false);
       }
     } catch {
       mostrarMensaje('msg-nueva-cat', '✗ Error de conexión.', false);
@@ -169,14 +184,15 @@ const { categoriasIniciales } = Astro.props;
   async function eliminarCategoria(id, nombre) {
     if (!confirm(`¿Eliminar "${nombre}"?`)) return;
     try {
-      const res = await fetch('/api/auth/admin/categorias/eliminar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idCategoria: id }),
+      const res = await fetch(`/api/auth/admin/categorias/eliminar?id=${id}`, {
+        method: 'DELETE',
       });
       const data = await res.json();
-      if (data.success) await refrescarCategorias();
-      else alert('⚠️ ' + data.message);
+      if (res.ok && data.success) {
+        await refrescarCategorias();
+      } else {
+        alert('⚠️ ' + (data.message ?? 'No se pudo eliminar'));
+      }
     } catch {
       alert('Error de conexión.');
     }
@@ -201,16 +217,16 @@ const { categoriasIniciales } = Astro.props;
 
     try {
       const res = await fetch('/api/auth/admin/categorias/renombrar', {
-        method: 'POST',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idCategoria: Number(id), nuevoNombre }),
+        body: JSON.stringify({ id: Number(id), nombre: nuevoNombre }),
       });
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
         cerrarModalRenombrar();
         await refrescarCategorias();
       } else {
-        mostrarMensaje('msg-renombrar', '✗ ' + data.message, false);
+        mostrarMensaje('msg-renombrar', '✗ ' + (data.message ?? 'Error'), false);
       }
     } catch {
       mostrarMensaje('msg-renombrar', '✗ Error de conexión.', false);
@@ -243,7 +259,6 @@ const { categoriasIniciales } = Astro.props;
 
   renderLista();
 </script>
-
 <style>
   .grid-categorias {
     display: grid;

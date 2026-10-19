@@ -72,7 +72,7 @@ const barras = serieDiariaInicial.map((d, i) => {
   <div>
     <h1 style="font-size:1.3rem;font-weight:800;color:var(--gris-900)">💳 Pagos</h1>
     <p style="font-size:0.82rem;color:var(--gris-500);margin-top:2px">
-      Ingresos en línea recibidos vía Stripe
+      Ingresos en línea recibidos vía Wompi
     </p>
   </div>
 </div>
@@ -104,7 +104,7 @@ const barras = serieDiariaInicial.map((d, i) => {
 <!-- resumen de pagos -->
 <div class="panel-card" style="margin-top:1rem">
   <div class="panel-card-header">
-    <span class="titulo-sec">Resumen de pagos con Stripe</span>
+    <span class="titulo-sec">Resumen de pagos con Wompi</span>
   </div>
   <div class="panel-card-body">
     {totalPagos === 0 ? (
@@ -171,7 +171,7 @@ const barras = serieDiariaInicial.map((d, i) => {
     <div class="barra-filtros">
       <input class="input-busqueda" id="buscar-pago" placeholder="Cliente o #pedido..." />
       <select class="input-busqueda" id="filtro-pasarela" style="width:160px">
-        <option value="stripe">Stripe</option>
+        <option value="wompi">Wompi</option>
       </select>
       <select class="input-busqueda" id="filtro-estado-pago" style="width:150px">
         <option value="">Todos los estados</option>
@@ -227,7 +227,7 @@ const barras = serieDiariaInicial.map((d, i) => {
         return `<tr>
           <td class="celda-mono">#PED-${p.idPedido}</td>
           <td style="font-weight:600">${p.cliente}</td>
-          <td style="font-size:.82rem">💳 Stripe</td>
+          <td style="font-size:.82rem">💳 Wompi</td>
           <td style="font-size:.78rem;color:var(--gris-500)">${p.referencia || '—'}</td>
           <td style="font-weight:700">${fmtMonto(p.monto)}</td>
           <td><span class="badge ${est.clase}">${est.icono} ${est.texto}</span></td>
@@ -252,5 +252,5 @@ const barras = serieDiariaInicial.map((d, i) => {
   document.getElementById('buscar-pago')?.addEventListener('input', filtrarPagos);
   document.getElementById('filtro-estado-pago')?.addEventListener('change', filtrarPagos);
 
-  renderPagos(pagos); // render inicial (unica pasarela activa hoy es stripe, igual que el original)
+  renderPagos(pagos); // render inicial (la pasarela activa es Wompi)
 </script>

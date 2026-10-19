@@ -1,15 +1,28 @@
 // src/pages/api/auth/logout.ts
 import type { APIRoute } from 'astro';
-import { NOMBRE_COOKIE } from '../../../lib/Backend';
 
+export const prerender = false;
+
+const API_DENO = import.meta.env.API_DENO;
+
+const json = (cuerpo: unknown, status: number) =>
+  new Response(JSON.stringify(cuerpo), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+/** POST /api/auth/logout -> avisa al backend y borra la cookie en Astro */
 export const POST: APIRoute = async ({ cookies }) => {
-  // borra la cookie httponly del jwt. no hace falta avisarle al backend deno
-  // (el jwt no se invalida server-side, simplemente expira solo a las 8 horas
-  // por su campo "exp" — aqui solo dejamos de mandarlo)
-  cookies.delete(NOMBRE_COOKIE, { path: '/' });
+  try {
+    // Aviso al backend. Si falla, igual cerramos la sesión en el front.
+    await fetch(`${API_DENO}/api/auth/logout`, { method: 'POST' }).catch(
+      (error) => console.error('No se pudo avisar al backend del logout:', error),
+    );
+  } finally {
+    // La cookie la creó Astro en login.ts, así que Astro es quien debe borrarla.
+    // path debe ser el mismo que al crearla, o el navegador no la elimina.
+    cookies.delete('token', { path: '/' });
+  }
 
-  return new Response(
-    JSON.stringify({ success: true, message: 'Sesion cerrada' }),
-    { status: 200, headers: { 'Content-Type': 'application/json' } },
-  );
+  return json({ success: true, message: 'Sesión cerrada correctamente' }, 200);
 };

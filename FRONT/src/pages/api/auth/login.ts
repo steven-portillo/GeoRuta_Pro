@@ -1,68 +1,69 @@
 // src/pages/api/auth/login.ts
 import type { APIRoute } from 'astro';
-import { llamarBackend, NOMBRE_COOKIE } from '../../../lib/Backend';
 
-interface UsuarioLogin {
-  id: number;
-  nombre: string;
-  email: string;
-  rol: string;
-  imagenUrl: string | null;
-}
+export const prerender = false;
 
-interface DatosLogin {
-  token: string;
-  usuario: UsuarioLogin;
-}
+const API_DENO = import.meta.env.API_DENO;
 
-// horas de vigencia del jwt — debe coincidir con JWT_EXPIRACION_HORAS del backend
-// (8 horas por defecto en GenerarToken.ts) para que la cookie no dure mas que el token
-const HORAS_EXPIRACION_COOKIE = 8;
+const json = (cuerpo: unknown, status: number) =>
+  new Response(JSON.stringify(cuerpo), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   try {
-    const cuerpo = await request.json();
+    const { email, password } = await request.json();
 
-    // ojo: la ruta real en el backend deno es "/auth/login" (Auth_routes.ts),
-    // no "/login" — con "/login" el backend responde 404 y el login nunca funciona
-    const { status, datos } = await llamarBackend<DatosLogin>('/auth/login', {
-      metodo: 'POST',
-      cuerpo,
-    });
-
-    if (!datos.success || !datos.data) {
-      // reenvia tal cual el status y el mensaje que dio el backend
-      // (ej. 401 email/password incorrectos)
-      return new Response(JSON.stringify({ success: false, message: datos.message }), {
-        status,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    if (!email || !password) {
+      return json(
+        { success: false, message: 'Email y contraseña son obligatorios' },
+        400,
+      );
     }
 
-    const { token, usuario } = datos.data;
+    const respuesta = await fetch(`${API_DENO}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
 
-    // guarda el jwt en una cookie httponly: el navegador la manda automaticamente
-    // en cada request a este mismo dominio (astro), pero ningun script del lado
-    // del cliente puede leerla, ni siquiera con document.cookie
-    cookies.set(NOMBRE_COOKIE, token, {
+    const resultado = await respuesta.json();
+
+    if (!respuesta.ok || !resultado.success) {
+      return json(
+        { success: false, message: resultado.message ?? 'Email o contraseña incorrectos' },
+        respuesta.status,
+      );
+    }
+
+    cookies.set('token', resultado.accessToken, {
       httpOnly: true,
       secure: import.meta.env.PROD,
       sameSite: 'lax',
       path: '/',
-      maxAge: HORAS_EXPIRACION_COOKIE * 60 * 60,
+      maxAge: 60 * 60 * 24,
     });
 
-    // al cliente solo le devolvemos los datos del usuario (sin el token) para
-    // que el frontend decida a que dashboard redirigir segun el rol
-    return new Response(
-      JSON.stringify({ success: true, message: datos.message, usuario }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    return json(
+      {
+        success: true,
+        usuario: {
+          id: resultado.data.id,
+          nombreCompleto: resultado.data.nombreCompleto,
+          email: resultado.data.email,
+          rol: String(resultado.data.rol).toUpperCase(),
+          idRol: resultado.data.idRol,
+          idEmpresa: resultado.data.idEmpresa,
+        },
+      },
+      200,
     );
   } catch (error) {
-    console.error(error);
-    return new Response(
-      JSON.stringify({ success: false, message: 'No fue posible iniciar sesion' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } },
+    console.error('Error en login:', error);
+    return json(
+      { success: false, message: 'No fue posible conectar con el servidor' },
+      500,
     );
   }
 };

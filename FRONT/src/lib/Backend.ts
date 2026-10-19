@@ -1,97 +1,269 @@
-// src/lib/Backend.ts
-import type { AstroCookies } from 'astro';
+type CookieStore = {
+  get(name: string): { value: string } | undefined;
+};
 
-// nombre de la cookie httponly donde guardamos el jwt (mismo patron que en eventos-academicos)
-const NOMBRE_COOKIE = 'jwt_token';
+type OpcionesBackend = {
+  metodo?: string;
+  cuerpo?: unknown;
+  token?: string | null;
+  headers?: HeadersInit;
+};
 
-// forma en la que responde siempre el backend deno/oak: success/message fijos,
-// data opcional, y a veces claves extra (ej. metricas, pedidos, serieDiaria)
-interface RespuestaBackend<T = unknown> {
-  success: boolean;
-  message: string;
-  data?: T;
-  errors?: Record<string, string[]>;
-  [clave: string]: unknown;
+export type RespuestaBackend<T = unknown> = {
+  status: number;
+  datos: T;
+};
+
+const URL_BACKEND = (
+  import.meta.env.API_DENO ||
+  import.meta.env.PUBLIC_API_DENO ||
+  import.meta.env.PUBLIC_BACKEND_URL ||
+  import.meta.env.BACKEND_URL ||
+  "http://127.0.0.1:8005"
+).replace(/\/+$/, "");
+
+export function obtenerToken(cookies: CookieStore): string | null {
+  return cookies.get("token")?.value ?? null;
 }
 
-interface OpcionesLlamada {
-  metodo?: 'GET' | 'POST' | 'PUT' | 'DELETE';
-  cuerpo?: Record<string, unknown> | FormData;
-  token?: string;
+export function resolverUrlBackend(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (/^(https?:|data:|blob:|\/\/)/i.test(url)) return url;
+  return `${URL_BACKEND}${url.startsWith("/") ? url : `/${url}`}`;
 }
 
-// arma el fetch hacia el backend deno, agrega el header authorization si hay
-// token, y serializa el cuerpo segun sea json (objeto) o form-data (archivos)
-export async function llamarBackend<T = unknown>(
-  ruta: string,
-  opciones: OpcionesLlamada = {},
-): Promise<{ status: number; datos: RespuestaBackend<T> }> {
-  const { metodo = 'GET', cuerpo, token } = opciones;
-
-  const encabezados: HeadersInit = {};
-  if (token) {
-    encabezados['Authorization'] = `Bearer ${token}`;
-  }
-
-  let cuerpoFinal: BodyInit | undefined;
-  if (cuerpo instanceof FormData) {
-    // form-data (ej. subir foto de perfil, crear resena con imagen): no se
-    // fija content-type a mano, el runtime pone el boundary correcto solo
-    cuerpoFinal = cuerpo;
-  } else if (cuerpo) {
-    encabezados['Content-Type'] = 'application/json';
-    cuerpoFinal = JSON.stringify(cuerpo);
-  }
-
-  const respuesta = await fetch(`${import.meta.env.BACKEND_URL}${ruta}`, {
-    method: metodo,
-    headers: encabezados,
-    body: cuerpoFinal,
-  });
-
-  let datos: RespuestaBackend<T>;
-  try {
-    datos = absolutizarImagenes(await respuesta.json());
-  } catch {
-    datos = { success: false, message: 'Respuesta invalida del backend' };
-  }
-
-  return { status: respuesta.status, datos };
-}
-
-// el backend deno guarda y sirve las imagenes (logos, fotos, productos) desde su propio
-// /img/*, pero en la base de datos y en sus respuestas quedan como rutas relativas
-// ("/img/productos/abc.png"). el navegador las resolveria contra el servidor de astro
-// (puerto 4321) y saldrian rotas, asi que aqui se les antepone la url publica del backend.
-// como TODA respuesta pasa por llamarBackend (paginas ssr y proxies /api/*), esto arregla
-// admin y cliente de una sola vez, sin tocar cada componente ni depender del nombre de la
-// propiedad (imagenUrl, imagen_url, empresaLogo, productoImagen...)
-const URL_PUBLICA_BACKEND: string = import.meta.env.PUBLIC_BACKEND_URL ?? '';
-
-export function absolutizarImagenes<T>(valor: T): T {
-  if (typeof valor === 'string') {
-    return (valor.startsWith('/img/') ? `${URL_PUBLICA_BACKEND}${valor}` : valor) as T;
+function normalizarUrlsImagenes(valor: unknown, campo?: string): unknown {
+  if (typeof valor === "string") {
+    return campo && /(imagen|image|logo|foto|avatar|portada)/i.test(campo)
+      ? resolverUrlBackend(valor) ?? valor
+      : valor;
   }
   if (Array.isArray(valor)) {
-    return valor.map((elemento) => absolutizarImagenes(elemento)) as T;
+    return valor.map((elemento) => normalizarUrlsImagenes(elemento, campo));
   }
-  // los objetos json y las filas de mysql son objetos planos; los Date u otros
-  // objetos especiales no llegan aqui porque la respuesta ya viene de response.json()
-  if (valor !== null && typeof valor === 'object') {
-    const resultado: Record<string, unknown> = {};
-    for (const [clave, contenido] of Object.entries(valor as Record<string, unknown>)) {
-      resultado[clave] = absolutizarImagenes(contenido);
-    }
-    return resultado as T;
+  if (valor && typeof valor === "object") {
+    return Object.fromEntries(
+      Object.entries(valor).map(([clave, contenido]) => [
+        clave,
+        normalizarUrlsImagenes(contenido, clave),
+      ]),
+    );
   }
   return valor;
 }
 
-// lee el jwt guardado en la cookie httponly. sirve tanto desde paginas .astro
-// (Astro.cookies) como desde rutas api/*.ts (context.cookies) porque astro
-// usa el mismo tipo AstroCookies en ambos lugares
-export function obtenerToken(cookies: AstroCookies): string | undefined {
-  return cookies.get(NOMBRE_COOKIE)?.value;
+function resolverRuta(ruta: string, metodo: string, cuerpo: unknown): {
+  ruta: string;
+  metodo: string;
+  cuerpo: unknown;
+} {
+  let destino = ruta.startsWith("/api/") ? ruta : `/api${ruta}`;
+  let metodoDestino = metodo;
+  let body = cuerpo;
+
+  if (destino === "/api/admin/perfil" || destino === "/api/cliente/perfil" ||
+    destino === "/api/cliente/perfil/cuenta" ||
+    destino === "/api/proveedor/perfil" ||
+    destino === "/api/superadmin/perfil") {
+    destino = "/api/perfil";
+  } else if (destino === "/api/cliente/proveedores") {
+    destino = "/api/cliente/empresas";
+  } else {
+    const productosEmpresa = destino.match(
+      /^\/api\/cliente\/proveedores\/(\d+)\/productos$/,
+    );
+    if (productosEmpresa) {
+      destino = `/api/cliente/empresas/${productosEmpresa[1]}/productos`;
+    }
+  }
+
+  if (
+    destino === "/api/admin/pedidos/cambiar-estado" &&
+    body &&
+    typeof body === "object"
+  ) {
+    const datos = body as Record<string, unknown>;
+    const id = Number(datos.id ?? datos.idPedido);
+    const estado = String(datos.estado ?? datos.nuevoEstado ?? "");
+    const estadoNormalizado = estado.normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    if (
+      estadoNormalizado === "en preparacion" ||
+      estadoNormalizado === "aprobado"
+    ) {
+      destino = `/api/admin/pedidos/${id}/aprobar`;
+      body = {};
+    } else if (estadoNormalizado === "cancelado") {
+      destino = `/api/admin/pedidos/${id}/cancelar`;
+      body = {
+        motivo: datos.motivo ?? datos.observaciones ??
+          "Cancelado desde administración",
+      };
+    } else if (estadoNormalizado === "entregado") {
+      destino = `/api/admin/pedidos/${id}/entregar`;
+      body = {};
+    }
+    metodoDestino = "PATCH";
+  }
+
+  if (
+    destino === "/api/admin/repartidores/asignar" &&
+    body &&
+    typeof body === "object"
+  ) {
+    const datos = body as Record<string, unknown>;
+    const idPedido = Number(datos.idPedido ?? datos.id_pedido ?? datos.id);
+    destino = `/api/admin/pedidos/${idPedido}/asignar`;
+    body = {
+      id_proveedor: datos.idProveedor ?? datos.id_proveedor ??
+        datos.idRepartidor ?? datos.id_repartidor,
+      notas: datos.notas,
+    };
+    metodoDestino = "PATCH";
+  }
+
+  if (destino === "/api/admin/repartidores/disponibles") {
+    destino = "/api/admin/proveedores/disponibles";
+  } else if (
+    destino === "/api/admin/repartidores" ||
+    destino.startsWith("/api/admin/repartidores/")
+  ) {
+    destino = destino.replace(
+      "/api/admin/repartidores",
+      "/api/admin/proveedores",
+    );
+  }
+
+  if (destino === "/api/superadmin/empresas/cambiar-estado" && body &&
+    typeof body === "object") {
+    const datos = body as Record<string, unknown>;
+    destino = `/api/admin/superadmin/empresas/${Number(datos.idEmpresa ?? datos.id)}/estado`;
+    body = { estado: datos.estado };
+  }
+
+  if (destino === "/api/cliente/resenas" && metodo === "POST" && body &&
+    typeof body === "object") {
+    const datos = body as Record<string, unknown>;
+    destino = `/api/cliente/pedidos/${Number(datos.idPedido ?? datos.id_pedido)}/resenas`;
+    body = {
+      id_producto: datos.idProducto ?? datos.id_producto,
+      calificacion: datos.calificacion,
+      comentario: datos.comentario,
+    };
+  }
+
+  if (destino === "/api/cliente/direcciones" && body &&
+    typeof body === "object" && !(body instanceof FormData)) {
+    const datos = body as Record<string, unknown>;
+    body = {
+      alias: datos.alias,
+      direccion_texto: datos.direccionTexto ?? datos.direccion_texto,
+      latitud: datos.latitud,
+      longitud: datos.longitud,
+    };
+  }
+
+  if (destino === "/api/cliente/pedidos" && metodo === "POST" && body &&
+    typeof body === "object" && !(body instanceof FormData)) {
+    const datos = body as Record<string, unknown>;
+    body = {
+      id_empresa: datos.idEmpresa ?? datos.id_empresa,
+      id_direccion: datos.idDireccion ?? datos.id_direccion,
+      metodo_pago: datos.metodoPago ?? datos.metodo_pago,
+      items: Array.isArray(datos.items)
+        ? datos.items.map((item) => ({
+          id_producto: item.idProducto ?? item.id_producto,
+          cantidad: item.cantidad,
+        }))
+        : datos.items,
+      observaciones: datos.observaciones,
+    };
+  }
+
+  if (
+    destino === "/api/admin/perfil/foto" ||
+    destino === "/api/cliente/perfil/foto" ||
+    destino === "/api/proveedor/perfil/foto" ||
+    destino === "/api/superadmin/perfil/foto"
+  ) {
+    destino = "/api/perfil";
+    metodoDestino = "PUT";
+  }
+
+  if (
+    destino === "/api/admin/perfil/logo"
+  ) {
+    destino = "/api/admin/empresa";
+    metodoDestino = "PUT";
+  }
+
+  if (
+    destino === "/api/perfil" &&
+    metodo === "POST" &&
+    body &&
+    typeof body === "object" &&
+    !(body instanceof FormData)
+  ) {
+    const form = new FormData();
+    for (const [key, value] of Object.entries(body)) {
+      if (value !== undefined && value !== null) form.set(key, String(value));
+    }
+    body = form;
+    metodoDestino = "PUT";
+  }
+
+  if (destino === "/api/cliente/pago/crear-intencion") {
+    metodoDestino = "POST";
+  }
+  if (destino.startsWith("/api/pago/")) {
+    destino = destino.replace("/api/pago/", "/api/cliente/pago/");
+  }
+
+  return { ruta: destino, metodo: metodoDestino, cuerpo: body };
 }
 
-export { NOMBRE_COOKIE };
+export async function llamarBackend<T = unknown>(
+  ruta: string,
+  opciones: OpcionesBackend = {},
+): Promise<RespuestaBackend<T>> {
+  const metodo = (opciones.metodo ?? "GET").toUpperCase();
+  const resuelta = resolverRuta(ruta, metodo, opciones.cuerpo);
+  const headers = new Headers(opciones.headers);
+  if (opciones.token) headers.set("Authorization", `Bearer ${opciones.token}`);
+
+  let cuerpo: BodyInit | undefined;
+  if (resuelta.cuerpo !== undefined && resuelta.cuerpo !== null) {
+    if (
+      resuelta.cuerpo instanceof FormData ||
+      resuelta.cuerpo instanceof Blob ||
+      typeof resuelta.cuerpo === "string"
+    ) {
+      cuerpo = resuelta.cuerpo;
+    } else {
+      headers.set("Content-Type", "application/json");
+      cuerpo = JSON.stringify(resuelta.cuerpo);
+    }
+  }
+
+  const respuesta = await fetch(`${URL_BACKEND}${resuelta.ruta}`, {
+    method: resuelta.metodo,
+    headers,
+    body: cuerpo,
+  });
+  const texto = await respuesta.text();
+  let datos: unknown;
+  if (texto) {
+    try {
+      datos = JSON.parse(texto);
+    } catch {
+      datos = { success: false, message: "El backend devolvió una respuesta no válida" };
+    }
+  } else {
+    datos = {};
+  }
+
+  return {
+    status: respuesta.status,
+    datos: normalizarUrlsImagenes(datos) as T,
+  };
+}

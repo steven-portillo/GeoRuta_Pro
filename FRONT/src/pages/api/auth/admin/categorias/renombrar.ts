@@ -1,16 +1,57 @@
-// src/pages/api/auth/admin/categorias/renombrar.ts
-// proxy BFF: POST /admin/categorias/renombrar
 import type { APIRoute } from 'astro';
-import { llamarBackend, obtenerToken } from '../../../../../lib/Backend';
 
-export const POST: APIRoute = async ({ request, cookies }) => {
-  const token = obtenerToken(cookies);
-  const cuerpo = await request.json();
+const BACKEND_URL = import.meta.env.API_DENO || 'http://127.0.0.1:8005';
+const NOMBRE_COOKIE = 'token';
 
-  const respuesta = await llamarBackend('/admin/categorias/renombrar', { metodo: 'POST', cuerpo, token });
+export const PATCH: APIRoute = async ({ request, cookies }) => {
+  try {
+    const token = cookies.get(NOMBRE_COOKIE)?.value;
 
-  return new Response(JSON.stringify(respuesta.datos), {
-    status: respuesta.status,
-    headers: { 'Content-Type': 'application/json' },
-  });
+    if (!token) {
+      return new Response(
+        JSON.stringify({ success: false, message: 'No autorizado' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+
+    const cuerpo = await request.json();
+    const { id, nombre } = cuerpo;
+
+    if (!id) {
+      return new Response(
+        JSON.stringify({ success: false, message: 'ID de categoría requerido' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+
+    if (!nombre || !String(nombre).trim()) {
+      return new Response(
+        JSON.stringify({ success: false, message: 'El nombre es obligatorio' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+
+    // Usa el PUT que ya tienes en el backend (editarCategoria)
+    const respuesta = await fetch(`${BACKEND_URL}/api/admin/categorias/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ nombre: String(nombre).trim() }),
+    });
+
+    const datos = await respuesta.json();
+
+    return new Response(JSON.stringify(datos), {
+      status: respuesta.status,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    console.error(error);
+    return new Response(
+      JSON.stringify({ success: false, message: 'Error al renombrar la categoría' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } },
+    );
+  }
 };

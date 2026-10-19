@@ -1,46 +1,45 @@
-// src/middleware.ts
-import { defineMiddleware } from 'astro:middleware';
-import { jwtVerify } from 'jose';
-import { NOMBRE_COOKIE } from './lib/Backend';
+import { defineMiddleware } from "astro:middleware";
+import { jwtVerify } from "jose";
 
-declare global {
-  namespace App {
-    interface Locals {
-      usuario: {
-        idUsuario: number;
-        idEmpresa: number | null;
-        rol: string;
-      };
-    }
-  }
-}
+const NOMBRE_COOKIE = "token";
 
-// mapea el prefijo de la ruta con el rol que debe tener el jwt para entrar.
-// admin/proveedor/superadmin quedan listos para cuando migremos esas vistas
-// src/middleware.ts — actualizar RUTAS_PROTEGIDAS para que tambien cubra las rutas api proxy
 const RUTAS_PROTEGIDAS: { prefijo: string; rol: string }[] = [
-  { prefijo: '/cliente', rol: 'CLIENTE' },
-  { prefijo: '/api/auth/cliente', rol: 'CLIENTE' },
-  { prefijo: '/admin', rol: 'ADMIN' },
-  { prefijo: '/api/auth/admin', rol: 'ADMIN' },
-  { prefijo: '/proveedor', rol: 'PROVEEDOR' },
-  { prefijo: '/api/auth/proveedor', rol: 'PROVEEDOR' },
-  { prefijo: '/superadmin', rol: 'SUPERADMIN' },
-  { prefijo: '/api/auth/superadmin', rol: 'SUPERADMIN' },
+  { prefijo: "/cliente", rol: "CLIENTE" },
+  { prefijo: "/api/auth/cliente", rol: "CLIENTE" },
+  { prefijo: "/admin", rol: "ADMIN" },
+  { prefijo: "/api/auth/admin", rol: "ADMIN" },
+  { prefijo: "/proveedor", rol: "PROVEEDOR" },
+  { prefijo: "/api/auth/proveedor", rol: "PROVEEDOR" },
+  { prefijo: "/superadmin", rol: "SUPERADMIN" },
+  { prefijo: "/api/auth/superadmin", rol: "SUPERADMIN" },
 ];
 
-async function obtenerClaveSecreta(): Promise<Uint8Array> {
-  const secreto = import.meta.env.JWT_SECRET;
-  if (!secreto) throw new Error('JWT_SECRET no esta configurada en el .env de astro');
-  return new TextEncoder().encode(secreto);
+// Se calcula una sola vez, no en cada petición
+const secreto = import.meta.env.JWT_SECRET;
+if (!secreto) {
+  throw new Error("JWT_SECRET no está configurada en el .env de Astro");
 }
+const CLAVE = new TextEncoder().encode(secreto);
+
+// "/admin" coincide con "/admin" y "/admin/inicio", pero NO con "/administracion"
+const coincide = (pathname: string, prefijo: string) =>
+  pathname === prefijo || pathname.startsWith(prefijo + "/");
+
+const respuestaJson = (status: number, message: string) =>
+  new Response(JSON.stringify({ success: false, message }), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname } = context.url;
+  const esApi = pathname.startsWith("/api/");
 
-  const rutaProtegida = RUTAS_PROTEGIDAS.find((r) => pathname.startsWith(r.prefijo));
+  const rutaProtegida = RUTAS_PROTEGIDAS.find((r) =>
+    coincide(pathname, r.prefijo),
+  );
 
-  // rutas publicas (login, registro, home, assets, api de auth, etc.) pasan derecho
+  // Públicas: login, registro, home, /api/auth/login, etc.
   if (!rutaProtegida) {
     return next();
   }
@@ -48,32 +47,40 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const token = context.cookies.get(NOMBRE_COOKIE)?.value;
 
   if (!token) {
-    return context.redirect('/login');
+    return esApi
+      ? respuestaJson(401, "No autenticado")
+      : context.redirect("/login");
   }
 
   try {
-    const clave = await obtenerClaveSecreta();
-    const { payload } = await jwtVerify(token, clave);
+    const { payload } = await jwtVerify(token, CLAVE, {
+      algorithms: ["HS256"],
+    });
 
-    if (payload.rol !== rutaProtegida.rol) {
-      // token valido, pero de un rol que no corresponde a esta seccion
-      // (ej. un cliente tratando de entrar a /admin)
-      return context.redirect('/login?error=sin_permisos');
+    const rol = String(payload.rol ?? "").toUpperCase();
+
+    if (rol !== rutaProtegida.rol) {
+      return esApi
+        ? respuestaJson(403, "No tienes permisos para esta acción")
+        : context.redirect("/login?error=sin_permisos");
     }
 
-    // deja los datos del usuario disponibles para paginas y rutas api sin
-    // tener que volver a leer/verificar la cookie en cada una
+    // crearToken() en Deno guarda { id, rol, id_empresa }
+    const idUsuario = Number(payload.id ?? payload.sub);
+    const idEmpresa = payload.id_empresa ?? payload.idEmpresa ?? null;
+
     context.locals.usuario = {
-      idUsuario: Number(payload.sub),
-      idEmpresa: (payload.idEmpresa as number | null) ?? null,
-      rol: payload.rol as string,
+      idUsuario,
+      idEmpresa: idEmpresa === null ? null : Number(idEmpresa),
+      rol,
     };
 
     return next();
   } catch (error) {
-    // firma invalida o token expirado: borra la cookie muerta y manda a login
-    console.error(error);
-    context.cookies.delete(NOMBRE_COOKIE, { path: '/' });
-    return context.redirect('/login?error=sesion_expirada');
+    console.error("JWT inválido o expirado:", error);
+    context.cookies.delete(NOMBRE_COOKIE, { path: "/" });
+    return esApi
+      ? respuestaJson(401, "Sesión expirada")
+      : context.redirect("/login?error=sesion_expirada");
   }
 });

@@ -1,5 +1,6 @@
 ---
 // src/components/cliente/CatalogoCliente.astro
+import CheckoutCliente from './CheckoutCliente.astro';
 
 interface ProveedorCard {
   id: number;
@@ -14,6 +15,12 @@ interface Props {
 }
 
 const { proveedores } = Astro.props;
+const backendUrlPublico = (
+  import.meta.env.PUBLIC_API_DENO ||
+  import.meta.env.API_DENO ||
+  import.meta.env.PUBLIC_BACKEND_URL ||
+  'http://127.0.0.1:8005'
+).replace(/\/+$/, '');
 ---
 
 <div class="dos-columnas" id="dos-columnas">
@@ -85,7 +92,10 @@ const { proveedores } = Astro.props;
   </div>
 </div>
 
-<script define:vars={{ proveedoresIniciales: proveedores }}>
+<!-- ── checkout: mapa de direccion + metodo de pago + Wompi ── -->
+<CheckoutCliente />
+
+<script define:vars={{ proveedoresIniciales: proveedores, backendUrlPublico }}>
   // ══════════════════════════════════════════════════════════
   // estado en memoria del navegador (se pierde al recargar la pagina,
   // igual que en el original — el carrito nunca se guarda en el backend
@@ -98,6 +108,11 @@ const { proveedores } = Astro.props;
 
   let productoModalActual = null;
   let cantidadModalActual = 1;
+
+  function resolverImagenBackend(url) {
+    if (!url || /^(https?:|data:|blob:)/i.test(url)) return url;
+    return `${backendUrlPublico}${url.startsWith('/') ? url : `/${url}`}`;
+  }
 
   const grilla = document.getElementById('grilla-productos');
   const btnVolver = document.getElementById('btn-volver');
@@ -207,7 +222,10 @@ const { proveedores } = Astro.props;
         return;
       }
 
-      productosActuales = data.data;
+      productosActuales = data.data.map((producto) => ({
+        ...producto,
+        imagenUrl: resolverImagenBackend(producto.imagenUrl),
+      }));
 
       if (selectorCategoria) {
         const categorias = [...new Set(productosActuales.map((p) => p.categoria))].sort();
@@ -239,7 +257,7 @@ const { proveedores } = Astro.props;
         return `
         <div class="tarjeta-producto">
           <div class="producto-imagen-wrap" data-accion="abrir-producto" data-id="${idNum}" style="cursor:pointer">
-            ${p.imagenUrl ? `<img src="${p.imagenUrl}" class="producto-imagen" alt="${p.nombre}" data-fallback="producto" />` : ''}
+            ${p.imagenUrl ? `<img src="${escaparHtml(resolverImagenBackend(p.imagenUrl))}" class="producto-imagen" alt="${escaparHtml(p.nombre)}" data-fallback="producto" />` : ''}
             <div class="producto-imagen-placeholder" style="display:${p.imagenUrl ? 'none' : 'flex'}">
               ${(p.nombre || 'P').charAt(0).toUpperCase()}
             </div>
@@ -384,7 +402,7 @@ const { proveedores } = Astro.props;
         <div class="item-carrito">
           ${
             p.imagenUrl
-              ? `<img src="${p.imagenUrl}" style="width:40px;height:40px;object-fit:contain;border-radius:6px;border:1px solid #e2e8f0;flex-shrink:0">`
+              ? `<img src="${escaparHtml(resolverImagenBackend(p.imagenUrl))}" style="width:40px;height:40px;object-fit:contain;border-radius:6px;border:1px solid #e2e8f0;flex-shrink:0">`
               : `<div style="width:40px;height:40px;border-radius:6px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-weight:700;color:#94a3b8;flex-shrink:0">${(p.nombre || 'P').charAt(0).toUpperCase()}</div>`
           }
           <div style="flex:1;min-width:0">
@@ -436,7 +454,7 @@ const { proveedores } = Astro.props;
     const imgEl = document.getElementById('mp-imagen');
     const placeholderEl = document.getElementById('mp-imagen-placeholder');
     if (producto.imagenUrl) {
-      imgEl.src = producto.imagenUrl;
+      imgEl.src = resolverImagenBackend(producto.imagenUrl);
       imgEl.alt = producto.nombre;
       imgEl.style.display = 'block';
       placeholderEl.style.display = 'none';
@@ -569,11 +587,15 @@ const { proveedores } = Astro.props;
     setTimeout(cerrarModalProducto, 700);
   });
 
-  // el boton "confirmar pedido" todavia no tiene checkout implementado (viene en
-  // el siguiente archivo: modal de direccion + pago) — por ahora emite un evento
-  // personalizado para que ese componente futuro lo escuche sin acoplarse aqui
+  // "confirmar pedido" abre el checkout (CheckoutCliente.astro lo escucha): mapa -> pago -> Wompi
   document.getElementById('btn-confirmar-pedido')?.addEventListener('click', () => {
     document.dispatchEvent(new CustomEvent('georuta:iniciar-checkout', { detail: { carrito, productosActuales, proveedorActual } }));
+  });
+
+  // el checkout avisa cuando el pedido quedo creado: se vacia el carrito
+  document.addEventListener('georuta:pedido-creado', () => {
+    carrito = {};
+    renderizarCarrito();
   });
 
   // busqueda desde la topbar del layout (evento emitido en ClienteLayout.astro)

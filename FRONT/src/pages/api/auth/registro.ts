@@ -1,25 +1,87 @@
-// src/pages/api/auth/registro.ts
-import type { APIRoute } from 'astro';
-import { llamarBackend } from '../../../lib/Backend';
+import type { APIRoute } from "astro";
+
+export const prerender = false;
+
+const API_DENO = import.meta.env.API_DENO; // ej: http://127.0.0.1:8005
+
+const respuestaJson = (cuerpo: unknown, status = 200) =>
+  new Response(JSON.stringify(cuerpo), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
 
 export const POST: APIRoute = async ({ request }) => {
   try {
-    const cuerpo = await request.json();
+    const cuerpo = await request.json().catch(() => null);
 
-    // el registro no inicia sesion automaticamente (a diferencia de login.ts),
-    // asi que aqui no hay token ni cookie que guardar — solo se reenvia la
-    // respuesta del backend tal cual
-    const { status, datos } = await llamarBackend('/registro', { metodo: 'POST', cuerpo });
+    const nombre = String(cuerpo?.nombre ?? "").trim();
+    const apellido = String(cuerpo?.apellido ?? "").trim();
+    const email = String(cuerpo?.email ?? "").trim();
+    const password = String(cuerpo?.password ?? "");
 
-    return new Response(JSON.stringify(datos), {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    // validación mínima (el backend vuelve a validar todo)
+    if (!nombre || !apellido || !email || !password) {
+      return respuestaJson(
+        {
+          success: false,
+          message: "Faltan campos obligatorios: nombre, apellido, email, password",
+        },
+        400,
+      );
+    }
+
+    // Llamada directa al backend Deno
+    let resDeno: Response;
+    try {
+      resDeno = await fetch(`${API_DENO}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nombre, apellido, email, password }),
+      });
+    } catch (error) {
+      console.error("No se pudo conectar con Deno:", error);
+      return respuestaJson(
+        { success: false, message: "No fue posible conectar con el servidor" },
+        503,
+      );
+    }
+
+    const texto = await resDeno.text();
+    let datos: any = null;
+    try {
+      datos = texto ? JSON.parse(texto) : null;
+    } catch {
+      console.error("Deno no devolvió JSON:", resDeno.status, texto);
+      return respuestaJson(
+        { success: false, message: "Respuesta inválida del backend" },
+        502,
+      );
+    }
+
+    if (!resDeno.ok || !datos?.success) {
+      return respuestaJson(
+        {
+          success: false,
+          message: datos?.message ?? "No fue posible crear la cuenta",
+        },
+        resDeno.status >= 400 ? resDeno.status : 400,
+      );
+    }
+
+    // Lo que consume RegistroForm.astro
+    return respuestaJson(
+      {
+        success: true,
+        message: datos.message ?? "Cuenta creada correctamente",
+        id: datos.id ?? null,
+      },
+      201,
+    );
   } catch (error) {
-    console.error(error);
-    return new Response(
-      JSON.stringify({ success: false, message: 'No fue posible completar el registro' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } },
+    console.error("Error registro Astro:", error);
+    return respuestaJson(
+      { success: false, message: "No fue posible crear la cuenta" },
+      500,
     );
   }
 };

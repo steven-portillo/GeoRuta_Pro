@@ -147,8 +147,12 @@ const valor = (n?: number) => (metricas ? String(n ?? 0) : '—');
 
   // el backend responde rutas relativas ("/img/...") que sirve deno, no astro
   function urlAbsolutaBackend(url: string): string {
-    if (/^(https?:|data:|blob:)/.test(url)) return url;
-    return `${import.meta.env.PUBLIC_BACKEND_URL ?? ''}${url}`;
+    if (/^(https?:|data:|blob:|\/\/)/i.test(url)) return url;
+    const backendUrl =
+      import.meta.env.PUBLIC_API_DENO ||
+      import.meta.env.PUBLIC_BACKEND_URL ||
+      'http://127.0.0.1:8005';
+    return `${backendUrl.replace(/\/+$/, '')}${url.startsWith('/') ? url : `/${url}`}`;
   }
 
   // cambia la foto grande y la del footer del sidebar a la vez

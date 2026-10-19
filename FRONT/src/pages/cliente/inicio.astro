@@ -1,18 +1,34 @@
 ---
 // src/pages/cliente/inicio.astro
-import ClienteLayout from '../../layouts/ClienteLayout.astro';
-import InicioCliente from '../../components/cliente/InicioCliente.astro';
-import { llamarBackend, obtenerToken } from '../../lib/Backend';
+import ClienteLayout from "../../layouts/ClienteLayout.astro";
+import InicioCliente from "../../components/cliente/InicioCliente.astro";
+import { llamarBackend, obtenerToken, resolverUrlBackend } from "../../lib/Backend";
 
 const token = obtenerToken(Astro.cookies);
 
-// se piden en paralelo: no dependen una de la otra
-const [respuestaCuenta, respuestaProveedores] = await Promise.all([
-  llamarBackend('/cliente/perfil/cuenta', { token }),
-  llamarBackend('/cliente/proveedores', { token }),
+if (!token) {
+  return Astro.redirect("/login");
+}
+
+const [cuenta, proveedoresRes] = await Promise.all([
+  llamarBackend("/cliente/perfil/cuenta", { token }),
+  llamarBackend("/cliente/proveedores", { token }),
 ]);
 
-const perfil = respuestaCuenta.datos.data as {
+if (cuenta.status === 401 || proveedoresRes.status === 401) {
+  Astro.cookies.delete("token", { path: "/" });
+  return Astro.redirect("/login?error=sesion_expirada");
+}
+
+const perfil = (cuenta.datos?.data ?? {
+  nombre: "",
+  apellido: "",
+  email: "",
+  imagenUrl: "",
+  activo: false,
+  fechaCreacion: "",
+  estadoCuenta: "—",
+}) as {
   nombre: string;
   apellido: string;
   email: string;
@@ -22,20 +38,24 @@ const perfil = respuestaCuenta.datos.data as {
   estadoCuenta: string;
 };
 
-const proveedores = (respuestaProveedores.datos.data ?? []) as {
+const proveedores = ((proveedoresRes.datos?.data ?? []) as {
   id: number;
   nombre: string;
   descripcion: string;
   logoUrl: string;
-}[];
+}[]).map((proveedor) => ({
+  ...proveedor,
+  logoUrl: resolverUrlBackend(proveedor.logoUrl) ?? '',
+}));
 
-const iniciales = `${perfil.nombre?.[0] ?? ''}${perfil.apellido?.[0] ?? ''}`.toUpperCase();
+const iniciales =
+  `${perfil.nombre?.[0] ?? ""}${perfil.apellido?.[0] ?? ""}`.toUpperCase();
 ---
 
 <ClienteLayout
   titulo="Inicio"
   vistaActual="inicio"
-  nombreUsuario={`${perfil.nombre} ${perfil.apellido}`}
+  nombreUsuario={`${perfil.nombre ?? ""} ${perfil.apellido ?? ""}`.trim()}
   inicialesUsuario={iniciales}
   imagenUrl={perfil.imagenUrl || null}
 >

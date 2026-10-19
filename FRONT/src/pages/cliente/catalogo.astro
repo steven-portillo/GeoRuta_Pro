@@ -1,7 +1,7 @@
 ---
 import ClienteLayout from '../../layouts/ClienteLayout.astro';
 import CatalogoCliente from '../../components/cliente/CatalogoCliente.astro';
-import { llamarBackend, obtenerToken } from '../../lib/Backend';
+import { llamarBackend, obtenerToken, resolverUrlBackend } from '../../lib/Backend';
 
 const token = obtenerToken(Astro.cookies);
 
@@ -11,12 +11,17 @@ const [respuestaPerfil, respuestaProveedores] = await Promise.all([
 ]);
 
 const perfil = respuestaPerfil.datos.data as { nombre: string; apellido: string; imagenUrl: string };
-const proveedores = (respuestaProveedores.datos.data ?? []) as {
+const proveedores = ((respuestaProveedores.datos.data ?? []) as {
   id: number;
   nombre: string;
   descripcion: string;
   logoUrl: string;
-}[];
+  portadaUrl?: string;
+}[]).map((proveedor) => ({
+  ...proveedor,
+  logoUrl: resolverUrlBackend(proveedor.logoUrl) ?? '',
+  portadaUrl: resolverUrlBackend(proveedor.portadaUrl) ?? '',
+}));
 
 const iniciales = `${perfil.nombre?.[0] ?? ''}${perfil.apellido?.[0] ?? ''}`.toUpperCase();
 ---

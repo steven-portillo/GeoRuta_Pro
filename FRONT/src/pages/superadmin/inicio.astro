@@ -8,14 +8,36 @@ import { llamarBackend, obtenerToken } from '../../lib/Backend';
 
 const token = obtenerToken(Astro.cookies);
 
-const [respuestaPerfil, respuestaEmpresas, respuestaUsuarios] = await Promise.all([
-  llamarBackend<{ nombre: string; apellido: string; imagenUrl?: string }>('/superadmin/perfil', { token }),
-  llamarBackend<EmpresaSuperAdmin[]>('/superadmin/empresas', { token }),
-  llamarBackend<{ total: number }>('/superadmin/usuarios/total', { token }),
-]);
+// El middleware ya protege /superadmin, pero por si acaso
+if (!token) return Astro.redirect('/login');
+
+let respuestaPerfil, respuestaEmpresas, respuestaClientes;
+
+try {
+  [respuestaPerfil, respuestaEmpresas, respuestaClientes] = await Promise.all([
+    llamarBackend('/api/perfil', { token }),
+    llamarBackend('/api/admin/superadmin/empresas', { token }),
+    llamarBackend('/api/admin/superadmin/clientes', { token }),
+  ]);
+} catch (error) {
+  console.error('No se pudo conectar con el backend:', error);
+  return Astro.redirect('/login?error=servidor');
+}
+
+// Token vencido o rechazado por el backend
+if ([respuestaEmpresas, respuestaClientes].some((r) => r.status === 401)) {
+  Astro.cookies.delete('token', { path: '/' });
+  return Astro.redirect('/login?error=sesion_expirada');
+}
+
+// El rol no es SuperAdmin según el backend
+if ([respuestaEmpresas, respuestaClientes].some((r) => r.status === 403)) {
+  return Astro.redirect('/login?error=sin_permisos');
+}
 
 const perfil = respuestaPerfil.datos.data ?? { nombre: '', apellido: '' };
-const empresas = respuestaEmpresas.datos.data ?? [];
+const empresas = (respuestaEmpresas.datos.data ?? []) as EmpresaSuperAdmin[];
+const clientes = respuestaClientes.datos.data ?? [];
 
 // el backend ya devuelve las empresas de la mas reciente a la mas antigua
 const inactivas = empresas.filter((e) => !e.estado);
@@ -24,7 +46,7 @@ const metricas: MetricasSuperAdmin = {
   totalEmpresas: empresas.length,
   empresasActivas: empresas.length - inactivas.length,
   empresasInactivas: inactivas.length,
-  totalUsuarios: respuestaUsuarios.datos.data?.total ?? 0,
+  totalUsuarios: clientes.length,
 };
 
 // solo las 5 mas recientes; el resto se ve en la pagina de empresas

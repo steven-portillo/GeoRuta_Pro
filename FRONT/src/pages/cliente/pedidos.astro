@@ -2,7 +2,7 @@
 // src/pages/cliente/pedidos.astro
 import ClienteLayout from '../../layouts/ClienteLayout.astro';
 import MisPedidosCliente from '../../components/cliente/MisPedidosCliente.astro';
-import { llamarBackend, obtenerToken } from '../../lib/Backend';
+import { llamarBackend, obtenerToken, resolverUrlBackend } from '../../lib/Backend';
 
 const token = obtenerToken(Astro.cookies);
 
@@ -18,7 +18,7 @@ const perfil = respuestaCuenta.datos.data as {
   imagenUrl: string;
 };
 
-const { metricas, pedidos, pedidoActivo } = respuestaPedidos.datos as unknown as {
+const { metricas, pedidos: pedidosRespuesta, pedidoActivo } = respuestaPedidos.datos as unknown as {
   metricas: {
     total: number;
     enTransito: number;
@@ -50,6 +50,10 @@ const { metricas, pedidos, pedidoActivo } = respuestaPedidos.datos as unknown as
     totalItems: number;
   } | null;
 };
+const pedidos = pedidosRespuesta.map((pedido) => ({
+  ...pedido,
+  empresaLogo: resolverUrlBackend(pedido.empresaLogo) ?? '',
+}));
 
 const iniciales = `${perfil.nombre?.[0] ?? ''}${perfil.apellido?.[0] ?? ''}`.toUpperCase();
 ---

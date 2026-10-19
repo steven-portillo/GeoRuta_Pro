@@ -3,14 +3,11 @@
 import '../styles/AdminPanel.css';
 import Sidebar from '../components/comunes/Sidebar.astro';
 import type { SidebarLink } from '../components/comunes/Sidebar.astro';
-import { llamarBackend, obtenerToken } from '../lib/Backend';
+import { resolverUrlBackend } from '../lib/Backend';
 
 interface Props {
-  // titulo que se muestra en el h1 de la pagina y en el <title>
   titulo: string;
-  // que link del sidebar se marca como activo
   vistaActual: 'inicio' | 'categorias' | 'productos' | 'pedidos' | 'pagos' | 'repartidores' | 'perfil';
-  // opcionales: si la pagina no los manda, el layout los saca del perfil del backend
   nombreAdmin?: string;
   inicialesAdmin?: string;
   imagenUrl?: string | null;
@@ -18,31 +15,49 @@ interface Props {
 
 const { titulo, vistaActual, nombreAdmin, imagenUrl } = Astro.props;
 
-// ── datos del admin y de su empresa para el sidebar ──
+const BACKEND_URL = import.meta.env.API_DENO || 'http://127.0.0.1:8005';
+const token = Astro.cookies.get('token')?.value;
+
 interface PerfilSidebar {
   nombre?: string;
   apellido?: string;
   imagenUrl?: string;
+  imagen_url?: string;
   empresaNombre?: string;
   empresaLogo?: string;
 }
 
 let perfil: PerfilSidebar = {};
-try {
-  const token = obtenerToken(Astro.cookies);
-  const respuesta = await llamarBackend<PerfilSidebar>('/admin/perfil', { token });
-  perfil = respuesta.datos.data ?? {};
-} catch (error) {
-  // si el backend no responde el sidebar igual se pinta, solo sin nombre/logo
-  console.error('AdminLayout: no se pudo cargar el perfil', error);
-}
 
-// llamarBackend ya convierte las rutas "/img/..." del backend en urls absolutas
+if (token) {
+  try {
+    const respuesta = await fetch(`${BACKEND_URL}/api/perfil`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const texto = await respuesta.text();
+    if (texto) {
+      const data = JSON.parse(texto);
+      if (data.success) {
+        perfil = data.data ?? {};
+      } else {
+        console.error('Perfil error:', data.message);
+      }
+    } else {
+      console.error('Perfil: respuesta vacía, status', respuesta.status);
+    }
+  } catch (error) {
+    console.error('AdminLayout: no se pudo cargar el perfil', error);
+  }
+}
 
 const nombreCompleto =
   nombreAdmin ?? (`${perfil.nombre ?? ''} ${perfil.apellido ?? ''}`.trim() || 'Administrador');
+const logoEmpresa = resolverUrlBackend(perfil.empresaLogo);
+const fotoUsuario = resolverUrlBackend(
+  imagenUrl || perfil.imagenUrl || perfil.imagen_url,
+);
 
-// links del sidebar: mismas vistas que tenia la navbar de pestanas (el perfil va en el footer)
 const links: SidebarLink[] = [
   { href: '/admin/inicio', label: 'Inicio', icon: 'bi-house-door' },
   { href: '/admin/categorias', label: 'Categorías', icon: 'bi-tags' },
@@ -52,7 +67,6 @@ const links: SidebarLink[] = [
   { href: '/admin/repartidores', label: 'Repartidores', icon: 'bi-truck' },
 ];
 
-// la vista "perfil" no esta en la lista, asi que no marca ningun link como activo
 const activePath = `/admin/${vistaActual}`;
 ---
 
@@ -73,12 +87,11 @@ const activePath = `/admin/${vistaActual}`;
       links={links}
       perfilHref="/admin/perfil"
       empresa={perfil.empresaNombre
-        ? { nombre: perfil.empresaNombre, logoUrl: perfil.empresaLogo || undefined }
+        ? { nombre: perfil.empresaNombre, logoUrl: logoEmpresa || undefined }
         : undefined}
-      usuario={{ nombre: nombreCompleto, fotoUrl: imagenUrl || perfil.imagenUrl || undefined }}
+      usuario={{ nombre: nombreCompleto, fotoUrl: fotoUsuario || undefined }}
     />
 
-    <!-- aplica el estado colapsado ANTES del primer pintado para que no haya parpadeo al navegar -->
     <script is:inline>
       if (localStorage.getItem('sidebar-collapsed') === 'true' && window.innerWidth >= 992) {
         document.body.classList.add('sidebar-collapsed');
@@ -106,7 +119,6 @@ const activePath = `/admin/${vistaActual}`;
     </div>
 
     <script>
-      // fecha del dia en la esquina superior derecha (mismo formato que Script_Admin.js)
       const elFecha = document.getElementById('admin-fecha-hoy');
       if (elFecha) {
         const ahora = new Date();

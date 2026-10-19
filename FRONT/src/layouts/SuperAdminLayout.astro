@@ -5,7 +5,7 @@
 import '../styles/AdminPanel.css';
 import Sidebar from '../components/comunes/Sidebar.astro';
 import type { SidebarLink } from '../components/comunes/Sidebar.astro';
-import { llamarBackend, obtenerToken } from '../lib/Backend';
+import { resolverUrlBackend } from '../lib/Backend';
 
 interface Props {
   titulo: string;
@@ -22,12 +22,17 @@ let foto = imagenUrl;
 
 if (nombreCompleto === undefined) {
   try {
-    const token = obtenerToken(Astro.cookies);
-    const respuesta = await llamarBackend<{ nombre?: string; apellido?: string; imagenUrl?: string }>(
-      '/superadmin/perfil',
-      { token },
-    );
-    const perfil = respuesta.datos.data ?? {};
+    const API_DENO = import.meta.env.API_DENO;
+    const token = Astro.cookies.get('token')?.value;
+
+    const respuesta = await fetch(`${API_DENO}/api/superadmin/perfil`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    // se lee como texto para que un cuerpo vacio no rompa la pagina
+    const texto = await respuesta.text();
+    const perfil = (texto ? JSON.parse(texto).data : null) ?? {};
+
     nombreCompleto = `${perfil.nombre ?? ''} ${perfil.apellido ?? ''}`.trim();
     foto = perfil.imagenUrl || null;
   } catch (error) {
@@ -35,6 +40,8 @@ if (nombreCompleto === undefined) {
     console.error('SuperAdminLayout: no se pudo cargar el perfil', error);
   }
 }
+
+foto = resolverUrlBackend(foto) ?? null;
 
 const links: SidebarLink[] = [
   { href: '/superadmin/inicio', label: 'Inicio', icon: 'bi-house-door' },

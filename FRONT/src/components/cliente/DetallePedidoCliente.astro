@@ -1,0 +1,1144 @@
+---
+// src/components/cliente/DetallePedidoCliente.astro
+// port de Views/Cliente/DetallePedido.cshtml + DetallePedido.css + DetallePedido.js del proyecto c#.
+// todo lo estatico se pinta en el servidor; el script del final solo maneja pestañas, mapas y websocket.
+
+interface Cabecera {
+  id: number;
+  fecha: string;
+  total: number;
+  metodoPago: string;
+  pagoConfirmado: boolean;
+  observaciones: string;
+  estado: string;
+  empresa: string;
+  empresaLogo: string;
+  direccion: string;
+  latitud: number | string | null;
+  longitud: number | string | null;
+  estadoPago: string;
+  pasarela: string;
+  fechaPago: string;
+}
+
+interface Item {
+  nombre: string;
+  imagenUrl: string;
+  categoria: string;
+  cantidad: number;
+  precioUnitario: number;
+  subtotal: number;
+}
+
+interface Props {
+  cabecera: Cabecera;
+  items: Item[];
+}
+
+const { cabecera, items } = Astro.props;
+
+// ── utilidades ──
+const fmt = (n: number | string) => '$' + Number(n).toLocaleString('es-CO');
+
+// quita tildes para no depender de si llega "En transito" o "En tránsito"
+function normalizar(texto: string): string {
+  return texto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+// ── estado del pedido ──
+const PASOS = ['Pendiente', 'En preparacion', 'En transito', 'Entregado'];
+const ETIQUETA_PASO: Record<string, string> = {
+  Pendiente: 'Pendiente',
+  'En preparacion': 'Preparando',
+  'En transito': 'En camino',
+  Entregado: 'Entregado',
+};
+
+const UI_ESTADO: Record<string, { clase: string; icono: string }> = {
+  pendiente: { clase: 'pendiente', icono: '⏳' },
+  'en preparacion': { clase: 'preparacion', icono: '📦' },
+  'en transito': { clase: 'transito', icono: '🚚' },
+  entregado: { clase: 'entregado', icono: '✅' },
+  cancelado: { clase: 'cancelado', icono: '❌' },
+};
+
+const estadoNorm = normalizar(cabecera.estado);
+const uiEstado = UI_ESTADO[estadoNorm] ?? { clase: 'pendiente', icono: '📋' };
+const enTransito = estadoNorm === 'en transito';
+const enPreparacion = estadoNorm === 'en preparacion';
+const entregado = estadoNorm === 'entregado';
+const cancelado = estadoNorm === 'cancelado';
+
+const indiceActual = PASOS.findIndex((paso) => normalizar(paso) === estadoNorm);
+
+// cada paso con su clase ya calculada (se reutiliza en el stepper horizontal y en el vertical)
+const pasosUi = PASOS.map((paso, i) => {
+  let clase = 'pendiente';
+  if (!cancelado) {
+    if (entregado || i < indiceActual) clase = 'hecho';
+    else if (i === indiceActual) clase = 'actual';
+  }
+  return {
+    etiqueta: ETIQUETA_PASO[paso],
+    clase,
+    simbolo: clase === 'hecho' ? '✓' : String(i + 1),
+    lineaHecha: clase === 'hecho' && (entregado || i < indiceActual),
+  };
+});
+
+// ── textos formateados ──
+const fechaPedido = new Intl.DateTimeFormat('es-CO', {
+  day: '2-digit',
+  month: 'long',
+  year: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+}).format(new Date(cabecera.fecha));
+
+const fechaPago = cabecera.fechaPago
+  ? new Intl.DateTimeFormat('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }).format(
+      new Date(cabecera.fechaPago),
+    )
+  : '';
+
+// ── totales ──
+const subtotal = items.reduce((suma, item) => suma + Number(item.subtotal), 0);
+const envio = Math.max(Number(cabecera.total) - subtotal, 0);
+
+// ── pago ──
+const CLASE_PAGO: Record<string, string> = {
+  aprobado: 'aprobado',
+  pendiente: 'pendiente',
+  rechazado: 'rechazado',
+  contra_entrega: 'contra',
+};
+const ICONO_PAGO: Record<string, string> = {
+  aprobado: '✅',
+  pendiente: '⏳',
+  rechazado: '❌',
+  contra_entrega: '💵',
+};
+const clasePago = CLASE_PAGO[cabecera.estadoPago] ?? 'pendiente';
+const iconoPago = ICONO_PAGO[cabecera.estadoPago] ?? '⏳';
+const textoEstadoPago = cabecera.estadoPago.replace('_', ' ');
+const textoMetodoPago = cabecera.metodoPago === 'online' ? '💳 Online' : '💵 Contra entrega';
+
+// ── rastreo ──
+const latitud = cabecera.latitud === null || cabecera.latitud === '' ? NaN : Number(cabecera.latitud);
+const longitud = cabecera.longitud === null || cabecera.longitud === '' ? NaN : Number(cabecera.longitud);
+const tienePunto = Number.isFinite(latitud) && Number.isFinite(longitud);
+
+let textoTabRastreo = '🚚 Rastreo en vivo';
+if (enTransito) textoTabRastreo = '🟢 Rastreo en vivo';
+else if (enPreparacion) textoTabRastreo = '📦 Rastreo en vivo';
+else if (entregado) textoTabRastreo = '✅ Rastreo';
+
+let claseMensaje = '';
+let textoMensaje = '⏳ El rastreo estará disponible cuando el pedido esté en tránsito';
+if (enTransito) {
+  claseMensaje = 'dp-msg-vivo';
+  textoMensaje = '🟢 Ubicación en tiempo real activa — se actualiza cada 5 segundos';
+} else if (enPreparacion) {
+  claseMensaje = 'dp-msg-prep';
+  textoMensaje = '📦 El repartidor aún no ha iniciado el viaje';
+} else if (entregado) {
+  claseMensaje = 'dp-msg-ok';
+  textoMensaje = '✅ Pedido entregado con éxito';
+} else if (cancelado) {
+  textoMensaje = '❌ Este pedido fue cancelado';
+}
+
+// lo minimo que necesita el script del navegador
+const datosCliente = {
+  id: cabecera.id,
+  enTransito,
+  latitud: tienePunto ? latitud : null,
+  longitud: tienePunto ? longitud : null,
+  urlBackend: import.meta.env.PUBLIC_BACKEND_URL ?? '',
+};
+---
+
+<!-- leaflet: solo se necesita en esta vista -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<div class="dp-wrap" id="dp-raiz" data-datos={JSON.stringify(datosCliente)}>
+  <!-- ── cabecera ── -->
+  <div class="dp-header">
+    <a href="/cliente/pedidos" class="dp-btn-volver">← Mis pedidos</a>
+    <div class="dp-titulo">Pedido <span>#PED-{cabecera.id}</span></div>
+    <div class="dp-badge-top">
+      <span class={`badge-estado badge-${uiEstado.clase}`}>{uiEstado.icono} {cabecera.estado}</span>
+    </div>
+  </div>
+
+  <!-- ── pestañas principales ── -->
+  <div class="dp-tabs-bar">
+    <button type="button" class="dp-tab-btn dp-tab-activo" data-tab="pedido">📦 Mi pedido</button>
+    <button type="button" class="dp-tab-btn" data-tab="rastreo">{textoTabRastreo}</button>
+  </div>
+
+  <!-- ════════ panel: mi pedido ════════ -->
+  <div id="dp-panel-pedido">
+    <div class="dp-layout">
+      <!-- columna izquierda -->
+      <div class="dp-main">
+        <!-- empresa + stepper -->
+        <div class="dp-card dp-empresa-card">
+          <div class="dp-empresa-row">
+            <div class="dp-empresa-logo-wrap">
+              {cabecera.empresaLogo ? (
+                <img src={cabecera.empresaLogo} alt={cabecera.empresa} class="empresa-logo" data-fallback="empresa" />
+              ) : null}
+              <div class="empresa-logo-placeholder" style={`display:${cabecera.empresaLogo ? 'none' : 'flex'}`}>
+                {cabecera.empresa.charAt(0).toUpperCase()}
+              </div>
+            </div>
+            <div class="dp-empresa-info">
+              <div class="dp-empresa-nombre">{cabecera.empresa}</div>
+              <div class="dp-empresa-fecha">{fechaPedido}</div>
+            </div>
+            <span class={`badge-estado badge-${uiEstado.clase}`}>{uiEstado.icono} {cabecera.estado}</span>
+          </div>
+
+          <div class="dp-stepper">
+            {pasosUi.map((paso, i) => (
+              <>
+                <div class="step">
+                  <div class={`step-punto ${paso.clase}`}>{paso.simbolo}</div>
+                  <div class={`step-label ${paso.clase === 'actual' ? 'actual' : ''}`}>{paso.etiqueta}</div>
+                </div>
+                {i < pasosUi.length - 1 && <div class={`step-linea ${paso.lineaHecha ? 'hecha' : ''}`} />}
+              </>
+            ))}
+          </div>
+        </div>
+
+        <!-- productos -->
+        <div class="dp-card">
+          <div class="dp-card-titulo">Productos del pedido</div>
+          <div class="dp-tabla-wrap">
+            <table class="dp-tabla">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th class="dp-th-center">Cant.</th>
+                  <th>Precio unit.</th>
+                  <th>Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item) => (
+                  <tr>
+                    <td>
+                      <div class="dp-item-celda">
+                        {item.imagenUrl ? (
+                          <img src={item.imagenUrl} alt={item.nombre} class="item-img" data-fallback="item" />
+                        ) : null}
+                        <span class="item-placeholder" style={`display:${item.imagenUrl ? 'none' : 'inline-flex'}`}>
+                          {item.nombre.charAt(0).toUpperCase()}
+                        </span>
+                        <div>
+                          <div class="item-nombre">{item.nombre}</div>
+                          <div class="item-cat">{item.categoria}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="dp-celda-cantidad">{item.cantidad}</td>
+                    <td>{fmt(item.precioUnitario)}</td>
+                    <td class="dp-celda-subtotal">{fmt(item.subtotal)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- observaciones -->
+        {cabecera.observaciones && (
+          <div class="dp-card dp-obs-box">
+            <div class="dp-card-titulo">Observaciones</div>
+            <p class="dp-obs-texto">{cabecera.observaciones}</p>
+          </div>
+        )}
+      </div>
+
+      <!-- sidebar derecha -->
+      <div class="dp-sidebar">
+        <div class="dp-card">
+          <div class="dp-card-titulo">Resumen</div>
+          <ul class="dp-totales">
+            <li><span>Subtotal</span><span>{fmt(subtotal)}</span></li>
+            <li><span>Envío</span><span>{fmt(envio)}</span></li>
+            <li><span>Total</span><span>{fmt(cabecera.total)}</span></li>
+          </ul>
+        </div>
+
+        <div class="dp-card">
+          <div class="dp-card-titulo">Pago</div>
+          <div class="info-row">
+            <span class="info-icono">💳</span>
+            <div>
+              <div class="info-label">Método</div>
+              <div class="info-valor">{textoMetodoPago}</div>
+            </div>
+          </div>
+          <div class="info-row">
+            <span class="info-icono">{iconoPago}</span>
+            <div>
+              <div class="info-label">Estado del pago</div>
+              <div class="info-valor">
+                <span class={`badge-pago ${clasePago}`}>{iconoPago} {textoEstadoPago}</span>
+              </div>
+            </div>
+          </div>
+          {cabecera.pasarela && (
+            <div class="info-row">
+              <span class="info-icono">🏦</span>
+              <div>
+                <div class="info-label">Pasarela</div>
+                <div class="info-valor">{cabecera.pasarela}</div>
+              </div>
+            </div>
+          )}
+          {fechaPago && (
+            <div class="info-row">
+              <span class="info-icono">📅</span>
+              <div>
+                <div class="info-label">Fecha de pago</div>
+                <div class="info-valor">{fechaPago}</div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ panel: rastreo en vivo ════════ -->
+  <div id="dp-panel-rastreo" hidden>
+    <div class="dp-rastreo-layout">
+      <!-- mapa grande -->
+      <div class="dp-rastreo-mapa-wrap">
+        <div class={`dp-msg-estado ${claseMensaje}`}>{textoMensaje}</div>
+        {enTransito && tienePunto && (
+          <>
+            <div id="dp-mapa-grande" class="dp-mapa-grande"></div>
+            <div id="dp-rep-label" class="dp-rep-label">🚚 Esperando ubicación del repartidor...</div>
+          </>
+        )}
+      </div>
+
+      <!-- info lateral -->
+      <div class="dp-rastreo-sidebar">
+        <div class="dp-card">
+          <div class="dp-card-titulo">Dirección de entrega</div>
+          <div class="dp-info-row">
+            <span class="dp-info-icono">📍</span>
+            <div class="dp-info-valor">{cabecera.direccion}</div>
+          </div>
+          {tienePunto && <div id="dp-mini-mapa" class="dp-mini-mapa"></div>}
+        </div>
+
+        <div class="dp-card">
+          <div class="dp-card-titulo">Estado del pedido</div>
+          <div class="dp-badge-rastreo">
+            <span class={`badge-estado badge-${uiEstado.clase}`}>{uiEstado.icono} {cabecera.estado}</span>
+          </div>
+          <div class="dp-stepper dp-stepper-vertical">
+            {pasosUi.map((paso, i) => (
+              <>
+                <div class="step">
+                  <div class={`step-punto ${paso.clase}`}>{paso.simbolo}</div>
+                  <div class={`step-label ${paso.clase === 'actual' ? 'actual' : ''}`}>{paso.etiqueta}</div>
+                </div>
+                {i < pasosUi.length - 1 && <div class={`step-linea ${paso.lineaHecha ? 'hecha' : ''}`} />}
+              </>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script is:inline>
+  (function () {
+    var raiz = document.getElementById('dp-raiz');
+    var datos = JSON.parse(raiz.dataset.datos);
+
+    var mapaGrande = null;
+    var miniMapa = null;
+    var marcadorRepartidor = null;
+    var ultimaPosicion = null;
+    var mapasIniciados = false;
+
+    var socket = null;
+    var intentosReconexion = 0;
+    var cerrandoPagina = false;
+
+    var URL_TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+    // ══════════════════ pestañas ══════════════════
+    function cambiarTab(tab) {
+      var esPedido = tab === 'pedido';
+
+      document.getElementById('dp-panel-pedido').hidden = !esPedido;
+      document.getElementById('dp-panel-rastreo').hidden = esPedido;
+
+      raiz.querySelectorAll('.dp-tab-btn').forEach(function (boton) {
+        boton.classList.toggle('dp-tab-activo', boton.dataset.tab === tab);
+      });
+
+      if (!esPedido) {
+        // leaflet no mide bien un contenedor oculto: los mapas se crean la primera vez
+        // que el panel es visible, y despues solo se les recalcula el tamaño
+        iniciarMapas();
+        setTimeout(function () {
+          if (mapaGrande) mapaGrande.invalidateSize();
+          if (miniMapa) miniMapa.invalidateSize();
+        }, 120);
+      }
+    }
+
+    raiz.querySelectorAll('.dp-tab-btn').forEach(function (boton) {
+      boton.addEventListener('click', function () {
+        cambiarTab(boton.dataset.tab);
+      });
+    });
+
+    // ══════════════════ mapas ══════════════════
+    function iniciarMapas() {
+      if (mapasIniciados || datos.latitud === null) return;
+      mapasIniciados = true;
+
+      var punto = [datos.latitud, datos.longitud];
+
+      // mini mapa de la direccion (estatico)
+      if (document.getElementById('dp-mini-mapa')) {
+        miniMapa = L.map('dp-mini-mapa', {
+          zoomControl: false,
+          dragging: false,
+          scrollWheelZoom: false,
+          doubleClickZoom: false,
+          touchZoom: false,
+        }).setView(punto, 16);
+        L.tileLayer(URL_TILES, { attribution: '© OpenStreetMap' }).addTo(miniMapa);
+        L.circleMarker(punto, { radius: 10, fillColor: '#2563eb', color: '#fff', weight: 3, fillOpacity: 1 }).addTo(miniMapa);
+      }
+
+      // mapa grande: solo existe cuando el pedido esta en transito
+      if (document.getElementById('dp-mapa-grande')) {
+        mapaGrande = L.map('dp-mapa-grande', { zoomControl: true, scrollWheelZoom: true }).setView(punto, 15);
+        L.tileLayer(URL_TILES, { attribution: '© OpenStreetMap' }).addTo(mapaGrande);
+        L.circleMarker(punto, { radius: 10, fillColor: '#2563eb', color: '#fff', weight: 3, fillOpacity: 1 })
+          .addTo(mapaGrande)
+          .bindPopup('📍 Tu dirección de entrega');
+
+        // si el repartidor ya habia mandado posicion antes de abrir la pestaña, se dibuja ahora
+        if (ultimaPosicion) mostrarRepartidor(ultimaPosicion[0], ultimaPosicion[1]);
+      }
+    }
+
+    function mostrarRepartidor(lat, lng) {
+      ultimaPosicion = [lat, lng];
+      if (!mapaGrande) return;
+
+      if (!marcadorRepartidor) {
+        marcadorRepartidor = L.marker([lat, lng], {
+          icon: L.divIcon({
+            className: '',
+            html: '<div style="font-size:32px;line-height:1">🚚</div>',
+            iconSize: [36, 36],
+            iconAnchor: [18, 18],
+          }),
+        })
+          .addTo(mapaGrande)
+          .bindPopup('🚚 Tu repartidor en camino');
+      } else {
+        marcadorRepartidor.setLatLng([lat, lng]);
+      }
+
+      mapaGrande.panTo([lat, lng]);
+
+      var etiqueta = document.getElementById('dp-rep-label');
+      if (etiqueta) etiqueta.textContent = '🟢 Repartidor activo — actualizando cada 5 segundos';
+    }
+
+    // ══════════════════ websocket (reemplaza signalr) ══════════════════
+    async function conectarSocket() {
+      try {
+        var res = await fetch('/api/auth/cliente/ws-token');
+        var datosToken = await res.json();
+        if (!datosToken.success) return;
+
+        // http://localhost:8000 -> ws://localhost:8000 (https pasa a wss solo)
+        var base = datos.urlBackend.replace(/^http/, 'ws');
+        var url = base + '/ws/rastreo/' + datos.id + '?token=' + encodeURIComponent(datosToken.token);
+
+        socket = new WebSocket(url);
+
+        socket.onopen = function () {
+          intentosReconexion = 0;
+        };
+
+        socket.onmessage = function (evento) {
+          try {
+            var mensaje = JSON.parse(evento.data);
+            if (mensaje.tipo === 'ubicacion') {
+              mostrarRepartidor(Number(mensaje.lat), Number(mensaje.lng));
+            }
+          } catch (error) {
+            console.error('mensaje de rastreo invalido:', error);
+          }
+        };
+
+        socket.onclose = function () {
+          if (cerrandoPagina || intentosReconexion >= 5) return;
+          intentosReconexion += 1;
+          setTimeout(conectarSocket, 3000);
+        };
+      } catch (error) {
+        console.error('no fue posible conectar el rastreo:', error);
+      }
+    }
+
+    window.addEventListener('beforeunload', function () {
+      cerrandoPagina = true;
+      if (socket) socket.close();
+    });
+
+    // el socket solo se abre si el pedido esta en camino
+    if (datos.enTransito) conectarSocket();
+
+    // ══════════════════ imagenes rotas -> placeholder con inicial ══════════════════
+    raiz.addEventListener(
+      'error',
+      function (evento) {
+        var img = evento.target;
+        if (!img.dataset || !img.dataset.fallback) return;
+        img.style.display = 'none';
+        var placeholder = img.nextElementSibling;
+        if (placeholder) placeholder.style.display = img.dataset.fallback === 'item' ? 'inline-flex' : 'flex';
+      },
+      true
+    );
+  })();
+</script>
+
+<style>
+  /* port de DetallePedido.css: --gris-* -> --secondary-*, --azul-* -> --primary-*
+     (.zona-contenido del layout ya trae su propio padding, por eso .dp-wrap no lleva) */
+
+  .dp-wrap {
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+  }
+
+  /* ── cabecera ── */
+  .dp-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .dp-btn-volver {
+    padding: 0.4rem 0.9rem;
+    border-radius: 8px;
+    border: 1px solid var(--secondary-200);
+    background: white;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--secondary-600);
+    text-decoration: none;
+    transition: background 0.15s, border-color 0.15s;
+    white-space: nowrap;
+  }
+
+  .dp-btn-volver:hover {
+    background: var(--secondary-50);
+    border-color: var(--secondary-300);
+  }
+
+  .dp-titulo {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--secondary-900);
+    font-family: var(--font-display);
+    flex: 1;
+  }
+
+  .dp-titulo span {
+    color: var(--primary-600);
+  }
+
+  .dp-badge-top {
+    margin-left: auto;
+  }
+
+  /* ── pestañas principales ── */
+  .dp-tabs-bar {
+    display: flex;
+    background: white;
+    border: 1px solid var(--secondary-200);
+    border-radius: 14px;
+    padding: 0.35rem;
+    width: fit-content;
+  }
+
+  .dp-tab-btn {
+    padding: 0.6rem 1.4rem;
+    border: none;
+    border-radius: 10px;
+    background: none;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--secondary-400);
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+    white-space: nowrap;
+  }
+
+  .dp-tab-btn:hover {
+    color: var(--secondary-700);
+    background: var(--secondary-50);
+  }
+
+  .dp-tab-btn.dp-tab-activo {
+    background: var(--primary-700);
+    color: white;
+  }
+
+  /* ── cards genericas ── */
+  .dp-card {
+    background: white;
+    border: 1px solid var(--secondary-200);
+    border-radius: 14px;
+    padding: 1.25rem 1.5rem;
+  }
+
+  .dp-card-titulo {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--secondary-400);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 0.85rem;
+  }
+
+  /* ── panel: mi pedido ── */
+  .dp-layout {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 1.25rem;
+    align-items: start;
+  }
+
+  .dp-main {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .dp-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    position: sticky;
+    top: 98px;
+  }
+
+  /* empresa + stepper */
+  .dp-empresa-card {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+  }
+
+  .dp-empresa-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .dp-empresa-logo-wrap {
+    flex-shrink: 0;
+  }
+
+  .dp-empresa-info {
+    flex: 1;
+  }
+
+  .dp-empresa-nombre {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--secondary-800);
+  }
+
+  .dp-empresa-fecha {
+    font-size: 0.78rem;
+    color: var(--secondary-400);
+    margin-top: 2px;
+  }
+
+  .empresa-logo,
+  .empresa-logo-placeholder {
+    width: 52px;
+    height: 52px;
+    border-radius: 10px;
+  }
+
+  .empresa-logo {
+    object-fit: contain;
+    border: 1px solid var(--secondary-200);
+    background: var(--secondary-50);
+  }
+
+  .empresa-logo-placeholder {
+    background: var(--primary-700);
+    color: white;
+    font-weight: 800;
+    font-size: 1.3rem;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* stepper horizontal */
+  .dp-stepper {
+    display: flex;
+    align-items: center;
+  }
+
+  .step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .step-punto {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72rem;
+    font-weight: 800;
+    margin-bottom: 5px;
+    flex-shrink: 0;
+  }
+
+  .step-punto.hecho {
+    background: var(--primary-700);
+    color: white;
+  }
+
+  .step-punto.actual {
+    background: var(--primary-100);
+    border: 2.5px solid var(--primary-600);
+    color: var(--primary-700);
+  }
+
+  .step-punto.pendiente {
+    background: var(--secondary-100);
+    border: 1.5px solid var(--secondary-300);
+    color: var(--secondary-400);
+  }
+
+  .step-label {
+    font-size: 0.68rem;
+    color: var(--secondary-400);
+    font-weight: 500;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .step-label.actual {
+    color: var(--primary-600);
+    font-weight: 700;
+  }
+
+  .step-linea {
+    flex: 1;
+    height: 2px;
+    background: var(--secondary-200);
+    margin-bottom: 22px;
+  }
+
+  .step-linea.hecha {
+    background: var(--primary-600);
+  }
+
+  /* tabla de productos */
+  .dp-tabla-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--secondary-200);
+    border-radius: 10px;
+  }
+
+  .dp-tabla {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .dp-tabla thead th {
+    padding: 0.55rem 0.9rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--secondary-400);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-align: left;
+    background: var(--secondary-50);
+    border-bottom: 1px solid var(--secondary-200);
+  }
+
+  .dp-tabla thead th.dp-th-center {
+    text-align: center;
+  }
+
+  .dp-tabla tbody td {
+    padding: 0.7rem 0.9rem;
+    font-size: 0.82rem;
+    color: var(--secondary-700);
+    border-bottom: 1px solid var(--secondary-100);
+    vertical-align: middle;
+  }
+
+  .dp-tabla tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  .dp-tabla tbody tr:hover td {
+    background: var(--secondary-50);
+  }
+
+  .dp-item-celda {
+    display: flex;
+    align-items: center;
+  }
+
+  .dp-celda-cantidad {
+    text-align: center;
+    font-weight: 600;
+  }
+
+  .dp-celda-subtotal {
+    font-weight: 600;
+  }
+
+  .item-img,
+  .item-placeholder {
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    margin-right: 10px;
+    flex-shrink: 0;
+  }
+
+  .item-img {
+    object-fit: contain;
+    border: 1px solid var(--secondary-100);
+  }
+
+  .item-placeholder {
+    background: var(--primary-100);
+    color: var(--primary-700);
+    font-weight: 800;
+    font-size: 0.85rem;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .item-nombre {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--secondary-800);
+  }
+
+  .item-cat {
+    font-size: 0.68rem;
+    color: var(--secondary-400);
+    margin-top: 1px;
+  }
+
+  /* observaciones */
+  .dp-obs-texto {
+    font-size: 0.83rem;
+    color: var(--secondary-600);
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* totales */
+  .dp-totales {
+    list-style: none;
+  }
+
+  .dp-totales li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    font-size: 0.83rem;
+    color: var(--secondary-600);
+    border-bottom: 1px solid var(--secondary-100);
+  }
+
+  .dp-totales li:last-child {
+    border-bottom: none;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--secondary-900);
+    padding-top: 0.65rem;
+  }
+
+  .dp-totales li:last-child span:last-child {
+    color: var(--primary-700);
+  }
+
+  /* filas de informacion (pago) */
+  .info-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--secondary-100);
+  }
+
+  .info-row:last-child {
+    border-bottom: none;
+  }
+
+  .info-icono {
+    font-size: 1rem;
+    margin-top: 1px;
+    flex-shrink: 0;
+  }
+
+  .info-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--secondary-400);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 2px;
+  }
+
+  .info-valor {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--secondary-700);
+  }
+
+  /* ── panel: rastreo en vivo ── */
+  .dp-rastreo-layout {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 1.25rem;
+    align-items: start;
+  }
+
+  .dp-rastreo-mapa-wrap {
+    isolation: isolate;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .dp-mapa-grande {
+    position: relative;
+    z-index: 0;
+    height: 560px;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--secondary-200);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.07);
+  }
+
+  .dp-msg-estado {
+    padding: 0.65rem 1rem;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    background: var(--secondary-100);
+    color: var(--secondary-500);
+    border: 1px solid var(--secondary-200);
+  }
+
+  .dp-msg-estado.dp-msg-vivo {
+    background: #dcfce7;
+    color: #166534;
+    border-color: #86efac;
+  }
+
+  .dp-msg-estado.dp-msg-prep {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fde68a;
+  }
+
+  .dp-msg-estado.dp-msg-ok {
+    background: #f0fdf4;
+    color: #166534;
+    border-color: #bbf7d0;
+  }
+
+  .dp-rep-label {
+    font-size: 0.75rem;
+    color: var(--secondary-500);
+    text-align: center;
+  }
+
+  .dp-rastreo-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    position: sticky;
+    top: 98px;
+  }
+
+  .dp-mini-mapa {
+    height: 160px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--secondary-200);
+    margin-top: 0.75rem;
+  }
+
+  .dp-info-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+  }
+
+  .dp-info-icono {
+    font-size: 1rem;
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+
+  .dp-info-valor {
+    font-size: 0.82rem;
+    color: var(--secondary-700);
+    line-height: 1.5;
+    font-weight: 500;
+  }
+
+  .dp-badge-rastreo {
+    margin-bottom: 0.75rem;
+  }
+
+  /* stepper vertical (sidebar del rastreo) */
+  .dp-stepper-vertical {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+  }
+
+  .dp-stepper-vertical .step {
+    flex-direction: row;
+    align-items: center;
+    flex: none;
+    gap: 0.75rem;
+    padding: 0.35rem 0;
+  }
+
+  .dp-stepper-vertical .step-punto {
+    margin-bottom: 0;
+  }
+
+  .dp-stepper-vertical .step-label {
+    text-align: left;
+    white-space: normal;
+  }
+
+  .dp-stepper-vertical .step-linea {
+    width: 2px;
+    height: 22px;
+    flex: none;
+    margin: 0 0 0 14px;
+  }
+
+  /* ── badges ── */
+  .badge-estado {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0.3rem 0.75rem;
+    border-radius: 100px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .badge-pendiente { background: #fef3c7; color: #92400e; }
+  .badge-preparacion { background: #dbeafe; color: #1e40af; }
+  .badge-transito { background: #f0fdf4; color: #166534; }
+  .badge-entregado { background: #dcfce7; color: #15803d; }
+  .badge-cancelado { background: #fee2e2; color: #991b1b; }
+
+  .badge-pago {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0.2rem 0.6rem;
+    border-radius: 100px;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
+  .badge-pago.aprobado { background: #dcfce7; color: #15803d; }
+  .badge-pago.pendiente { background: #fef9c3; color: #92400e; }
+  .badge-pago.rechazado { background: #fee2e2; color: #991b1b; }
+  .badge-pago.contra { background: #f0f9ff; color: #075985; }
+
+  /* ── responsive ── */
+  @media (max-width: 900px) {
+    .dp-layout,
+    .dp-rastreo-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .dp-sidebar,
+    .dp-rastreo-sidebar {
+      position: static;
+    }
+
+    .dp-mapa-grande {
+      height: 380px;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .dp-titulo {
+      font-size: 1.1rem;
+    }
+
+    .dp-card {
+      padding: 1rem;
+    }
+
+    .dp-tabs-bar {
+      width: 100%;
+    }
+
+    .dp-tab-btn {
+      flex: 1;
+      text-align: center;
+    }
+
+    .dp-mapa-grande {
+      height: 260px;
+    }
+  }
+</style>

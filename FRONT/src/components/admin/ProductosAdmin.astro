@@ -28,6 +28,12 @@ interface Props {
 }
 
 const { productosIniciales, categoriasIniciales } = Astro.props;
+const backendUrlPublico = (
+  import.meta.env.PUBLIC_API_DENO ||
+  import.meta.env.API_DENO ||
+  import.meta.env.PUBLIC_BACKEND_URL ||
+  'http://127.0.0.1:8005'
+).replace(/\/+$/, '');
 ---
 
 <div class="encabezado-sec">
@@ -144,7 +150,7 @@ const { productosIniciales, categoriasIniciales } = Astro.props;
   </div>
 </div>
 
-<script define:vars={{ productosIniciales, categoriasIniciales }}>
+<script define:vars={{ productosIniciales, categoriasIniciales, backendUrlPublico }}>
   // ============================================================
   // estado local del componente (arranca con lo que trajo el ssr)
   // ============================================================
@@ -157,6 +163,11 @@ const { productosIniciales, categoriasIniciales } = Astro.props;
       <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0
       1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5
       12l4.5 6H5l3.5-4.5z"/></svg>`;
+
+  function resolverImagenProducto(url) {
+    if (!url || /^(https?:|data:|blob:)/i.test(url)) return url;
+    return `${backendUrlPublico}${url.startsWith('/') ? url : `/${url}`}`;
+  }
 
   // ============================================================
   // llamadas al backend (via proxies bff en /api/auth/admin/*)
@@ -217,7 +228,7 @@ const { productosIniciales, categoriasIniciales } = Astro.props;
     tbody.innerHTML = filtrados
       .map((p) => {
         const imagen = p.imagen_url
-          ? `<img src="${p.imagen_url}" style="width:44px;height:44px;object-fit:contain;border-radius:6px;border:1px solid #e2e8f0">`
+          ? `<img src="${resolverImagenProducto(p.imagen_url)}" style="width:44px;height:44px;object-fit:contain;border-radius:6px;border:1px solid #e2e8f0">`
           : `<div style="width:44px;height:44px;border-radius:6px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;margin:0 auto">${svgSinImagen}</div>`;
 
         const colorStock = p.stock === 0 ? 'var(--rojo-500)' : p.stock < 10 ? '#d97706' : 'var(--slate-700)';
@@ -301,7 +312,7 @@ const { productosIniciales, categoriasIniciales } = Astro.props;
     const preview = document.getElementById('prod-imagen-preview');
     if (preview) {
       preview.innerHTML = p.imagen_url
-        ? `<img src="${p.imagen_url}" style="max-height:140px;object-fit:contain">
+        ? `<img src="${resolverImagenProducto(p.imagen_url)}" style="max-height:140px;object-fit:contain">
            <span style="font-size:0.75rem;color:#94a3b8">Haz clic para cambiar</span>`
         : `${svgSinImagen}<span>Haz clic para cambiar imagen</span>`;
     }
@@ -374,17 +385,17 @@ const { productosIniciales, categoriasIniciales } = Astro.props;
     try {
       const formData = new FormData();
       formData.append('nombre', nombre);
-      formData.append('idCategoria', idCategoria);
+      formData.append('id_categoria', idCategoria);
       formData.append('precio', precio);
-      formData.append('stock', stock);
+      formData.append('stock_disponible', stock);
       formData.append('descripcion', desc);
       if (idProd) formData.append('idProducto', idProd);
-      if (archivo) formData.append('imagen', archivo);
+      if (archivo) formData.append('imagenes', archivo);
 
       const res = await fetch('/api/auth/admin/productos', { method: 'POST', body: formData });
       const data = await res.json();
 
-      if (data.success) {
+      if (res.ok && data.success) {
         mostrarMensaje('✓ ' + data.message, true);
         await refrescarProductos();
         setTimeout(cerrarModal, 900);
