@@ -1,0 +1,32 @@
+---
+// src/pages/proveedor/pedidos.astro
+import ProveedorLayout from '../../layouts/ProveedorLayout.astro';
+import PedidosProveedor from '../../components/proveedor/PedidosProveedor.astro';
+import type { PedidoProveedor } from '../../components/proveedor/PedidosProveedor.astro';
+import { llamarBackend, obtenerToken } from '../../lib/Backend';
+
+const token = obtenerToken(Astro.cookies);
+
+// perfil (para el sidebar) y pedidos en paralelo
+const [respuestaPerfil, respuestaPedidos] = await Promise.all([
+  llamarBackend<{ nombre?: string; apellido?: string; imagenUrl?: string; empresaNombre?: string }>(
+    '/proveedor/perfil',
+    { token },
+  ),
+  llamarBackend<PedidoProveedor[]>('/proveedor/pedidos', { token }),
+]);
+
+const perfil = respuestaPerfil.datos.data ?? {};
+const pedidos = respuestaPedidos.datos.data ?? [];
+const error = respuestaPedidos.datos.success ? undefined : respuestaPedidos.datos.message;
+---
+
+<ProveedorLayout
+  titulo="Mis pedidos"
+  vistaActual="pedidos"
+  nombreProveedor={`${perfil.nombre ?? ''} ${perfil.apellido ?? ''}`.trim()}
+  imagenUrl={perfil.imagenUrl || null}
+  empresaNombre={perfil.empresaNombre || undefined}
+>
+  <PedidosProveedor pedidosIniciales={pedidos} error={error} />
+</ProveedorLayout>

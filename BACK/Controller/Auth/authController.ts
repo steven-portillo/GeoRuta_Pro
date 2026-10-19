@@ -1,17 +1,24 @@
+// Controller/Auth/authController.ts
 import { Context } from "../../Dependencies/dependencias.ts";
 import { Usuario } from "../../Model/Auth/UsuarioModel.ts";
+import { GoogleAuth } from "../../Model/Auth/GoogleModel.ts";
 import { crearToken } from "../../Helpers/Jwt.ts";
 import {
-  generarNombreUnico,
-  rutaFisicaArchivo,
+  generarRutaArchivo,
   escribirArchivo,
   validarArchivo,
 } from "../../Helpers/archivos.ts";
-import type { Sesion } from "../../Utils/tipos.ts";
+import { enviarCorreo } from "../../Helpers/mailer.ts";
+import {
+  plantillaBienvenidaCliente,
+  plantillaRegistroEmpresaAdmin,
+  plantillaNuevaEmpresaSuperAdmin,
+} from "../../Helpers/emailTemplates.ts";
 
+const GOOGLE_CLIENT_ID =
+  "326172460152-tf164aeq7s3p3nqotj1ml221dgsrl6i0.apps.googleusercontent.com";
 
-
-/** POST /api/login */
+/** POST /api/auth/login */
 export const iniciarSesion = async (ctx: Context) => {
   const { request, response } = ctx;
 
@@ -46,14 +53,22 @@ export const iniciarSesion = async (ctx: Context) => {
     if (result.success && result.data) {
       const token = await crearToken({
         id: result.data.idUsuario,
-        nombre: result.data.nombre,
         rol: result.data.rol,
-        idEmpresa: result.data.idEmpresa,
+        id_empresa: result.data.idEmpresa,
       });
+
       response.status = 200;
       response.body = {
         success: true,
         accessToken: token,
+        data: {
+          id: result.data.idUsuario,
+          nombreCompleto: `${result.data.nombre} ${result.data.apellido}`,
+          email: result.data.email,
+          rol: result.data.rol,
+          idRol: result.data.idRol,
+          idEmpresa: result.data.idEmpresa,
+        },
       };
     } else {
       response.status = 401;
@@ -66,7 +81,95 @@ export const iniciarSesion = async (ctx: Context) => {
   }
 };
 
-/** POST /api/register -> Solo para registrar clientes (rol 4) */
+/** POST /api/auth/google */
+export const loginGoogle = async (ctx: Context) => {
+  const { request, response } = ctx;
+
+  try {
+    const body = await request.body.json();
+    const credential = body.credential;
+
+    if (!credential || typeof credential !== "string") {
+      response.status = 400;
+      response.body = {
+        success: false,
+        message: "Token de Google requerido",
+      };
+      return;
+    }
+
+    // Verificar el token con Google
+    const googleRes = await fetch(
+      `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`,
+    );
+
+    if (!googleRes.ok) {
+      response.status = 401;
+      response.body = {
+        success: false,
+        message: "Token de Google inválido o expirado",
+      };
+      return;
+    }
+
+    const googleUser = await googleRes.json();
+
+    if (googleUser.aud !== GOOGLE_CLIENT_ID) {
+      response.status = 401;
+      response.body = {
+        success: false,
+        message: "Token no corresponde a esta aplicación",
+      };
+      return;
+    }
+
+    const email = googleUser.email as string | undefined;
+    if (!email) {
+      response.status = 400;
+      response.body = {
+        success: false,
+        message: "No se pudo obtener el email de Google",
+      };
+      return;
+    }
+
+    // tokeninfo devuelve email_verified como string "true"
+    if (String(googleUser.email_verified) !== "true") {
+      response.status = 401;
+      response.body = {
+        success: false,
+        message: "El correo de Google no está verificado",
+      };
+      return;
+    }
+
+    const resultado = await GoogleAuth.LoginORegistrar({
+      email,
+      nombre: (googleUser.given_name || googleUser.name || "Usuario") as string,
+      apellido: (googleUser.family_name || "") as string,
+      imagenUrl: (googleUser.picture || null) as string | null,
+    });
+
+    if (!resultado.success) {
+      response.status = 400;
+      response.body = resultado;
+      return;
+    }
+
+    // Mismo formato que iniciarSesion
+    response.status = 200;
+    response.body = resultado;
+  } catch (error) {
+    console.error(error);
+    response.status = 500;
+    response.body = {
+      success: false,
+      message: "Error interno al iniciar sesión con Google",
+    };
+  }
+};
+
+/** POST /api/auth/register -> Solo para registrar clientes (rol 4) */
 export const registrarCliente = async (ctx: Context) => {
   const { request, response } = ctx;
 
@@ -107,6 +210,8 @@ export const registrarCliente = async (ctx: Context) => {
     const result = await objUsuario.Registrar();
 
     if (result.success) {
+      const { asunto, html, texto } = plantillaBienvenidaCliente(nombre);
+      enviarCorreo(email, asunto, html, texto);
       response.status = 201;
       response.body = { success: true, message: result.message, id: result.id };
     } else {
@@ -120,6 +225,7 @@ export const registrarCliente = async (ctx: Context) => {
   }
 };
 
+/** POST /api/auth/register-empresa */
 export const registrarEmpresa = async (ctx: Context) => {
   const { request, response } = ctx;
 
@@ -191,15 +297,14 @@ export const registrarEmpresa = async (ctx: Context) => {
     }
 
     // Ruta calculada de antemano, pero el archivo todavía no se escribe en disco
-    const nombreUnico = logoValidado ? generarNombreUnico(logoValidado) : undefined;
     const rutaLogo = logoValidado
-      ? rutaFisicaArchivo("logos", nombreUnico!)
+      ? generarRutaArchivo(logoValidado, "logos")
       : undefined;
 
     const usuario = new Usuario(null, null, {
       nombreEmpresa,
       descripcionEmpresa: descripcionEmpresa || undefined,
-      logoEmpresa: `logos/${nombreUnico}` || undefined,
+      logoEmpresa: rutaLogo,
       nombreAdmin,
       apellidoAdmin,
       emailAdmin,
@@ -214,7 +319,45 @@ export const registrarEmpresa = async (ctx: Context) => {
       return;
     }
 
-    // si La transacción ya confirmó en BD, ahora sí se escribe el archivo físico
+    // Correo 2: aviso al admin que se registró (sin await, no bloquea).
+    const correoAdmin = plantillaRegistroEmpresaAdmin(
+      nombreAdmin,
+      nombreEmpresa,
+    );
+    enviarCorreo(
+      emailAdmin,
+      correoAdmin.asunto,
+      correoAdmin.html,
+      correoAdmin.texto,
+    );
+
+    // Correo 3: aviso al SuperAdmin. Si falla algo aquí, no debe afectar
+    // el registro, que ya quedó confirmado en la BD.
+    try {
+      const emailSuperAdmin = await Usuario.ObtenerEmailSuperAdmin();
+      if (emailSuperAdmin) {
+        const correoSuper = plantillaNuevaEmpresaSuperAdmin(
+          nombreEmpresa,
+          nombreAdmin,
+          apellidoAdmin,
+          emailAdmin,
+        );
+        enviarCorreo(
+          emailSuperAdmin,
+          correoSuper.asunto,
+          correoSuper.html,
+          correoSuper.texto,
+        );
+      } else {
+        console.warn(
+          "No se encontró un SuperAdmin activo para avisarle del nuevo registro.",
+        );
+      }
+    } catch (error) {
+      console.error("No se pudo preparar el aviso al SuperAdmin:", error);
+    }
+
+    // Si la transacción ya confirmó en BD, ahora sí se escribe el archivo físico
     if (logoValidado && rutaLogo) {
       await escribirArchivo(logoValidado, rutaLogo);
     }
@@ -228,40 +371,16 @@ export const registrarEmpresa = async (ctx: Context) => {
   }
 };
 
-// Controller/Auth/authController.ts
+/** POST /api/auth/logout */
 export const cerrarSesion = async (ctx: Context) => {
   await ctx.cookies.set("token", null, {
     httpOnly: true,
     maxAge: 0,
   });
-  
+
   ctx.response.status = 200;
   ctx.response.body = {
     success: true,
     message: "Sesión cerrada correctamente",
   };
 };
-
-
-export const datosPerfilSB = async(ctx: Context) => {
-  const {state, response} = ctx;
-  try {
-    const sesion = state.user as Sesion;
-    if (!sesion.id) {
-      response.status = 401;
-      response.body = { success: false,
-      message: "No autenticado"
-      }
-      return;
-    }
-    const perfilSB = await Usuario.DatosSesion(sesion.id);
-    response.status = 200;
-    response.body = perfilSB
-  } catch (error) {
-    console.log("error auth perfilSB: " + error);
-    response.status = 500;
-    response.body = { success: false,
-      message: "Error interno del servidor"
-    }
-  }
-}

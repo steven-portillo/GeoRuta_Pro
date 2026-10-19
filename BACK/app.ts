@@ -1,35 +1,19 @@
-import { Application, oakCors } from "./Dependencies/dependencias.ts";
+import { Application, oakCors, send } from "./Dependencies/dependencias.ts";
 import { authRouter } from "./Router/Auth/authRouter.ts";
-import { superAdminRouter } from "./Router/SuperAdmin/superAdminRouter.ts";
+import { empresaRouter } from "./Router/SuperAdmin/empresaRouter.ts";
+import { clientesRouter } from "./Router/SuperAdmin/clienteRouter.ts";
 import { categoriaRouter } from "./Router/Admin/categoriaRouter.ts";
+import { productoRouter } from "./Router/Admin/productoRouter.ts";
 import { inventarioRouter } from "./Router/Admin/inventarioRouter.ts";
-import { productoRouter } from "./Router/Admin/productoController.ts";
 import { proveedorRouter } from "./Router/Admin/proveedorRouter.ts";
-import { empresaRouter } from "./Router/Admin/empresaRouter.ts";
-import { PruebasRouter } from "./Router/Mapa/pruebasRouter.ts";
-import { manejarWsUbicacion } from "./ws/ubicacionHub.ts";
-
-import { servirArchivos } from "./Middlewares/archivos.middleware.ts";
-
+import { pedidoRouter } from "./Router/Admin/pedidoRouter.ts";
+import { perfilRouter } from "./Router/Perfil/perfilRouter.ts";
+import { empresaPerfilRouter } from "./Router/Admin/empresaPerfilRouter.ts";
+import { clienteRouter } from "./Router/Cliente/clienteRouter.ts";
+import { pagoRouter } from "./Router/Pagos/pagoRouter.ts";
+import { pedidoProveedorRouter } from "./Router/Proveedor/pedidoProveedorRouter.ts";
 
 const app = new Application();
-
-app.use(servirArchivos);
-// CORS
-app.use(async (ctx, next) => {
-  const { pathname } = ctx.request.url;
-
-  if (
-    pathname === "/ws" &&
-    ctx.request.headers.get("upgrade")?.toLowerCase() === "websocket"
-  ) {
-    const socket = await ctx.upgrade();
-    manejarWsUbicacion(socket);
-    return;
-  }
-
-  await next();
-});
 
 // CORS
 app.use(
@@ -37,24 +21,32 @@ app.use(
     origin: "*",
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
   }),
 );
 
+app.use(async (ctx, next) => {
+  if (ctx.request.url.pathname.startsWith("/uploads/")) {
+    await send(ctx, ctx.request.url.pathname, { root: Deno.cwd() });
+    return;
+  }
+  await next();
+});
+
 // Rutas
 const routers = [
-  //rutas publicas y de auth
-  authRouter, 
-  //rutas de superadmin
-  superAdminRouter,
-  //rutas del admin
-  categoriaRouter,
-  inventarioRouter,
-  productoRouter, 
-  proveedorRouter,
+  pagoRouter,
+  pedidoProveedorRouter,
+  authRouter,
   empresaRouter,
-  //rutas de mapa(prueba)
-  PruebasRouter,
+  clientesRouter,
+  categoriaRouter,
+  productoRouter,
+  inventarioRouter,
+  proveedorRouter,
+  pedidoRouter,
+  perfilRouter,
+  empresaPerfilRouter,
+  clienteRouter,
 ];
 
 routers.forEach((router) => {

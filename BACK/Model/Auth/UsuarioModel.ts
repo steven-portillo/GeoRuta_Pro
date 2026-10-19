@@ -1,6 +1,8 @@
 import { conexion } from "../conexion.ts";
 import { hash, compare } from "../../Dependencies/dependencias.ts";
 
+const ID_ROL_SUPERADMIN = 1;
+
 interface LoginData {
   email: string;
   password: string;
@@ -66,7 +68,10 @@ export class Usuario {
       }
 
       // Verificar email único
-      const existeEmail = await this.existeEmail(u.email);
+      const [existeEmail] = await conexion.query(
+        `SELECT id_usuario FROM usuarios WHERE email = ?`,
+        [u.email],
+      );
       if (existeEmail) {
         return {
           success: false,
@@ -190,7 +195,10 @@ export class Usuario {
       }
 
       // Verificar email único
-      const existeEmail = await this.existeEmail(empresa.emailAdmin);
+      const [existeEmail] = await conexion.query(
+        `SELECT id_usuario FROM usuarios WHERE email = ?`,
+        [empresa.emailAdmin],
+      );
       if (existeEmail) {
         return {
           success: false,
@@ -275,65 +283,12 @@ export class Usuario {
     }
   }
 
-
-  //metodo para cargar datos de perfil despues del login(llenar unos detos de los sidebars)
-  static async DatosSesion(id: number): Promise <
-  | { success: true, 
-    message: string,
-    data:{
-      nombres: string,
-      fotoUrl: string,
-      nombreEmpresa: string | null,
-      logoUrl: string | null,
-    }
-  }
-  | { success: false; message: string}
-  > {
-    try {
-      const [usuario] = await conexion.query(
-        `select concat(u.nombre," ", u.apellido) as nombres, u.imagen_url,
-         e.nombre as nombreEmpresa
-         from usuarios u
-         left join empresas e on u.id_empresa = e.id_empresa
-         where u.id_usuario = ?
-        `,
-        [id],
-      )
-      if (!usuario) {
-        return { success: false, message:"Usuario no encontrado"};
-      }
-      return {
-        success: true,
-        message: "perfil esta bien",
-        data: {
-          nombres: usuario.nombres,
-          fotoUrl:usuario.imagen_url,
-          nombreEmpresa: usuario.nombreEmpresa,
-          logoUrl: usuario.logo_url,
-        }
-      };
-    } catch (error) {
-      console.log("Error en tomar datos de perfil: " + error);
-      return { success: false, message:"Error del servidor"}
-    }
-  }
-
-
-  //autenticacion importante para correos duplicados
-  public async existeEmail(
-    nombre: string,
-    excluyendoId: number | null = null,
-  ): Promise<boolean> {
-    const query = excluyendoId
-      ? `select count(1) as total from usuarios
-               where lower(trim(email)) = lower(trim(?))
-                 and id_usuario != ?`
-      : `select count(1) as total from usuarios
-               where lower(trim(email)) = lower(trim(?))`;
-
-    const params = excluyendoId ? [nombre, excluyendoId] : [nombre];
-    const { rows } = await conexion.execute(query, params);
-    const resultado = rows![0] as unknown as { total: number };
-    return resultado.total > 0;
+  /** Email del SuperAdmin, para avisarle de nuevas empresas */
+  public static async ObtenerEmailSuperAdmin(): Promise<string | null> {
+    const [superAdmin] = await conexion.query(
+      `SELECT email FROM usuarios WHERE id_rol = ? AND activo = 1 LIMIT 1`,
+      [ID_ROL_SUPERADMIN],
+    );
+    return superAdmin?.email ?? null;
   }
 }

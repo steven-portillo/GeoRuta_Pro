@@ -1,12 +1,11 @@
 import { Context, RouterContext } from "../../Dependencies/dependencias.ts";
 import { Categoria } from "../../Model/Admin/CategoriaModel.ts";
-import { Sesion } from "../../Utils/tipos.ts";
 
 /** GET /api/admin/categorias */
 export const listarCategorias = async (ctx: Context) => {
   try {
-    const usuario = ctx.state.user as Sesion;
-    const categorias = await Categoria.Listar(usuario.idEmpresa!);
+    const usuario = ctx.state.user as { id_empresa: number };
+    const categorias = await Categoria.Listar(usuario.id_empresa);
     ctx.response.status = 200;
     ctx.response.body = { success: true, data: categorias };
   } catch (error) {
@@ -22,7 +21,7 @@ export const listarCategorias = async (ctx: Context) => {
 /** POST /api/admin/categorias */
 export const crearCategoria = async (ctx: Context) => {
   try {
-    const usuario = ctx.state.user as Sesion;
+    const usuario = ctx.state.user as { id_empresa: number };
     const body = await ctx.request.body.json();
 
     const nombre = String(body.nombre ?? "").trim();
@@ -39,7 +38,7 @@ export const crearCategoria = async (ctx: Context) => {
       return;
     }
 
-    const resultado = await Categoria.Crear(usuario.idEmpresa!, {
+    const resultado = await Categoria.Crear(usuario.id_empresa, {
       nombre,
       descripcion,
     });
@@ -60,7 +59,7 @@ export const editarCategoria = async (
   ctx: RouterContext<"/api/admin/categorias/:id">,
 ) => {
   try {
-    const usuario = ctx.state.user as Sesion;
+    const usuario = ctx.state.user as { id_empresa: number };
     const id_categoria = Number(ctx.params.id);
 
     if (Number.isNaN(id_categoria)) {
@@ -68,15 +67,14 @@ export const editarCategoria = async (
       ctx.response.body = { success: false, message: "ID inválido" };
       return;
     }
-    console.log("ID de categoría a editar:", id_categoria + " para la empresa ID: " + usuario.idEmpresa);
+
     const body = await ctx.request.body.json();
     const nombre = body.nombre ? String(body.nombre).trim() : undefined;
-    const descripcion =
-      body.descripcion !== undefined
-        ? String(body.descripcion).trim()
-        : undefined;
-    console.log("Datos recibidos para editar:", { nombre, descripcion });
-    const resultado = await Categoria.Editar(id_categoria, usuario.idEmpresa!, {
+    const descripcion = body.descripcion !== undefined
+      ? String(body.descripcion).trim()
+      : undefined;
+
+    const resultado = await Categoria.Editar(id_categoria, usuario.id_empresa, {
       nombre,
       descripcion,
     });
@@ -97,7 +95,7 @@ export const cambiarEstadoCategoria = async (
   ctx: RouterContext<"/api/admin/categorias/:id/estado">,
 ) => {
   try {
-    const usuario = ctx.state.user as Sesion;
+    const usuario = ctx.state.user as { id_empresa: number };
     const id_categoria = Number(ctx.params.id);
 
     if (Number.isNaN(id_categoria)) {
@@ -115,10 +113,14 @@ export const cambiarEstadoCategoria = async (
 
     const resultado = await Categoria.CambiarEstado(
       id_categoria,
-      usuario.idEmpresa!,
+      usuario.id_empresa,
       body.estado,
     );
-    ctx.response.status = resultado.success ? 200 : 404;
+    ctx.response.status = resultado.success
+      ? 200
+      : ("conflict" in resultado && resultado.conflict)
+      ? 409
+      : 404;
     ctx.response.body = resultado;
   } catch (error) {
     console.error(error);
@@ -135,7 +137,7 @@ export const obtenerCategoria = async (
   ctx: RouterContext<"/api/admin/categorias/:id">,
 ) => {
   try {
-    const usuario = ctx.state.user as Sesion;
+    const usuario = ctx.state.user as { id_empresa: number };
     const id_categoria = Number(ctx.params.id);
 
     if (Number.isNaN(id_categoria)) {
@@ -146,7 +148,7 @@ export const obtenerCategoria = async (
 
     const categoria = await Categoria.ObtenerPorId(
       id_categoria,
-      usuario.idEmpresa!,
+      usuario.id_empresa,
     );
     if (!categoria) {
       ctx.response.status = 404;

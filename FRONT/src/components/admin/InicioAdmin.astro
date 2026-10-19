@@ -1,0 +1,135 @@
+---
+// src/components/admin/InicioAdmin.astro
+// panel de inicio del admin — puerto de Views/Admin/Inicio.cshtml (saludo + metricas + accesos rapidos)
+// nombre, apellido y metricas ya llegan resueltos por ssr desde admin/inicio.astro, no hay
+// fetch del lado del cliente como en el original (cargarDatosInicioAdmin) salvo el saludo por hora
+
+export interface MetricasInicio {
+  productos: number;
+  pendientes: number;
+  enTransito: number;
+  repartidores: number;
+}
+
+interface Props {
+  nombre: string;
+  apellido: string;
+  metricas: MetricasInicio;
+}
+
+const { nombre, apellido, metricas } = Astro.props;
+---
+
+<!-- saludo personalizado -->
+<div class="admin-saludo-banner">
+  <div>
+    <p class="admin-saludo-hora" id="saludo-admin">¡Hola!</p>
+    <h1 class="admin-saludo-nombre">
+      <span>{nombre}</span> <span style="opacity:0.7">{apellido}</span> 👋
+    </h1>
+    <p class="admin-saludo-sub">
+      Gestiona tu empresa desde aquí. Productos, pedidos y repartidores bajo control.
+    </p>
+  </div>
+</div>
+
+<!-- metricas rapidas -->
+<div class="grilla-metricas">
+  <div class="metrica-card">
+    <div class="metrica-label">Productos activos</div>
+    <div class="metrica-valor">{metricas.productos}</div>
+    <div class="metrica-sub">en tu catálogo</div>
+  </div>
+  <div class="metrica-card accent-amber">
+    <div class="metrica-label">Pedidos pendientes</div>
+    <div class="metrica-valor">{metricas.pendientes}</div>
+    <div class="metrica-sub">requieren acción</div>
+  </div>
+  <div class="metrica-card accent-azul">
+    <div class="metrica-label">En tránsito</div>
+    <div class="metrica-valor">{metricas.enTransito}</div>
+    <div class="metrica-sub">pedidos activos</div>
+  </div>
+  <div class="metrica-card">
+    <div class="metrica-label">Repartidores</div>
+    <div class="metrica-valor">{metricas.repartidores}</div>
+    <div class="metrica-sub">disponibles</div>
+  </div>
+</div>
+
+<!-- accesos rapidos -->
+<div class="admin-accesos-grid">
+  <a class="admin-acceso-card" href="/admin/productos">
+    <div class="admin-acceso-icono verde">
+      <svg viewBox="0 0 24 24">
+        <path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
+      </svg>
+    </div>
+    <div>
+      <div class="admin-acceso-titulo">Gestionar productos</div>
+      <div class="admin-acceso-sub">Agrega, edita o elimina productos del catálogo</div>
+    </div>
+    <svg class="admin-acceso-flecha" viewBox="0 0 24 24">
+      <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
+    </svg>
+  </a>
+
+  <a class="admin-acceso-card" href="/admin/pedidos">
+    <div class="admin-acceso-icono azul">
+      <svg viewBox="0 0 24 24">
+        <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45C5.16 12.37 5 12.82 5 13.3 5 15.1 6.9 18 9 18h12v-2H9.42a.25.25 0 01-.25-.25l.03-.12.9-1.63H19c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1 1 0 0023.44 6H5.21l-.94-2H1z" />
+      </svg>
+    </div>
+    <div>
+      <div class="admin-acceso-titulo">Ver pedidos</div>
+      <div class="admin-acceso-sub">Aprueba y gestiona pedidos de clientes</div>
+    </div>
+    <svg class="admin-acceso-flecha" viewBox="0 0 24 24">
+      <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
+    </svg>
+  </a>
+
+  <a class="admin-acceso-card" href="/admin/repartidores">
+    <div class="admin-acceso-icono naranja">
+      <svg viewBox="0 0 24 24">
+        <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
+      </svg>
+    </div>
+    <div>
+      <div class="admin-acceso-titulo">Repartidores</div>
+      <div class="admin-acceso-sub">Asigna pedidos a repartidores disponibles</div>
+    </div>
+    <svg class="admin-acceso-flecha" viewBox="0 0 24 24">
+      <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
+    </svg>
+  </a>
+
+  <a class="admin-acceso-card" href="/admin/perfil">
+    <div class="admin-acceso-icono morado">
+      <svg viewBox="0 0 24 24">
+        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+      </svg>
+    </div>
+    <div>
+      <div class="admin-acceso-titulo">Mi perfil</div>
+      <div class="admin-acceso-sub">Edita tus datos y los de tu empresa</div>
+    </div>
+    <svg class="admin-acceso-flecha" viewBox="0 0 24 24">
+      <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
+    </svg>
+  </a>
+</div>
+
+<script>
+  // saludo segun la hora local del navegador — misma logica que cargarDatosInicioAdmin()
+  // del script original, pero aqui solo hace falta el texto de la hora, porque nombre y
+  // metricas ya vienen renderizados por astro en el html inicial (sin parpadeo de "—")
+  const elSaludo = document.getElementById('saludo-admin');
+  if (elSaludo) {
+    const hora = new Date().getHours();
+    elSaludo.textContent =
+      hora >= 5 && hora < 12 ? '¡Buenos días,' :
+      hora >= 12 && hora < 18 ? '¡Buenas tardes,' :
+      '¡Buenas noches,';
+  }
+</script>

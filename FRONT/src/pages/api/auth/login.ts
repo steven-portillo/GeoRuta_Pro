@@ -1,38 +1,69 @@
-import type { APIRoute } from "astro";
-const rutadeno = import.meta.env.API_DENO;
-export const POST: APIRoute = async ({ request, cookies, redirect }) => {
-    
-    const body = await request.json();
-    
-    const respuestaBackend = await fetch(`${rutadeno}/api/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            email: body.email,
-            password: body.password,
-        }),
-    });
+// src/pages/api/auth/login.ts
+import type { APIRoute } from 'astro';
 
-    const data = await respuestaBackend.json();
+export const prerender = false;
 
-    if (!data.success) {
-        return new Response(JSON.stringify(data), {
-            status: 401,
-            headers: { "Content-Type": "application/json" },
-        });
+const API_DENO = import.meta.env.API_DENO;
+
+const json = (cuerpo: unknown, status: number) =>
+  new Response(JSON.stringify(cuerpo), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+export const POST: APIRoute = async ({ request, cookies }) => {
+  try {
+    const { email, password } = await request.json();
+
+    if (!email || !password) {
+      return json(
+        { success: false, message: 'Email y contraseña son obligatorios' },
+        400,
+      );
     }
 
-    console.log("este es el token que llega de deno despues del login: "+data.accessToken);
-    cookies.set("token", data.accessToken, {
-        httpOnly: true,
-        secure: false,
-        sameSite: "lax",
-        path: "/",
-        maxAge: 60 * 60 * 8,
+    const respuesta = await fetch(`${API_DENO}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
     });
 
-    return new Response(
-        JSON.stringify({ success: true, usuario: data.data }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
+    const resultado = await respuesta.json();
+
+    if (!respuesta.ok || !resultado.success) {
+      return json(
+        { success: false, message: resultado.message ?? 'Email o contraseña incorrectos' },
+        respuesta.status,
+      );
+    }
+
+    cookies.set('token', resultado.accessToken, {
+      httpOnly: true,
+      secure: import.meta.env.PROD,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24,
+    });
+
+    return json(
+      {
+        success: true,
+        usuario: {
+          id: resultado.data.id,
+          nombreCompleto: resultado.data.nombreCompleto,
+          email: resultado.data.email,
+          rol: String(resultado.data.rol).toUpperCase(),
+          idRol: resultado.data.idRol,
+          idEmpresa: resultado.data.idEmpresa,
+        },
+      },
+      200,
     );
+  } catch (error) {
+    console.error('Error en login:', error);
+    return json(
+      { success: false, message: 'No fue posible conectar con el servidor' },
+      500,
+    );
+  }
 };

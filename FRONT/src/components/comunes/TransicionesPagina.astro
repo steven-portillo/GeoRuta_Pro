@@ -1,0 +1,157 @@
+---
+// transiciones entre paginas para landing + vistas de autenticacion, usando la
+// api nativa de view transitions entre documentos (css @view-transition)
+//   push   -> landing  => login/registro
+---
+
+<script is:inline>
+  // corre en el <head> antes del primer render: la pagina nueva ya nace
+  // con el lado y el tipo de transicion correctos (sin parpadeo)
+  (function () {
+    var h = document.documentElement;
+    try {
+      var s = sessionStorage;
+      var tipo = s.getItem('gr_trans');
+      var ladoPedido = s.getItem('gr_lado');
+      s.removeItem('gr_trans');
+      s.removeItem('gr_lado');
+
+      // recuerda el lado de cada pagina para que "atras" la deje como estaba
+      var lados = JSON.parse(s.getItem('gr_lados') || '{}');
+      var lado = 'izq';
+      if (tipo === 'swap' && ladoPedido) lado = ladoPedido;
+      else if (!tipo && lados[location.pathname]) lado = lados[location.pathname];
+
+      if (tipo) h.setAttribute('data-transicion', tipo);
+      h.setAttribute('data-lado', lado);
+      lados[location.pathname] = lado;
+      s.setItem('gr_lados', JSON.stringify(lados));
+    } catch (e) {
+      h.setAttribute('data-lado', 'izq');
+    }
+  })();
+</script>
+
+<script is:inline>
+  // marca el tipo de transicion justo antes de navegar, segun el enlace pulsado
+  (function () {
+    var RUTAS_AUTH = ['/login', '/registro', '/registro-empresa'];
+    var h = document.documentElement;
+
+    function limpiar(ruta) {
+      return ruta.length > 1 ? ruta.replace(/\/+$/, '') : ruta;
+    }
+
+    document.addEventListener('click', function (e) {
+      if (e.defaultPrevented || e.button !== 0) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+
+      var a = e.target.closest ? e.target.closest('a[href]') : null;
+      if (!a || (a.target && a.target !== '_self') || a.hasAttribute('download')) return;
+
+      var url = new URL(a.href, location.href);
+      if (url.origin !== location.origin) return;
+
+      var origen = limpiar(location.pathname);
+      var destino = limpiar(url.pathname);
+      var origenEsAuth = RUTAS_AUTH.indexOf(origen) !== -1;
+      var destinoEsAuth = RUTAS_AUTH.indexOf(destino) !== -1;
+
+      var tipo = null;
+      if (origenEsAuth && destinoEsAuth && origen !== destino) tipo = 'swap';
+      else if (origen === '/' && destinoEsAuth) tipo = 'push';
+      else if (origenEsAuth && destino === '/') tipo = 'volver';
+      if (!tipo) return;
+
+      try {
+        sessionStorage.setItem('gr_trans', tipo);
+        if (tipo === 'swap') {
+          // la pagina destino arranca en el lado contrario al actual
+          sessionStorage.setItem('gr_lado', h.getAttribute('data-lado') === 'der' ? 'izq' : 'der');
+        }
+      } catch (_) {
+        return;
+      }
+      // la pagina actual tambien debe conocer el tipo: la captura "vieja" usa estos estilos
+      h.setAttribute('data-transicion', tipo);
+    });
+
+    window.addEventListener('pageshow', function (e) {
+      if (e.persisted) {
+        try {
+          sessionStorage.removeItem('gr_trans');
+          sessionStorage.removeItem('gr_lado');
+        } catch (_) {}
+      }
+    });
+  })();
+</script>
+
+<style is:global>
+  /* activa las transiciones solo en landing + auth (los paneles no lo declaran) */
+  @view-transition {
+    navigation: auto;
+  }
+
+  /* por defecto el panel azul va a la izquierda (como hoy); "der" invierte el layout */
+  html[data-lado='der'] .login-page-wrapper {
+    flex-direction: row-reverse;
+  }
+
+  /* swap: se nombran los paneles para que el navegador los anime de lado a lado */
+  html[data-transicion='swap'] .login-visual {
+    view-transition-name: panel-azul;
+  }
+  html[data-transicion='swap'] .login-form-side {
+    view-transition-name: panel-form;
+  }
+
+  html[data-transicion='swap']::view-transition-group(panel-azul),
+  html[data-transicion='swap']::view-transition-group(panel-form) {
+    animation-duration: 0.75s;
+    animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
+  }
+  html[data-transicion='swap']::view-transition-group(panel-azul) {
+    z-index: 2;
+  }
+  html[data-transicion='swap']::view-transition-old(panel-azul),
+  html[data-transicion='swap']::view-transition-new(panel-azul),
+  html[data-transicion='swap']::view-transition-old(panel-form),
+  html[data-transicion='swap']::view-transition-new(panel-form) {
+    block-size: 100%;
+    inline-size: 100%;
+  }
+  /* el fondo no se anima: solo se mueven los dos paneles */
+  html[data-transicion='swap']::view-transition-old(root),
+  html[data-transicion='swap']::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+  }
+
+  /* push / volver: estilo "empujar" */
+  @keyframes gr-sale-izq { to { transform: translateX(-14%); opacity: 0; } }
+  @keyframes gr-entra-der { from { transform: translateX(14%); opacity: 0; } }
+  @keyframes gr-sale-der { to { transform: translateX(14%); opacity: 0; } }
+  @keyframes gr-entra-izq { from { transform: translateX(-14%); opacity: 0; } }
+
+  html[data-transicion='push']::view-transition-old(root) {
+    animation: 0.5s cubic-bezier(0.55, 0, 0.75, 0.2) both gr-sale-izq;
+  }
+  html[data-transicion='push']::view-transition-new(root) {
+    animation: 0.65s cubic-bezier(0.22, 1, 0.36, 1) both gr-entra-der;
+  }
+  html[data-transicion='volver']::view-transition-old(root) {
+    animation: 0.5s cubic-bezier(0.55, 0, 0.75, 0.2) both gr-sale-der;
+  }
+  html[data-transicion='volver']::view-transition-new(root) {
+    animation: 0.65s cubic-bezier(0.22, 1, 0.36, 1) both gr-entra-izq;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+      animation-duration: 0.01s !important;
+    }
+  }
+</style>

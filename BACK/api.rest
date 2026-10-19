@@ -1,35 +1,55 @@
 @baseUrl = http://localhost:8005
 
-### 
-POST {{baseUrl}}/api/auth/register 
+
+### Registrar cliente
+POST {{baseUrl}}/api/auth/register
 Content-Type: application/json
 
 {
-"nombre": "Emmanuel",
-"apellido": "Alvarez",
-"email": "alvarez@gmail.com", 
-"password": "12345678"
+	"nombre": "Emanem",
+	"apellido": "Alvarez",
+	"email": "emmuthat22@gmail.com",
+	"password": "123456"
 }
 
-### Iniciar sesión 
-POST {{baseUrl}}/api/auth/login 
+
+### Iniciar sesión
+POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
 {
-"email": "cocacola@gmail.com", "password": "12345678"
+	"email": "deivyd@gmail.com",
+	"password": "12345678"
 }
 
 
-### Crear Proveedor
-POST {{baseUrl}}/api/empresa/crear-proveedor
-Content-Type: application/json 
-Authorization: `Bearer `
+### Registrar empresa (con logo)
+POST {{baseUrl}}/api/auth/register-empresa
+Content-Type: multipart/form-data; boundary=----GeoRutaBoundary
 
-{
-    "nombre": "Gabriel",
-    "apellido": "Jesus",
-    "email": "gabrielj@gmail.com",
-    "password": "12345678"
-}
+------GeoRutaBoundary
+Content-Disposition: form-data; name="nombreEmpresa"
 
+pepsi
+------GeoRutaBoundary
+Content-Disposition: form-data; name="nombreAdmin"
 
+Cristian
+------GeoRutaBoundary
+Content-Disposition: form-data; name="apellidoAdmin"
+
+Torres
+------GeoRutaBoundary
+Content-Disposition: form-data; name="emailAdmin"
+
+cristian@gmail.com
+------GeoRutaBoundary
+Content-Disposition: form-data; name="passwordAdmin"
+
+12345678
+------GeoRutaBoundary
+Content-Disposition: form-data; name="logoEmpresa"; filename="logo.png"
+Content-Type: image/png
+
+< C:\Users\deivy\Desktop\logo.png
+------GeoRutaBoundary--

@@ -1,0 +1,8 @@
+@baseurl = http://localhost:8005
+
+POST {{baseurl}}/pagos/checkout
+Content-Type: application/json
+
+{
+  "amount": 50000
+}

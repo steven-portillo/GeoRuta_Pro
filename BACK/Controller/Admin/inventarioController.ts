@@ -1,11 +1,11 @@
 import { Context, RouterContext } from "../../Dependencies/dependencias.ts";
 import { Inventario } from "../../Model/Admin/InventarioModel.ts";
-import { Sesion } from "../../Utils/tipos.ts";
+
 /** GET /api/admin/inventario */
 export const listarInventario = async (ctx: Context) => {
   try {
-    const usuario = ctx.state.user as Sesion;
-    const inventario = await Inventario.Listar(usuario.idEmpresa!);
+    const usuario = ctx.state.user as { id_empresa: number };
+    const inventario = await Inventario.Listar(usuario.id_empresa);
     ctx.response.status = 200;
     ctx.response.body = { success: true, data: inventario };
   } catch (error) {
@@ -21,7 +21,7 @@ export const listarInventario = async (ctx: Context) => {
 /** POST /api/admin/inventario/agregar */
 export const agregarStock = async (ctx: Context) => {
   try {
-    const usuario = ctx.state.user as Sesion;
+    const usuario = ctx.state.user as { id_empresa: number; sub: string };
     const body = await ctx.request.body.json();
 
     const id_producto = Number(body.id_producto);
@@ -42,10 +42,10 @@ export const agregarStock = async (ctx: Context) => {
       return;
     }
 
-    const id_usuario = Number(usuario.id);
+    const id_usuario = Number(usuario.sub);
 
     const resultado = await Inventario.AgregarStock(
-      usuario.idEmpresa!,
+      usuario.id_empresa,
       id_usuario,
       {
         id_producto,
@@ -71,7 +71,7 @@ export const historialInventario = async (
   ctx: RouterContext<"/api/admin/inventario/:id/historial">,
 ) => {
   try {
-    const usuario = ctx.state.user as Sesion;
+    const usuario = ctx.state.user as { id_empresa: number };
     const id_producto = Number(ctx.params.id);
 
     if (Number.isNaN(id_producto)) {
@@ -82,7 +82,7 @@ export const historialInventario = async (
 
     const resultado = await Inventario.HistorialMovimientos(
       id_producto,
-      usuario.idEmpresa!,
+      usuario.id_empresa,
     );
     if (!resultado) {
       ctx.response.status = 404;

@@ -1,0 +1,133 @@
+---
+// src/layouts/AdminLayout.astro
+import '../styles/AdminPanel.css';
+import Sidebar from '../components/comunes/Sidebar.astro';
+import type { SidebarLink } from '../components/comunes/Sidebar.astro';
+import { resolverUrlBackend } from '../lib/Backend';
+
+interface Props {
+  titulo: string;
+  vistaActual: 'inicio' | 'categorias' | 'productos' | 'pedidos' | 'pagos' | 'repartidores' | 'perfil';
+  nombreAdmin?: string;
+  inicialesAdmin?: string;
+  imagenUrl?: string | null;
+}
+
+const { titulo, vistaActual, nombreAdmin, imagenUrl } = Astro.props;
+
+const BACKEND_URL = import.meta.env.API_DENO || 'http://127.0.0.1:8005';
+const token = Astro.cookies.get('token')?.value;
+
+interface PerfilSidebar {
+  nombre?: string;
+  apellido?: string;
+  imagenUrl?: string;
+  imagen_url?: string;
+  empresaNombre?: string;
+  empresaLogo?: string;
+}
+
+let perfil: PerfilSidebar = {};
+
+if (token) {
+  try {
+    const respuesta = await fetch(`${BACKEND_URL}/api/perfil`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const texto = await respuesta.text();
+    if (texto) {
+      const data = JSON.parse(texto);
+      if (data.success) {
+        perfil = data.data ?? {};
+      } else {
+        console.error('Perfil error:', data.message);
+      }
+    } else {
+      console.error('Perfil: respuesta vacía, status', respuesta.status);
+    }
+  } catch (error) {
+    console.error('AdminLayout: no se pudo cargar el perfil', error);
+  }
+}
+
+const nombreCompleto =
+  nombreAdmin ?? (`${perfil.nombre ?? ''} ${perfil.apellido ?? ''}`.trim() || 'Administrador');
+const logoEmpresa = resolverUrlBackend(perfil.empresaLogo);
+const fotoUsuario = resolverUrlBackend(
+  imagenUrl || perfil.imagenUrl || perfil.imagen_url,
+);
+
+const links: SidebarLink[] = [
+  { href: '/admin/inicio', label: 'Inicio', icon: 'bi-house-door' },
+  { href: '/admin/categorias', label: 'Categorías', icon: 'bi-tags' },
+  { href: '/admin/productos', label: 'Productos', icon: 'bi-box-seam' },
+  { href: '/admin/pedidos', label: 'Pedidos', icon: 'bi-cart3' },
+  { href: '/admin/pagos', label: 'Pagos', icon: 'bi-credit-card' },
+  { href: '/admin/repartidores', label: 'Repartidores', icon: 'bi-truck' },
+];
+
+const activePath = `/admin/${vistaActual}`;
+---
+
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{titulo} — GeoRuta Admin</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
+  </head>
+  <body>
+    <Sidebar
+      activePath={activePath}
+      links={links}
+      perfilHref="/admin/perfil"
+      empresa={perfil.empresaNombre
+        ? { nombre: perfil.empresaNombre, logoUrl: logoEmpresa || undefined }
+        : undefined}
+      usuario={{ nombre: nombreCompleto, fotoUrl: fotoUsuario || undefined }}
+    />
+
+    <script is:inline>
+      if (localStorage.getItem('sidebar-collapsed') === 'true' && window.innerWidth >= 992) {
+        document.body.classList.add('sidebar-collapsed');
+        document.getElementById('appSidebar')?.classList.add('is-collapsed');
+      }
+    </script>
+
+    <div class="sa-contenedor">
+      <main class="sa-main">
+        <div class="sa-page-header">
+          <div>
+            <h1 class="sa-page-titulo">{titulo}</h1>
+            <p class="sa-page-sub">
+              <span class="sa-badge-sistema">● SISTEMA ACTIVO</span>
+            </p>
+          </div>
+          <div class="sa-page-acciones">
+            <span class="sa-fecha" id="admin-fecha-hoy"></span>
+          </div>
+        </div>
+        <div class="sa-zona-contenido">
+          <slot />
+        </div>
+      </main>
+    </div>
+
+    <script>
+      const elFecha = document.getElementById('admin-fecha-hoy');
+      if (elFecha) {
+        const ahora = new Date();
+        elFecha.textContent =
+          '📅 ' +
+          ahora
+            .toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric' })
+            .toUpperCase();
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,177 @@
+---
+// src/components/proveedor/InicioProveedor.astro
+// vista "inicio" del repartidor: saludo, metricas, pedido en curso y ultimos pedidos.
+// todo se renderiza en el servidor con los datos de /proveedor/inicio/datos; solo el saludo
+// segun la hora se calcula en el navegador (para usar la hora local del repartidor)
+
+export interface MetricasProveedor {
+  total: number;
+  enTransito: number;
+  entregados: number;
+  pendientes: number;
+}
+
+export interface PedidoInicio {
+  id: number;
+  total: number;
+  estado: string;
+  cliente: string;
+  direccion: string;
+}
+
+interface Props {
+  nombre: string;
+  // si el backend fallo, llega undefined y las tarjetas muestran "—"
+  metricas?: MetricasProveedor;
+  pedidos: PedidoInicio[];
+  error?: string;
+}
+
+const { nombre, metricas, pedidos, error } = Astro.props;
+
+// quita tildes para comparar estados sin importar como se guardaron ("En transito" / "En tránsito")
+const clave = (estado: string) => estado.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+const ESTILOS_ESTADO: Record<string, { badge: string; icono: string }> = {
+  Pendiente: { badge: 'badge-amber', icono: '⏳' },
+  'En preparacion': { badge: 'badge-azul', icono: '📦' },
+  'En transito': { badge: 'badge-azul', icono: '🚚' },
+  Entregado: { badge: 'badge-verde', icono: '✅' },
+  Cancelado: { badge: 'badge-slate', icono: '❌' },
+};
+const estilo = (estado: string) =>
+  ESTILOS_ESTADO[clave(estado)] ?? { badge: 'badge-slate', icono: '📋' };
+
+const moneda = (valor: number) => `$${Number(valor).toLocaleString('es-CO')}`;
+const valorMetrica = (n?: number) => (metricas ? String(n ?? 0) : '—');
+
+// primer pedido (el mas reciente) que siga abierto
+const ESTADOS_ABIERTOS = ['En transito', 'Pendiente', 'En preparacion'];
+const pedidoActivo = pedidos.find((p) => ESTADOS_ABIERTOS.includes(clave(p.estado)));
+
+const activos = metricas ? metricas.enTransito + metricas.pendientes : 0;
+const subtitulo = !metricas
+  ? 'No pudimos cargar tu resumen del día.'
+  : activos > 0
+    ? `Tienes ${activos} pedido(s) pendiente(s) hoy.`
+    : 'No tienes pedidos activos en este momento.';
+---
+
+<!-- saludo -->
+<div class="rep-saludo">
+  <div class="rep-saludo-inner">
+    <div class="rep-saludo-hora" id="rep-saludo-hora">¡Hola,</div>
+    <div class="rep-saludo-nombre">
+      <span>{nombre}</span>
+      <span class="rep-saludo-ola"> 👋</span>
+    </div>
+    <div class="rep-saludo-sub">{subtitulo}</div>
+  </div>
+</div>
+
+{error && <p class="rep-msg-err">{error}</p>}
+
+<!-- metricas -->
+<div class="rep-metricas">
+  <div class="rep-metrica">
+    <div class="rep-m-label">Pedidos asignados</div>
+    <div class="rep-m-valor">{valorMetrica(metricas?.total)}</div>
+    <div class="rep-m-sub">Total histórico</div>
+  </div>
+  <div class="rep-metrica az">
+    <div class="rep-m-label">En tránsito</div>
+    <div class="rep-m-valor">{valorMetrica(metricas?.enTransito)}</div>
+    <div class="rep-m-sub">Pedidos activos</div>
+  </div>
+  <div class="rep-metrica">
+    <div class="rep-m-label">Entregados</div>
+    <div class="rep-m-valor">{valorMetrica(metricas?.entregados)}</div>
+    <div class="rep-m-sub up">Total completados</div>
+  </div>
+  <div class="rep-metrica am">
+    <div class="rep-m-label">Pendientes</div>
+    <div class="rep-m-valor">{valorMetrica(metricas?.pendientes)}</div>
+    <div class="rep-m-sub">Por iniciar</div>
+  </div>
+</div>
+
+<!-- pedido en curso (solo si hay uno abierto entre los ultimos) -->
+{
+  pedidoActivo && (
+    <div class="rep-panel">
+      <div class="rep-panel-header">
+        <span class="rep-panel-titulo">🚚 Pedido en curso</span>
+      </div>
+      <div class="rep-activo-body">
+        <div class="rep-activo-top">
+          <span class="rep-activo-id">#PED-{pedidoActivo.id}</span>
+          <span class={`badge ${estilo(pedidoActivo.estado).badge}`}>
+            {estilo(pedidoActivo.estado).icono} {pedidoActivo.estado}
+          </span>
+        </div>
+        <div class="rep-activo-dato">
+          <strong>Cliente:</strong> {pedidoActivo.cliente}
+        </div>
+        <div class="rep-activo-dato">
+          <strong>Dirección:</strong> {pedidoActivo.direccion || 'No disponible'}
+        </div>
+        <a href="/proveedor/pedidos" class="rep-btn-s">Ver en mapa →</a>
+      </div>
+    </div>
+  )
+}
+
+<!-- ultimos pedidos -->
+<div class="rep-panel">
+  <div class="rep-panel-header">
+    <span class="rep-panel-titulo">Últimos pedidos asignados</span>
+    <a href="/proveedor/pedidos" class="rep-btn-s">Ver todos →</a>
+  </div>
+  <div class="rep-tabla-wrap">
+    <table class="rep-tabla">
+      <thead>
+        <tr>
+          <th>Pedido</th>
+          <th>Cliente</th>
+          <th>Dirección</th>
+          <th>Total</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          pedidos.length === 0 ? (
+            <tr>
+              <td colspan="5" class="rep-td-vacio">
+                Sin pedidos aún.
+              </td>
+            </tr>
+          ) : (
+            pedidos.map((p) => (
+              <tr>
+                <td class="rep-td-id">#PED-{p.id}</td>
+                <td>{p.cliente}</td>
+                <td class="rep-td-dir">{p.direccion || '—'}</td>
+                <td class="rep-td-total">{moneda(p.total)}</td>
+                <td>
+                  <span class={`badge ${estilo(p.estado).badge}`}>
+                    {estilo(p.estado).icono} {p.estado}
+                  </span>
+                </td>
+              </tr>
+            ))
+          )
+        }
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  // saludo segun la hora local del navegador (mismos rangos que Script_Repartidor.js)
+  const hora = new Date().getHours();
+  const saludo =
+    hora >= 5 && hora < 12 ? '¡Buenos días,' : hora >= 12 && hora < 18 ? '¡Buenas tardes,' : '¡Buenas noches,';
+  const elHora = document.getElementById('rep-saludo-hora');
+  if (elHora) elHora.textContent = saludo;
+</script>

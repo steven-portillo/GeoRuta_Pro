@@ -1,0 +1,42 @@
+---
+// src/pages/proveedor/perfil.astro
+import ProveedorLayout from '../../layouts/ProveedorLayout.astro';
+import PerfilProveedor from '../../components/proveedor/PerfilProveedor.astro';
+import type {
+  PerfilProveedor as DatosPerfil,
+  MetricasPerfil,
+} from '../../components/proveedor/PerfilProveedor.astro';
+import { llamarBackend, obtenerToken } from '../../lib/Backend';
+
+const token = obtenerToken(Astro.cookies);
+
+// perfil (formulario + sidebar) y metricas (tarjeta de estadisticas) en paralelo
+const [respuestaPerfil, respuestaDatos] = await Promise.all([
+  llamarBackend<DatosPerfil>('/proveedor/perfil', { token }),
+  llamarBackend('/proveedor/inicio/datos', { token }),
+]);
+
+const perfil: DatosPerfil = respuestaPerfil.datos.data ?? {
+  nombre: '',
+  apellido: '',
+  email: '',
+  telefono: '',
+  imagenUrl: '',
+  empresaNombre: '',
+};
+
+// este endpoint devuelve "metricas" como clave suelta, no dentro de "data"
+const metricas = respuestaDatos.datos.success
+  ? (respuestaDatos.datos.metricas as MetricasPerfil)
+  : undefined;
+---
+
+<ProveedorLayout
+  titulo="Mi perfil"
+  vistaActual="perfil"
+  nombreProveedor={`${perfil.nombre} ${perfil.apellido}`.trim()}
+  imagenUrl={perfil.imagenUrl || null}
+  empresaNombre={perfil.empresaNombre || undefined}
+>
+  <PerfilProveedor perfilInicial={perfil} metricas={metricas} />
+</ProveedorLayout>

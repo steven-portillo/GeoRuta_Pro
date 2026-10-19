@@ -1,276 +1,274 @@
 import { Context, RouterContext } from "../../Dependencies/dependencias.ts";
-import { validarArchivo, generarNombreUnico, rutaFisicaArchivo, escribirArchivo } from "../../Helpers/archivos.ts";
 import { Proveedor } from "../../Model/Admin/ProveedorModel.ts";
-import { Usuario } from "../../Model/Auth/UsuarioModel.ts";
-import type { Sesion } from "../../Utils/tipos.ts";
+import { Empresa } from "../../Model/SuperAdmin/EmpresaModel.ts";
+import { enviarCorreo } from "../../Helpers/mailer.ts";
+import { plantillaBienvenidaProveedor } from "../../Helpers/emailTemplates.ts";
 
-//GET /api/empresa/proveedores
+/** GET /api/admin/proveedores */
 export const listarProveedores = async (ctx: Context) => {
-  const { state, response } = ctx;
   try {
-    const sesion = state.user as Sesion;
-    if (!sesion.id) {
-      response.status = 401;
-      response.body = { success: false, message: "No autenticado" };
-      return;
-    }
-
-    const proveedores = await Proveedor.ListarProveedores(sesion.idEmpresa!);
-
-    response.status = 200;
-    response.body = { success: true, data: proveedores };
+    const usuario = ctx.state.user as { id_empresa: number };
+    const proveedores = await Proveedor.Listar(usuario.id_empresa);
+    ctx.response.status = 200;
+    ctx.response.body = { success: true, data: proveedores };
   } catch (error) {
-    console.log("Error en el controller lista proveedor: " + error);
-    response.status = 500;
-    response.body = {
+    console.error(error);
+    ctx.response.status = 500;
+    ctx.response.body = {
       success: false,
-      message: "Error interno del servidor al listar repartidores",
-    };
-  }
-};  
-
-
-export const obtenerProveedor = async (ctx: RouterContext<string>) => {
-  const { state, response, params } = ctx;
-  try {
-    const sesion = state.user as Sesion;
-    const idProveedor = Number(params.id);
-
-    if (!sesion.id) {
-      response.status = 401;
-      response.body = { success: false, message: "No autenticado" };
-      return;
-    }
-    if (Number.isNaN(idProveedor)) {
-        response.status = 400;
-        response.body = { success: false,
-            message: "ID Invalido"
-        }
-        return;
-    }
-
-    const proveedor = await Proveedor.ObtenerProveedor(idProveedor, sesion.idEmpresa!);
-    if (!proveedor) {
-      response.status = 404;
-      response.body = { success: false, message: "Repartidor no encontrado" };
-      return;
-    }
-    response.status = 200;
-    response.body = { success: true, data: proveedor };
-  } catch (error) {
-    console.log("Error en el controller obtener proveedor: " + error);
-    response.status = 500;
-    response.body = {
-      success: false,
-      message: "Error interno del servidor al obtener repartidor",
+      message: "Error interno del servidor",
     };
   }
 };
 
-//POST  /api/empresa/crear-proveedor
-export const crearProveedor = async (ctx: Context) => {
-  const { request, response, state } = ctx;
+export const listarProveedoresDisponibles = async (ctx: Context) => {
   try {
-    const body = await request.body.json();
+    const usuario = ctx.state.user as { id_empresa: number };
+    const proveedores = await Proveedor.ListarDisponibles(usuario.id_empresa);
+    ctx.response.status = 200;
+    ctx.response.body = { success: true, data: proveedores };
+  } catch (error) {
+    console.error("Error al listar proveedores disponibles:", error);
+    ctx.response.status = 500;
+    ctx.response.body = {
+      success: false,
+      message: "No fue posible cargar los proveedores disponibles",
+    };
+  }
+};
 
-    const sesion = state.user as Sesion;
-    if (!sesion.id) {
-      response.status = 401;
-      response.body = { success: false, message: "No autenticado" };
+export const listarPedidosProveedorAdmin = async (
+  ctx: RouterContext<"/api/admin/proveedores/:id/pedidos">,
+) => {
+  try {
+    const usuario = ctx.state.user as { id_empresa: number };
+    const id_proveedor = Number(ctx.params.id);
+    if (!Number.isSafeInteger(id_proveedor) || id_proveedor <= 0) {
+      ctx.response.status = 400;
+      ctx.response.body = { success: false, message: "ID inválido" };
       return;
     }
-    const idEmpresa = sesion.idEmpresa;
-    const nombre = body.nombre ?? body.nombres;
-    const apellido = body.apellido ?? body.apellidos;
-    const { email, password } = body;
 
-    if (!nombre || !apellido || !email || !password || !idEmpresa) {
-      response.status = 400;
-      response.body = {
+    const pedidos = await Proveedor.ListarPedidos(
+      id_proveedor,
+      usuario.id_empresa,
+    );
+    ctx.response.status = 200;
+    ctx.response.body = {
+      success: true,
+      data: pedidos.map((pedido: Record<string, unknown>) => ({
+        ...pedido,
+        id: Number(pedido.id),
+        total: Number(pedido.total),
+        estado: pedido.estado === "Asignado" || pedido.estado === "Aprobado"
+          ? "En preparacion"
+          : pedido.estado,
+        fecha: pedido.fecha
+          ? new Date(String(pedido.fecha)).toLocaleString("es-CO")
+          : "",
+        latitud: pedido.latitud === null ? null : Number(pedido.latitud),
+        longitud: pedido.longitud === null ? null : Number(pedido.longitud),
+      })),
+    };
+  } catch (error) {
+    console.error("Error al listar pedidos del proveedor para administración:", error);
+    ctx.response.status = 500;
+    ctx.response.body = {
+      success: false,
+      message: "No fue posible cargar los pedidos del proveedor",
+    };
+  }
+};
+
+/** GET /api/admin/proveedores/:id */
+export const obtenerProveedor = async (
+  ctx: RouterContext<"/api/admin/proveedores/:id">,
+) => {
+  try {
+    const usuario = ctx.state.user as { id_empresa: number };
+    const id_usuario = Number(ctx.params.id);
+
+    if (Number.isNaN(id_usuario)) {
+      ctx.response.status = 400;
+      ctx.response.body = { success: false, message: "ID inválido" };
+      return;
+    }
+
+    const proveedor = await Proveedor.ObtenerPorId(
+      id_usuario,
+      usuario.id_empresa,
+    );
+    if (!proveedor) {
+      ctx.response.status = 404;
+      ctx.response.body = {
         success: false,
-        message:
-          "Faltan campos obligatorios: nombre, apellido, email, password.",
+        message: "Proveedor no encontrado",
+      };
+      return;
+    }
+
+    ctx.response.status = 200;
+    ctx.response.body = { success: true, data: proveedor };
+  } catch (error) {
+    console.error(error);
+    ctx.response.status = 500;
+    ctx.response.body = {
+      success: false,
+      message: "Error interno del servidor",
+    };
+  }
+};
+
+/** POST /api/admin/proveedores */
+export const crearProveedor = async (ctx: Context) => {
+  try {
+    const usuario = ctx.state.user as { id_empresa: number };
+    const body = await ctx.request.body.json();
+
+    const nombre = String(body.nombre ?? "").trim();
+    const apellido = String(body.apellido ?? "").trim();
+    const email = String(body.email ?? "").trim();
+    const password = String(body.password ?? "").trim();
+
+    if (!nombre || !apellido || !email || !password) {
+      ctx.response.status = 400;
+      ctx.response.body = {
+        success: false,
+        message: "Faltan campos obligatorios",
       };
       return;
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      response.status = 400;
-      response.body = {
+      ctx.response.status = 400;
+      ctx.response.body = {
         success: false,
         message: "Correo electrónico no válido",
       };
       return;
     }
 
-    const existeEmail = await new Usuario().existeEmail(email);
-    if (existeEmail) {
-      response.status = 409;
-      response.body = {
+    if (password.length < 8) {
+      ctx.response.status = 400;
+      ctx.response.body = {
         success: false,
-        message: "Este correo ya está registrado",
+        message: "La contraseña debe tener al menos 8 caracteres",
       };
       return;
     }
 
-    const objProveedor = new Proveedor({
-      nombreProveedor: nombre,
-      apellidoProveedor: apellido,
-      emailProveedor: email,
-      passwordProveedor: password,
-      idEmpresa: idEmpresa,
-    });
-
-    const result = await objProveedor.CrearProveedor();
-
-    if (result.success) {
-      response.status = 201;
-      response.body = { success: true, message: result.message };
-    } else {
-      response.status = 400;
-      response.body = { success: false, message: result.message };
-    }
-  } catch (error) {
-    console.log("Error en el controller de crear proveedor: " + error);
-    response.status = 500;
-    response.body = { success: false, message: "Error interno del servidor" };
-  }
-};
-
-
-
-// PUT /api/admin/proveedor/:id/
-export const editarProveedor = async (ctx: RouterContext<string>) => {
-  const { response, request, params, state } = ctx;
-  try {
-    const sesion = state.user as Sesion;
-    const idProveedor = Number(params.id);
-
-    if (!sesion.id) {
-      response.status = 401;
-      response.body = { success: false, message: "No autenticado" };
-      return;
-    }
-
-    if (Number.isNaN(idProveedor)) {
-        response.status = 400;
-        response.body = { success: false, 
-            message: "ID Invalido"
-        }
-        return;
-    };
-    const form = await request.body.formData();
-    
-    const nombre = form.get("nombre")?.toString().trim() ?? "";
-    const apellido = form.get("apellido")?.toString().trim() ?? "";
-    const email = form.get("email")?.toString().trim() ?? "";
-    const imagen = form.get("imagen") as File | null;
-
-    console.log("Datos recibidos para editar proveedor:", {
+    const resultado = await Proveedor.Crear(usuario.id_empresa, {
       nombre,
       apellido,
       email,
-      imagen,
-      sesionIdEmpresa: sesion.idEmpresa,
+      password,
     });
-    
-    if(!nombre || !apellido || !email || !sesion.idEmpresa){
-      response.status = 400;
-      response.body = { success: false, message:"faltan campos obligatorios"};
+    if (resultado.success) {
+      try {
+        const nombreEmpresa = await Empresa.ObtenerNombre(usuario.id_empresa);
+        if (nombreEmpresa) {
+          const correo = plantillaBienvenidaProveedor(nombre, nombreEmpresa);
+          enviarCorreo(email, correo.asunto, correo.html, correo.texto);
+        } else {
+          console.warn(
+            "No se encontró el nombre de la empresa para el correo del proveedor.",
+          );
+        }
+      } catch (error) {
+        console.error("No se pudo preparar el correo del proveedor:", error);
+      }
+    }
+    ctx.response.status = resultado.success ? 201 : 400;
+    ctx.response.body = resultado;
+  } catch (error) {
+    console.error(error);
+    ctx.response.status = 500;
+    ctx.response.body = {
+      success: false,
+      message: "Error interno del servidor",
+    };
+  }
+};
+
+/** PUT /api/admin/proveedores/:id */
+export const editarProveedor = async (
+  ctx: RouterContext<"/api/admin/proveedores/:id">,
+) => {
+  try {
+    const usuario = ctx.state.user as { id_empresa: number };
+    const id_usuario = Number(ctx.params.id);
+
+    if (Number.isNaN(id_usuario)) {
+      ctx.response.status = 400;
+      ctx.response.body = { success: false, message: "ID inválido" };
       return;
     }
 
-    if (await new Usuario().existeEmail(email, idProveedor)) {
-        response.status = 409;
-        response.body = {
+    const body = await ctx.request.body.json();
+    const nombre = body.nombre ? String(body.nombre).trim() : undefined;
+    const apellido = body.apellido ? String(body.apellido).trim() : undefined;
+    const email = body.email ? String(body.email).trim() : undefined;
+
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      ctx.response.status = 400;
+      ctx.response.body = {
         success: false,
-        message: "Este correo ya está registrado",
+        message: "Correo electrónico no válido",
       };
       return;
     }
 
-    let nombreUnico: string | undefined = undefined;
-    if (imagen !== null) {
-    const error = validarArchivo(imagen);
-
-    if (error) {
-      response.status = 400;
-      response.body = { success: false, message: error};
-      return;
-    };
-    nombreUnico = generarNombreUnico(imagen);
-    const imagen_url = rutaFisicaArchivo("usuarios", nombreUnico);
-    console.log("Ruta de la imagen generada: ", imagen_url);
-    await escribirArchivo(imagen,imagen_url);
-  }
-    const resultado = await Proveedor.EditarProveedor(
-    idProveedor,
-    {nombreProveedor: nombre, apellidoProveedor:apellido, emailProveedor:email, imagen_url:`usuarios/${nombreUnico}` || undefined, idEmpresa: sesion.idEmpresa},
-    sesion.idEmpresa
-    );
-
-    if (!resultado.success) {
-      response.status = 404;
-      response.body = resultado;
-      return;
-    }
-
-    response.status = 200;
-    response.body = resultado;
-
+    const resultado = await Proveedor.Editar(id_usuario, usuario.id_empresa, {
+      nombre,
+      apellido,
+      email,
+    });
+    ctx.response.status = resultado.success ? 200 : 404;
+    ctx.response.body = resultado;
   } catch (error) {
-    console.log("error en editar prove: " + error);
-    response.status = 500;
-    response.body = { success: false, message:"Error interno del servidor"}
+    console.error(error);
+    ctx.response.status = 500;
+    ctx.response.body = {
+      success: false,
+      message: "Error interno del servidor",
+    };
   }
 };
 
-
-
-// PATCH  /api/admin/proveedor/:id/estado
-export const cambiarEstadoProveedor = async (ctx: RouterContext<string>) => {
-  const { response, state, params, request } = ctx;
+/** PATCH /api/admin/proveedores/:id/estado */
+export const cambiarEstadoProveedor = async (
+  ctx: RouterContext<"/api/admin/proveedores/:id/estado">,
+) => {
   try {
-    const sesion = state.user as Sesion;
-    const idProveedor = Number(params.id);
+    const usuario = ctx.state.user as { id_empresa: number };
+    const id_usuario = Number(ctx.params.id);
 
-    if (!sesion.id || !sesion.idEmpresa) {
-      response.status = 401;
-      response.body = { success: false, message: "No autenticado" };
+    if (Number.isNaN(id_usuario)) {
+      ctx.response.status = 400;
+      ctx.response.body = { success: false, message: "ID inválido" };
       return;
     }
 
-    if (Number.isNaN(idProveedor)) {
-        response.status = 400;
-        response.body = { success: false, 
-            message: "ID Invalido"
-        }
-        return;
-    };
-    console.log("ID Proveedor: ", idProveedor);
-
-    const body = await request.body.json();
+    const body = await ctx.request.body.json();
     if (![0, 1].includes(body.estado)) {
-      response.status = 400;
-      response.body = { success: false, message: "Estado inválido" };
+      ctx.response.status = 400;
+      ctx.response.body = { success: false, message: "Estado inválido" };
       return;
     }
 
     const resultado = await Proveedor.CambiarEstado(
-      idProveedor,
-      sesion.idEmpresa,
+      id_usuario,
+      usuario.id_empresa,
       body.estado,
     );
-
-    response.status = resultado.success ? 200 : 404;
-    response.body = resultado;
-     
+    ctx.response.status = resultado.success ? 200 : 404;
+    ctx.response.body = resultado;
   } catch (error) {
-    console.log("Estado prov: " + error);
-    response.status = 500;
-    response.body = {
+    console.error(error);
+    ctx.response.status = 500;
+    ctx.response.body = {
       success: false,
-      message: "Error interno del servidor"
+      message: "Error interno del servidor",
     };
   }
 };

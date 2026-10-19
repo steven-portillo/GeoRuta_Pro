@@ -1,10 +1,12 @@
 import { conexion } from "../conexion.ts";
+import { eliminarArchivo } from "../../Helpers/archivos.ts";
 
 interface CrearProductoData {
   id_categoria: number;
   nombre: string;
   descripcion?: string;
   precio: number;
+  stock_disponible?: number;
   stock_minimo?: number;
 }
 
@@ -20,8 +22,9 @@ export class Producto {
   static async Listar(id_empresa: number) {
     return await conexion.query(
       `SELECT p.id_producto, p.nombre, p.descripcion, p.precio, p.activo,
-              c.nombre AS nombre_categoria,
-              COALESCE(i.stock_disponible, 0) AS stock_disponible,
+              p.id_categoria,
+              c.nombre AS categoria,
+              COALESCE(i.stock_disponible, 0) AS stock,
               COALESCE(i.stock_reservado, 0) AS stock_reservado,
               pi.url AS imagen_url
        FROM productos p
@@ -65,18 +68,34 @@ export class Producto {
     rutasImagenes: string[],
   ) {
     const [categoria] = await conexion.query(
-      `SELECT id_categoria FROM categorias WHERE id_categoria = ? AND id_empresa = ?`,
+      `SELECT id_categoria FROM categorias WHERE id_categoria = ? AND id_empresa = ? AND activo = 1`,
       [datos.id_categoria, id_empresa],
     );
     if (!categoria) {
       return {
         success: false,
-        message: "La categoría seleccionada no pertenece a tu empresa",
+        message:
+          "La categoría no existe, no pertenece a tu empresa, o está inactiva",
       };
     }
 
     try {
       await conexion.execute("START TRANSACTION");
+
+      const [categoriaBloqueada] = await conexion.query(
+        `SELECT id_categoria FROM categorias
+         WHERE id_categoria = ? AND id_empresa = ? AND activo = 1
+         FOR UPDATE`,
+        [datos.id_categoria, id_empresa],
+      );
+      if (!categoriaBloqueada) {
+        await conexion.execute("ROLLBACK");
+        return {
+          success: false,
+          message:
+            "La categoría no existe, no pertenece a tu empresa, o está inactiva",
+        };
+      }
 
       const productoResult = await conexion.execute(
         `INSERT INTO productos (id_empresa, id_categoria, nombre, descripcion, precio, activo, fecha_creacion)
@@ -93,8 +112,12 @@ export class Producto {
 
       await conexion.execute(
         `INSERT INTO inventario (id_producto, stock_disponible, stock_reservado, stock_minimo, ultima_actualizacion)
-         VALUES (?, 0, 0, ?, CURRENT_TIMESTAMP)`,
-        [id_producto, datos.stock_minimo ?? 0],
+         VALUES (?, ?, 0, ?, CURRENT_TIMESTAMP)`,
+        [
+          id_producto,
+          datos.stock_disponible ?? 0,
+          datos.stock_minimo ?? 0,
+        ],
       );
 
       for (let orden = 0; orden < rutasImagenes.length; orden++) {
@@ -130,19 +153,37 @@ export class Producto {
 
     if (datos.id_categoria) {
       const [categoria] = await conexion.query(
-        `SELECT id_categoria FROM categorias WHERE id_categoria = ? AND id_empresa = ?`,
+        `SELECT id_categoria FROM categorias WHERE id_categoria = ? AND id_empresa = ? AND activo = 1`,
         [datos.id_categoria, id_empresa],
       );
       if (!categoria) {
         return {
           success: false,
-          message: "La categoría seleccionada no pertenece a tu empresa",
+          message:
+            "La categoría no existe, no pertenece a tu empresa, o está inactiva",
         };
       }
     }
 
     try {
       await conexion.execute("START TRANSACTION");
+
+      if (datos.id_categoria !== undefined) {
+        const [categoriaBloqueada] = await conexion.query(
+          `SELECT id_categoria FROM categorias
+           WHERE id_categoria = ? AND id_empresa = ? AND activo = 1
+           FOR UPDATE`,
+          [datos.id_categoria, id_empresa],
+        );
+        if (!categoriaBloqueada) {
+          await conexion.execute("ROLLBACK");
+          return {
+            success: false,
+            message:
+              "La categoría no existe, no pertenece a tu empresa, o está inactiva",
+          };
+        }
+      }
 
       await conexion.execute(
         `UPDATE productos SET id_categoria = ?, nombre = ?, descripcion = ?, precio = ?
@@ -191,15 +232,49 @@ export class Producto {
     id_empresa: number,
     nuevoEstado: 0 | 1,
   ) {
-    const result = await conexion.execute(
-      `UPDATE productos SET activo = ? WHERE id_producto = ? AND id_empresa = ?`,
-      [nuevoEstado, id_producto, id_empresa],
-    );
+    try {
+      await conexion.execute("START TRANSACTION");
+      const [producto] = await conexion.query(
+        `SELECT id_categoria FROM productos
+         WHERE id_producto = ? AND id_empresa = ?
+         FOR UPDATE`,
+        [id_producto, id_empresa],
+      );
+      if (!producto) {
+        await conexion.execute("ROLLBACK");
+        return { success: false, message: "Producto no encontrado" };
+      }
 
-    if (result.affectedRows === 0) {
-      return { success: false, message: "Producto no encontrado" };
+      if (nuevoEstado === 1) {
+        const [categoria] = await conexion.query(
+          `SELECT id_categoria FROM categorias
+           WHERE id_categoria = ? AND id_empresa = ? AND activo = 1
+           FOR UPDATE`,
+          [producto.id_categoria, id_empresa],
+        );
+        if (!categoria) {
+          await conexion.execute("ROLLBACK");
+          return {
+            success: false,
+            conflict: true,
+            message:
+              "No se puede activar el producto porque su categoría está inactiva",
+          };
+        }
+      }
+
+      await conexion.execute(
+        `UPDATE productos SET activo = ?
+         WHERE id_producto = ? AND id_empresa = ?`,
+        [nuevoEstado, id_producto, id_empresa],
+      );
+      await conexion.execute("COMMIT");
+      return { success: true, message: "Estado actualizado correctamente" };
+    } catch (error) {
+      await conexion.execute("ROLLBACK");
+      console.error("Error CambiarEstado producto:", error);
+      throw error;
     }
-    return { success: true, message: "Estado actualizado correctamente" };
   }
 
   private static async obtenerPropio(id_producto: number, id_empresa: number) {
@@ -209,5 +284,79 @@ export class Producto {
       [id_producto, id_empresa],
     );
     return producto ?? null;
+  }
+
+  static async Eliminar(id_producto: number, id_empresa: number) {
+    const producto = await Producto.obtenerPropio(id_producto, id_empresa);
+    if (!producto) return { success: false, message: "Producto no encontrado" };
+
+    const [enPedido] = await conexion.query(
+      `SELECT id_detalle FROM detalle_pedido WHERE id_producto = ? LIMIT 1`,
+      [id_producto],
+    );
+    if (enPedido) {
+      return {
+        success: false,
+        message:
+          "No se puede eliminar: el producto está asociado a uno o más pedidos",
+      };
+    }
+
+    const imagenes = await conexion.query(
+      `SELECT url FROM producto_imagenes WHERE id_producto = ?`,
+      [id_producto],
+    );
+
+    try {
+      await conexion.execute("START TRANSACTION");
+      await conexion.execute(
+        `DELETE FROM movimientos_inventario WHERE id_producto = ?`,
+        [id_producto],
+      );
+      await conexion.execute(`DELETE FROM inventario WHERE id_producto = ?`, [
+        id_producto,
+      ]);
+      await conexion.execute(
+        `DELETE FROM producto_imagenes WHERE id_producto = ?`,
+        [id_producto],
+      );
+      await conexion.execute(`DELETE FROM productos WHERE id_producto = ?`, [
+        id_producto,
+      ]);
+      await conexion.execute("COMMIT");
+    } catch (error) {
+      await conexion.execute("ROLLBACK");
+      console.error("Error Eliminar producto:", error);
+      return { success: false, message: "Error al eliminar el producto" };
+    }
+
+    for (const img of imagenes) {
+      await eliminarArchivo(img.url);
+    }
+
+    return { success: true, message: "Producto eliminado correctamente" };
+  }
+
+  static async EliminarImagen(
+    id_producto: number,
+    id_empresa: number,
+    id_imagen: number,
+  ) {
+    const producto = await Producto.obtenerPropio(id_producto, id_empresa);
+    if (!producto) return { success: false, message: "Producto no encontrado" };
+
+    const [imagen] = await conexion.query(
+      `SELECT url FROM producto_imagenes WHERE id_imagen = ? AND id_producto = ?`,
+      [id_imagen, id_producto],
+    );
+    if (!imagen) return { success: false, message: "Imagen no encontrada" };
+
+    await conexion.execute(
+      `DELETE FROM producto_imagenes WHERE id_imagen = ?`,
+      [id_imagen],
+    );
+    await eliminarArchivo(imagen.url);
+
+    return { success: true, message: "Imagen eliminada correctamente" };
   }
 }

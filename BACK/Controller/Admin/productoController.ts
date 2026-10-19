@@ -2,16 +2,15 @@ import { Context, RouterContext } from "../../Dependencies/dependencias.ts";
 import { Producto } from "../../Model/Admin/ProductoModel.ts";
 import {
   escribirArchivo,
-  generarNombreUnico,
-  rutaFisicaArchivo,
+  generarRutaArchivo,
   validarArchivo,
 } from "../../Helpers/archivos.ts";
-import { Sesion } from "../../Utils/tipos.ts";
+
 /** GET /api/admin/productos */
 export const listarProductos = async (ctx: Context) => {
   try {
-    const usuario = ctx.state.user as Sesion;
-    const productos = await Producto.Listar(usuario.idEmpresa!);
+    const usuario = ctx.state.user as { id_empresa: number };
+    const productos = await Producto.Listar(usuario.id_empresa);
     ctx.response.status = 200;
     ctx.response.body = { success: true, data: productos };
   } catch (error) {
@@ -29,7 +28,7 @@ export const obtenerProducto = async (
   ctx: RouterContext<"/api/admin/productos/:id">,
 ) => {
   try {
-    const usuario = ctx.state.user as Sesion;
+    const usuario = ctx.state.user as { id_empresa: number };
     const id_producto = Number(ctx.params.id);
 
     if (Number.isNaN(id_producto)) {
@@ -40,7 +39,7 @@ export const obtenerProducto = async (
 
     const producto = await Producto.ObtenerPorId(
       id_producto,
-      usuario.idEmpresa!,
+      usuario.id_empresa,
     );
     if (!producto) {
       ctx.response.status = 404;
@@ -63,7 +62,7 @@ export const obtenerProducto = async (
 /** POST /api/admin/productos */
 export const crearProducto = async (ctx: Context) => {
   try {
-    const usuario = ctx.state.user as Sesion;
+    const usuario = ctx.state.user as { id_empresa: number };
     const form = await ctx.request.body.formData();
 
     const id_categoria = Number(form.get("id_categoria"));
@@ -73,15 +72,23 @@ export const crearProducto = async (ctx: Context) => {
       ? String(descripcionRaw).trim()
       : undefined;
     const precio = Number(form.get("precio"));
+    const stockDisponibleRaw = form.get("stock_disponible");
+    const stock_disponible = stockDisponibleRaw === null
+      ? 0
+      : Number(stockDisponibleRaw);
     const stockMinimoRaw = form.get("stock_minimo");
     const stock_minimo = stockMinimoRaw ? Number(stockMinimoRaw) : undefined;
     const imagenes = form.getAll("imagenes");
 
-    if (!nombre || !id_categoria || Number.isNaN(precio)) {
+    if (
+      !nombre || !Number.isSafeInteger(id_categoria) || id_categoria <= 0 ||
+      !Number.isFinite(precio) || precio < 0 ||
+      !Number.isSafeInteger(stock_disponible) || stock_disponible < 0
+    ) {
       ctx.response.status = 400;
       ctx.response.body = {
         success: false,
-        message: "Faltan campos obligatorios",
+        message: "Verifica el nombre, la categoría, el precio y el stock del producto",
       };
       return;
     }
@@ -100,12 +107,19 @@ export const crearProducto = async (ctx: Context) => {
     }
 
     const rutasImagenes = archivosValidados.map((archivo) =>
-      rutaFisicaArchivo("productos", generarNombreUnico(archivo))
+      generarRutaArchivo(archivo, "productos")
     );
 
     const resultado = await Producto.Crear(
-      usuario.idEmpresa!,
-      { id_categoria, nombre, descripcion, precio, stock_minimo },
+      usuario.id_empresa,
+      {
+        id_categoria,
+        nombre,
+        descripcion,
+        precio,
+        stock_disponible,
+        stock_minimo,
+      },
       rutasImagenes,
     );
 
@@ -136,7 +150,7 @@ export const editarProducto = async (
   ctx: RouterContext<"/api/admin/productos/:id">,
 ) => {
   try {
-    const usuario = ctx.state.user as Sesion;
+    const usuario = ctx.state.user as { id_empresa: number };
     const id_producto = Number(ctx.params.id);
 
     if (Number.isNaN(id_producto)) {
@@ -175,28 +189,25 @@ export const editarProducto = async (
       archivosValidados.push(imagen);
     }
 
-
-    const rutasRelativas: string[] = [];
-
-    for (const archivo of archivosValidados) {
-      const nombreUnico = generarNombreUnico(archivo);
-      const rutaFisica = rutaFisicaArchivo("productos", nombreUnico);
-
-      await escribirArchivo(archivo, rutaFisica); 
-
-      rutasRelativas.push(`productos/${nombreUnico}`);
-    }
+    const rutasImagenes = archivosValidados.map((archivo) =>
+      generarRutaArchivo(archivo, "productos")
+    );
 
     const resultado = await Producto.Editar(
       id_producto,
-      usuario.idEmpresa!,
+      usuario.id_empresa,
       { id_categoria, nombre, descripcion, precio, stock_minimo },
-      rutasRelativas, 
+      rutasImagenes,
     );
+
     if (!resultado.success) {
       ctx.response.status = 404;
       ctx.response.body = resultado;
       return;
+    }
+
+    for (let i = 0; i < archivosValidados.length; i++) {
+      await escribirArchivo(archivosValidados[i], rutasImagenes[i]);
     }
 
     ctx.response.status = 200;
@@ -216,7 +227,7 @@ export const cambiarEstadoProducto = async (
   ctx: RouterContext<"/api/admin/productos/:id/estado">,
 ) => {
   try {
-    const usuario = ctx.state.user as Sesion;
+    const usuario = ctx.state.user as { id_empresa: number };
     const id_producto = Number(ctx.params.id);
 
     if (Number.isNaN(id_producto)) {
@@ -234,8 +245,71 @@ export const cambiarEstadoProducto = async (
 
     const resultado = await Producto.CambiarEstado(
       id_producto,
-      usuario.idEmpresa!,
+      usuario.id_empresa,
       body.estado,
+    );
+    ctx.response.status = resultado.success
+      ? 200
+      : ("conflict" in resultado && resultado.conflict)
+      ? 409
+      : 404;
+    ctx.response.body = resultado;
+  } catch (error) {
+    console.error(error);
+    ctx.response.status = 500;
+    ctx.response.body = {
+      success: false,
+      message: "Error interno del servidor",
+    };
+  }
+};
+
+/** DELETE /api/admin/productos/:id */
+export const eliminarProducto = async (
+  ctx: RouterContext<"/api/admin/productos/:id">,
+) => {
+  try {
+    const usuario = ctx.state.user as { id_empresa: number };
+    const id_producto = Number(ctx.params.id);
+
+    if (Number.isNaN(id_producto)) {
+      ctx.response.status = 400;
+      ctx.response.body = { success: false, message: "ID inválido" };
+      return;
+    }
+
+    const resultado = await Producto.Eliminar(id_producto, usuario.id_empresa);
+    ctx.response.status = resultado.success ? 200 : 400;
+    ctx.response.body = resultado;
+  } catch (error) {
+    console.error(error);
+    ctx.response.status = 500;
+    ctx.response.body = {
+      success: false,
+      message: "Error interno del servidor",
+    };
+  }
+};
+
+/** DELETE /api/admin/productos/:id/imagenes/:idImagen */
+export const eliminarImagenProducto = async (
+  ctx: RouterContext<"/api/admin/productos/:id/imagenes/:idImagen">,
+) => {
+  try {
+    const usuario = ctx.state.user as { id_empresa: number };
+    const id_producto = Number(ctx.params.id);
+    const id_imagen = Number(ctx.params.idImagen);
+
+    if (Number.isNaN(id_producto) || Number.isNaN(id_imagen)) {
+      ctx.response.status = 400;
+      ctx.response.body = { success: false, message: "ID inválido" };
+      return;
+    }
+
+    const resultado = await Producto.EliminarImagen(
+      id_producto,
+      usuario.id_empresa,
+      id_imagen,
     );
     ctx.response.status = resultado.success ? 200 : 404;
     ctx.response.body = resultado;

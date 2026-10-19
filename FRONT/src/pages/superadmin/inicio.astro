@@ -1,0 +1,68 @@
+---
+// src/pages/superadmin/inicio.astro
+import SuperAdminLayout from '../../layouts/SuperAdminLayout.astro';
+import InicioSuperAdmin from '../../components/superadmin/InicioSuperAdmin.astro';
+import type { MetricasSuperAdmin, EmpresaPendiente } from '../../components/superadmin/InicioSuperAdmin.astro';
+import type { EmpresaSuperAdmin } from '../../components/superadmin/EmpresasSuperAdmin.astro';
+import { llamarBackend, obtenerToken } from '../../lib/Backend';
+
+const token = obtenerToken(Astro.cookies);
+
+// El middleware ya protege /superadmin, pero por si acaso
+if (!token) return Astro.redirect('/login');
+
+let respuestaPerfil, respuestaEmpresas, respuestaClientes;
+
+try {
+  [respuestaPerfil, respuestaEmpresas, respuestaClientes] = await Promise.all([
+    llamarBackend('/api/perfil', { token }),
+    llamarBackend('/api/admin/superadmin/empresas', { token }),
+    llamarBackend('/api/admin/superadmin/clientes', { token }),
+  ]);
+} catch (error) {
+  console.error('No se pudo conectar con el backend:', error);
+  return Astro.redirect('/login?error=servidor');
+}
+
+// Token vencido o rechazado por el backend
+if ([respuestaEmpresas, respuestaClientes].some((r) => r.status === 401)) {
+  Astro.cookies.delete('token', { path: '/' });
+  return Astro.redirect('/login?error=sesion_expirada');
+}
+
+// El rol no es SuperAdmin según el backend
+if ([respuestaEmpresas, respuestaClientes].some((r) => r.status === 403)) {
+  return Astro.redirect('/login?error=sin_permisos');
+}
+
+const perfil = respuestaPerfil.datos.data ?? { nombre: '', apellido: '' };
+const empresas = (respuestaEmpresas.datos.data ?? []) as EmpresaSuperAdmin[];
+const clientes = respuestaClientes.datos.data ?? [];
+
+// el backend ya devuelve las empresas de la mas reciente a la mas antigua
+const inactivas = empresas.filter((e) => !e.estado);
+
+const metricas: MetricasSuperAdmin = {
+  totalEmpresas: empresas.length,
+  empresasActivas: empresas.length - inactivas.length,
+  empresasInactivas: inactivas.length,
+  totalUsuarios: clientes.length,
+};
+
+// solo las 5 mas recientes; el resto se ve en la pagina de empresas
+const pendientes: EmpresaPendiente[] = inactivas.slice(0, 5);
+---
+
+<SuperAdminLayout
+  titulo="Inicio"
+  vistaActual="inicio"
+  nombreAdmin={`${perfil.nombre} ${perfil.apellido}`.trim()}
+  imagenUrl={perfil.imagenUrl || null}
+>
+  <InicioSuperAdmin
+    nombre={perfil.nombre}
+    apellido={perfil.apellido}
+    metricas={metricas}
+    pendientes={pendientes}
+  />
+</SuperAdminLayout>

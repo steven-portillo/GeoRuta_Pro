@@ -1,0 +1,44 @@
+---
+// src/pages/proveedor/inicio.astro
+import ProveedorLayout from '../../layouts/ProveedorLayout.astro';
+import InicioProveedor from '../../components/proveedor/InicioProveedor.astro';
+import type {
+  MetricasProveedor,
+  PedidoInicio,
+} from '../../components/proveedor/InicioProveedor.astro';
+import { llamarBackend, obtenerToken } from '../../lib/Backend';
+
+const token = obtenerToken(Astro.cookies);
+
+// perfil (nombre y sidebar) y datos del dashboard en paralelo
+const [respuestaPerfil, respuestaDatos] = await Promise.all([
+  llamarBackend<{ nombre?: string; apellido?: string; imagenUrl?: string; empresaNombre?: string }>(
+    '/proveedor/perfil',
+    { token },
+  ),
+  llamarBackend('/proveedor/inicio/datos', { token }),
+]);
+
+const perfil = respuestaPerfil.datos.data ?? {};
+
+// este endpoint devuelve "metricas" y "pedidos" como claves sueltas, no dentro de "data"
+const datosOk = respuestaDatos.datos.success;
+const metricas = datosOk ? (respuestaDatos.datos.metricas as MetricasProveedor) : undefined;
+const pedidos = datosOk ? ((respuestaDatos.datos.pedidos ?? []) as PedidoInicio[]) : [];
+const error = datosOk ? undefined : respuestaDatos.datos.message;
+---
+
+<ProveedorLayout
+  titulo="Inicio"
+  vistaActual="inicio"
+  nombreProveedor={`${perfil.nombre ?? ''} ${perfil.apellido ?? ''}`.trim()}
+  imagenUrl={perfil.imagenUrl || null}
+  empresaNombre={perfil.empresaNombre || undefined}
+>
+  <InicioProveedor
+    nombre={perfil.nombre || 'Repartidor'}
+    metricas={metricas}
+    pedidos={pedidos}
+    error={error}
+  />
+</ProveedorLayout>

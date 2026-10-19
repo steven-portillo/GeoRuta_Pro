@@ -1,13 +1,28 @@
-//RECORDAR TAMBIEN UNIR AL LOGOUT DEL BACKEND, EL ENDPOINT ES LA RUTABASE/api/auth/logout
-import type { APIRoute } from "astro";
+// src/pages/api/auth/logout.ts
+import type { APIRoute } from 'astro';
 
-const rutadeno = import.meta.env.API_DENO;
+export const prerender = false;
 
+const API_DENO = import.meta.env.API_DENO;
+
+const json = (cuerpo: unknown, status: number) =>
+  new Response(JSON.stringify(cuerpo), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+/** POST /api/auth/logout -> avisa al backend y borra la cookie en Astro */
 export const POST: APIRoute = async ({ cookies }) => {
-    cookies.delete("token", { path: "/" });
-    const respuesta = await fetch(`${rutadeno}/api/auth/logout`, {
-        method: "POST",
-        headers: { "Content-Typer": "application/json"}
-    })
-    return new Response(JSON.stringify({ success: true }), { status: 200 });
+  try {
+    // Aviso al backend. Si falla, igual cerramos la sesión en el front.
+    await fetch(`${API_DENO}/api/auth/logout`, { method: 'POST' }).catch(
+      (error) => console.error('No se pudo avisar al backend del logout:', error),
+    );
+  } finally {
+    // La cookie la creó Astro en login.ts, así que Astro es quien debe borrarla.
+    // path debe ser el mismo que al crearla, o el navegador no la elimina.
+    cookies.delete('token', { path: '/' });
+  }
+
+  return json({ success: true, message: 'Sesión cerrada correctamente' }, 200);
 };

@@ -1,58 +1,86 @@
 import { defineMiddleware } from "astro:middleware";
-import { verificarTokenAstro } from "./lib/jwt";
+import { jwtVerify } from "jose";
 
-const RUTAS_PUBLICAS = ["/", "/auth/login", "/auth/signin", "/auth/signin-empresa", "/auth/password"];
+const NOMBRE_COOKIE = "token";
 
+const RUTAS_PROTEGIDAS: { prefijo: string; rol: string }[] = [
+  { prefijo: "/cliente", rol: "CLIENTE" },
+  { prefijo: "/api/auth/cliente", rol: "CLIENTE" },
+  { prefijo: "/admin", rol: "ADMIN" },
+  { prefijo: "/api/auth/admin", rol: "ADMIN" },
+  { prefijo: "/proveedor", rol: "PROVEEDOR" },
+  { prefijo: "/api/auth/proveedor", rol: "PROVEEDOR" },
+  { prefijo: "/superadmin", rol: "SUPERADMIN" },
+  { prefijo: "/api/auth/superadmin", rol: "SUPERADMIN" },
+];
+
+// Se calcula una sola vez, no en cada petición
+const secreto = import.meta.env.JWT_SECRET;
+if (!secreto) {
+  throw new Error("JWT_SECRET no está configurada en el .env de Astro");
+}
+const CLAVE = new TextEncoder().encode(secreto);
+
+// "/admin" coincide con "/admin" y "/admin/inicio", pero NO con "/administracion"
+const coincide = (pathname: string, prefijo: string) =>
+  pathname === prefijo || pathname.startsWith(prefijo + "/");
+
+const respuestaJson = (status: number, message: string) =>
+  new Response(JSON.stringify({ success: false, message }), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
 
 export const onRequest = defineMiddleware(async (context, next) => {
-    const { url, cookies, redirect, locals } = context;
-    const path = url.pathname;
+  const { pathname } = context.url;
+  const esApi = pathname.startsWith("/api/");
 
-    if (path.startsWith("/api/")) {
-        return next();
+  const rutaProtegida = RUTAS_PROTEGIDAS.find((r) =>
+    coincide(pathname, r.prefijo),
+  );
+
+  // Públicas: login, registro, home, /api/auth/login, etc.
+  if (!rutaProtegida) {
+    return next();
+  }
+
+  const token = context.cookies.get(NOMBRE_COOKIE)?.value;
+
+  if (!token) {
+    return esApi
+      ? respuestaJson(401, "No autenticado")
+      : context.redirect("/login");
+  }
+
+  try {
+    const { payload } = await jwtVerify(token, CLAVE, {
+      algorithms: ["HS256"],
+    });
+
+    const rol = String(payload.rol ?? "").toUpperCase();
+
+    if (rol !== rutaProtegida.rol) {
+      return esApi
+        ? respuestaJson(403, "No tienes permisos para esta acción")
+        : context.redirect("/login?error=sin_permisos");
     }
 
-    const token = cookies.get("token")?.value;
-    const usuario = await verificarTokenAstro(token);
-    locals.usuario = usuario;
+    // crearToken() en Deno guarda { id, rol, id_empresa }
+    const idUsuario = Number(payload.id ?? payload.sub);
+    const idEmpresa = payload.id_empresa ?? payload.idEmpresa ?? null;
 
-    const esPublica = RUTAS_PUBLICAS.some(
-        (r) => path === r || path.startsWith(r + "/"),
-    );
-
-    if (esPublica) {
-        if (usuario) {
-            const rol = usuario.rol?.toUpperCase();
-            if (rol === "SUPERADMIN") return redirect("/superadmin/");
-            if (rol === "ADMIN") return redirect("/admin/");
-            if (rol === "PROVEEDOR") return redirect("/repartidor/");
-            if (rol === "CLIENTE") return redirect("/cliente/");
-            return redirect("/");
-        }
-        return next();
-    }
-
-
-    if (!usuario) {
-        return redirect("/");
-    }
-
-    if (path.startsWith("/superadmin") && usuario.rol !== "SUPERADMIN") {
-        cookies.delete("token", { path: "/" });
-        return redirect("/");
-    }
-    if (path.startsWith("/admin") && usuario.rol !== "ADMIN") {
-        cookies.delete("token", { path: "/" });
-        return redirect("/");
-    }
-    if (path.startsWith("/repartidor") && usuario.rol !== "PROVEEDOR") {
-        cookies.delete("token", { path: "/" });
-        return redirect("/");
-    }
-    if (path.startsWith("/cliente") && usuario.rol !== "CLIENTE") {
-        cookies.delete("token", { path: "/" });
-        return redirect("/");
-    }
+    context.locals.usuario = {
+      idUsuario,
+      idEmpresa: idEmpresa === null ? null : Number(idEmpresa),
+      rol,
+    };
 
     return next();
+  } catch (error) {
+    console.error("JWT inválido o expirado:", error);
+    context.cookies.delete(NOMBRE_COOKIE, { path: "/" });
+    return esApi
+      ? respuestaJson(401, "Sesión expirada")
+      : context.redirect("/login?error=sesion_expirada");
+  }
 });
