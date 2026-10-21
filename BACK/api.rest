@@ -22,6 +22,32 @@ Content-Type: application/json
 	"password": "12345678"
 }
 
+### Iniciar sesión o registrarse como cliente con Google
+# Reemplaza el valor por el ID token (credential) entregado por Google Identity Services.
+POST {{baseUrl}}/api/auth/google
+Content-Type: application/json
+
+{
+  "credential": "<GOOGLE_ID_TOKEN>"
+}
+
+### Solicitar recuperación de contraseña (cualquier rol)
+POST {{baseUrl}}/api/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "usuario@example.com"
+}
+
+### Establecer contraseña con el token recibido por correo
+POST {{baseUrl}}/api/auth/reset-password
+Content-Type: application/json
+
+{
+  "token": "<TOKEN_DEL_CORREO>",
+  "password": "nueva-contraseña-segura"
+}
+
 
 ### Registrar empresa (con logo)
 POST {{baseUrl}}/api/auth/register-empresa

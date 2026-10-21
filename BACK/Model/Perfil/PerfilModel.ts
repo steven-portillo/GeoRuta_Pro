@@ -1,6 +1,6 @@
 import { conexion } from "../conexion.ts";
 import { eliminarArchivo } from "../../Helpers/archivos.ts";
-import { hash, compare } from "../../Dependencies/dependencias.ts";
+import { compare, hash } from "../../Dependencies/dependencias.ts";
 
 interface EditarPerfilData {
   nombre?: string;
@@ -10,7 +10,7 @@ interface EditarPerfilData {
 }
 
 interface CambiarPasswordData {
-  passwordActual: string;
+  passwordActual?: string;
   passwordNueva: string;
 }
 
@@ -126,12 +126,23 @@ export class Perfil {
       return { success: false, message: "Usuario no encontrado" };
     }
 
-    const passwordValido = await compare(
-      datos.passwordActual,
-      usuario.password_hash,
-    );
-    if (!passwordValido) {
-      return { success: false, message: "La contraseña actual es incorrecta" };
+    if (usuario.password_hash) {
+      if (!datos.passwordActual) {
+        return {
+          success: false,
+          message: "Debes ingresar la contraseña actual",
+        };
+      }
+      const passwordValido = await compare(
+        datos.passwordActual,
+        usuario.password_hash,
+      );
+      if (!passwordValido) {
+        return {
+          success: false,
+          message: "La contraseña actual es incorrecta",
+        };
+      }
     }
 
     const nuevoHash = await hash(datos.passwordNueva);

@@ -1,5 +1,6 @@
 import { Context, RouterContext } from "../../Dependencies/dependencias.ts";
 import { Pedido } from "../../Model/Admin/PedidoModel.ts";
+import { notificarClienteCambioPedido } from "../../Helpers/pedidoEmails.ts";
 
 /** GET /api/admin/pedidos */
 export const listarPedidos = async (ctx: Context) => {
@@ -84,6 +85,9 @@ export const asignarProveedor = async (
       id_proveedor,
       notas,
     );
+    if (resultado.success) {
+      await notificarClienteCambioPedido(id_pedido, "asignado");
+    }
     ctx.response.status = resultado.success ? 200 : 400;
     ctx.response.body = resultado;
   } catch (error) {
@@ -129,6 +133,9 @@ export const cancelarPedido = async (
       id_usuario,
       motivo,
     );
+    if (resultado.success) {
+      await notificarClienteCambioPedido(id_pedido, "cancelado", motivo);
+    }
     ctx.response.status = resultado.success ? 200 : 400;
     ctx.response.body = resultado;
   } catch (error) {

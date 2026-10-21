@@ -9,6 +9,22 @@ interface ItemPedido {
   stock_disponible: number;
 }
 
+interface ResultadoCrearPedido {
+  success: false;
+  message: string;
+  id_producto?: number;
+  stock_disponible?: number;
+}
+
+interface PedidoCreado {
+  success: true;
+  message: string;
+  id_pedido: number;
+  total: number;
+  metodo_pago: "contra_entrega" | "online";
+  referencia_checkout?: string;
+}
+
 export class PedidoCliente {
   static async Listar(id_cliente: number) {
     return await conexion.query(
@@ -65,7 +81,19 @@ export class PedidoCliente {
     id_cliente: number,
     id_direccion: number,
     observaciones?: string,
-  ) {
+    metodo_pago: "contra_entrega" | "online" = "contra_entrega",
+    referencia_checkout?: string,
+  ): Promise<ResultadoCrearPedido | PedidoCreado> {
+    if (
+      metodo_pago === "online" &&
+      (!referencia_checkout || referencia_checkout.length > 100)
+    ) {
+      return {
+        success: false,
+        message: "La referencia del checkout es inválida",
+      };
+    }
+
     try {
       await conexion.execute("START TRANSACTION");
       const [carrito] = await conexion.query(
@@ -173,25 +201,30 @@ export class PedidoCliente {
         totalCentavos += Math.round(producto.precio * 100) * producto.cantidad;
       }
 
-      const [estadoAprobado] = await conexion.query(
-        `SELECT id_estado FROM estados_pedido WHERE nombre_estado = 'Aprobado'`,
+      const estadoInicial = metodo_pago === "online" ? "Pendiente" : "Aprobado";
+      const [estadoPedido] = await conexion.query(
+        `SELECT id_estado FROM estados_pedido WHERE nombre_estado = ?`,
+        [estadoInicial],
       );
-      if (!estadoAprobado) {
-        throw new Error("No existe el estado de pedido Aprobado");
+      if (!estadoPedido) {
+        throw new Error(`No existe el estado de pedido ${estadoInicial}`);
       }
       const total = totalCentavos / 100;
       const pedidoResult = await conexion.execute(
         `INSERT INTO pedidos
            (id_empresa, id_cliente, id_direccion, id_estado, metodo_pago,
             total, fecha_pedido, fecha_aprobacion, observaciones, pago_confirmado)
-         VALUES (?, ?, ?, ?, 'contra_entrega', ?, CURRENT_TIMESTAMP,
-                 CURRENT_TIMESTAMP, ?, 0)`,
+         VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP,
+                 CASE WHEN ? = 'contra_entrega' THEN CURRENT_TIMESTAMP ELSE NULL END,
+                 ?, 0)`,
         [
           carrito.id_empresa,
           id_cliente,
           id_direccion,
-          estadoAprobado.id_estado,
+          estadoPedido.id_estado,
+          metodo_pago,
           total.toFixed(2),
+          metodo_pago,
           observaciones ?? null,
         ],
       );
@@ -233,9 +266,15 @@ export class PedidoCliente {
       }
 
       await conexion.execute(
-        `INSERT INTO pagos (id_pedido, monto, estado_pago)
-         VALUES (?, ?, 'pendiente')`,
-        [id_pedido, total.toFixed(2)],
+        `INSERT INTO pagos
+           (id_pedido, pasarela, referencia_checkout, monto, estado_pago)
+         VALUES (?, ?, ?, ?, 'pendiente')`,
+        [
+          id_pedido,
+          metodo_pago === "online" ? "wompi" : null,
+          metodo_pago === "online" ? referencia_checkout : null,
+          total.toFixed(2),
+        ],
       );
       await conexion.execute(
         `DELETE FROM carrito_items WHERE id_carrito = ?`,
@@ -251,7 +290,8 @@ export class PedidoCliente {
         message: "Pedido creado correctamente",
         id_pedido,
         total,
-        metodo_pago: "contra_entrega",
+        metodo_pago,
+        ...(metodo_pago === "online" ? { referencia_checkout } : {}),
       };
     } catch (error) {
       await conexion.execute("ROLLBACK");
@@ -268,7 +308,8 @@ export class PedidoCliente {
     try {
       await conexion.execute("START TRANSACTION");
       const [pedido] = await conexion.query(
-        `SELECT p.id_pedido, p.observaciones, ep.nombre_estado
+        `SELECT p.id_pedido, p.observaciones, p.metodo_pago,
+                p.pago_confirmado, ep.nombre_estado
          FROM pedidos p
          INNER JOIN estados_pedido ep ON ep.id_estado = p.id_estado
          WHERE p.id_pedido = ? AND p.id_cliente = ?
@@ -278,6 +319,17 @@ export class PedidoCliente {
       if (!pedido) {
         await conexion.execute("ROLLBACK");
         return { success: false, message: "Pedido no encontrado" };
+      }
+      if (
+        pedido.metodo_pago === "online" &&
+        Number(pedido.pago_confirmado) === 1
+      ) {
+        await conexion.execute("ROLLBACK");
+        return {
+          success: false,
+          message:
+            "El pago en línea ya fue aprobado; la cancelación requiere gestionar el reembolso",
+        };
       }
       if (pedido.nombre_estado !== "Aprobado") {
         await conexion.execute("ROLLBACK");

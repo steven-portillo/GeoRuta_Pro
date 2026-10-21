@@ -1,0 +1,49 @@
+@baseUrl = http://localhost:8005
+@tokenProveedor = PEGA_AQUI_EL_TOKEN_DEL_PROVEEDOR
+@idPedido = 1
+@codigoEntrega = 0000
+
+### Iniciar sesión como proveedor
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "CORREO_DEL_PROVEEDOR",
+  "password": "CONTRASENA_DEL_PROVEEDOR"
+}
+
+### Listar pedidos asignados y aún no finalizados
+GET {{baseUrl}}/api/proveedor/pedidos
+Authorization: Bearer {{tokenProveedor}}
+
+### Consultar detalle de un pedido asignado a este proveedor
+# No expone el código de entrega. El cliente lo consulta en su propia cuenta.
+GET {{baseUrl}}/api/proveedor/pedidos/{{idPedido}}
+Authorization: Bearer {{tokenProveedor}}
+
+### Iniciar en bloque todos los pedidos asignados pendientes
+# Genera un código distinto por pedido, cambia el estado a "En transito"
+# y notifica por correo a cada cliente. El mapa y WebSockets se integran aparte.
+POST {{baseUrl}}/api/proveedor/entregas/iniciar
+Authorization: Bearer {{tokenProveedor}}
+
+### Confirmar entrega contraentrega
+# Obtén el código desde la cuenta del cliente. Informa si se recibió el pago.
+POST {{baseUrl}}/api/proveedor/pedidos/{{idPedido}}/confirmar-entrega
+Authorization: Bearer {{tokenProveedor}}
+Content-Type: application/json
+
+{
+  "codigo_entrega": "{{codigoEntrega}}",
+  "pago_recibido": true
+}
+
+### Confirmar entrega con pago online
+# No envíes pago_recibido para pago online; la pasarela es responsable del pago.
+POST {{baseUrl}}/api/proveedor/pedidos/{{idPedido}}/confirmar-entrega
+Authorization: Bearer {{tokenProveedor}}
+Content-Type: application/json
+
+{
+  "codigo_entrega": "{{codigoEntrega}}"
+}

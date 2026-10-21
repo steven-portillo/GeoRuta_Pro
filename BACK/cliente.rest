@@ -110,6 +110,18 @@ Content-Type: application/json
   "observaciones": "Entregar en horario de atención"
 }
 
+### Crear checkout Wompi para el carrito
+# El backend calcula el monto, crea el pedido online pendiente y devuelve
+# los valores para iniciar el widget de Wompi. El pago se confirma por webhook.
+POST {{baseUrl}}/api/cliente/pagos/wompi/checkout
+Authorization: ******
+Content-Type: application/json
+
+{
+  "id_direccion": {{idDireccion}},
+  "observaciones": "Entregar en horario de atención"
+}
+
 ### Listar mis pedidos
 GET {{baseUrl}}/api/cliente/pedidos
 Authorization: Bearer {{tokenCliente}}

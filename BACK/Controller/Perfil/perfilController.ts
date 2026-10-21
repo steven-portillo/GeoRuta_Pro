@@ -1,8 +1,8 @@
 import { Context } from "../../Dependencies/dependencias.ts";
 import { Perfil } from "../../Model/Perfil/PerfilModel.ts";
 import {
-  generarRutaArchivo,
   escribirArchivo,
+  generarRutaArchivo,
   validarArchivo,
 } from "../../Helpers/archivos.ts";
 
@@ -98,25 +98,33 @@ export const cambiarPassword = async (ctx: Context) => {
     const body = await ctx.request.body.json();
     const { passwordActual, passwordNueva } = body;
 
-    if (!passwordActual || !passwordNueva) {
+    if (
+      typeof passwordNueva !== "string" ||
+      (passwordActual !== undefined &&
+        typeof passwordActual !== "string")
+    ) {
       ctx.response.status = 400;
       ctx.response.body = {
         success: false,
-        message: "Faltan campos obligatorios",
+        message: "Los campos de contraseña no son válidos",
       };
       return;
     }
-    if (String(passwordNueva).length < 8) {
+    if (
+      passwordNueva.length < 8 ||
+      new TextEncoder().encode(passwordNueva).length > 72
+    ) {
       ctx.response.status = 400;
       ctx.response.body = {
         success: false,
-        message: "La nueva contraseña debe tener al menos 8 caracteres",
+        message:
+          "La nueva contraseña debe tener al menos 8 caracteres y un máximo de 72 bytes",
       };
       return;
     }
 
     const resultado = await Perfil.CambiarPassword(id_usuario, {
-      passwordActual,
+      passwordActual: passwordActual || undefined,
       passwordNueva,
     });
     ctx.response.status = resultado.success ? 200 : 400;

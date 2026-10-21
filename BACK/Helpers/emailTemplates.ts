@@ -35,7 +35,9 @@ function layoutBase(titulo: string, preheader: string, contenido: string) {
   <title>${escapeHtml(titulo)}</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f1f5f9;">
-  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(preheader)}</div>
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${
+    escapeHtml(preheader)
+  }</div>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f1f5f9">
     <tr>
       <td align="center" style="padding:24px 12px;">
@@ -51,7 +53,9 @@ function layoutBase(titulo: string, preheader: string, contenido: string) {
           </tr>
           <tr>
             <td style="padding:32px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#1e293b;">
-              <h1 style="margin:0 0 16px 0;font-size:22px;line-height:1.3;color:${MARCA.colorPrimario};">${escapeHtml(titulo)}</h1>
+              <h1 style="margin:0 0 16px 0;font-size:22px;line-height:1.3;color:${MARCA.colorPrimario};">${
+    escapeHtml(titulo)
+  }</h1>
               ${contenido}
             </td>
           </tr>
@@ -78,7 +82,9 @@ export function plantillaBienvenidaCliente(
     titulo,
     "Tu cuenta fue creada correctamente.",
     `
-      <p style="margin:0 0 12px 0;">Hola <strong>${escapeHtml(nombreCliente)}</strong>,</p>
+      <p style="margin:0 0 12px 0;">Hola <strong>${
+      escapeHtml(nombreCliente)
+    }</strong>,</p>
       <p style="margin:0;">Tu cuenta fue creada correctamente. Ya puedes iniciar sesión y empezar a comprar.</p>
     `,
   );
@@ -94,6 +100,223 @@ export function plantillaBienvenidaCliente(
   return { asunto: titulo, html, texto };
 }
 
+export function plantillaRecuperacionPassword(
+  nombreUsuario: string,
+  token: string,
+  enlace?: string,
+): PlantillaCorreo {
+  const titulo = "Restablece tu contraseña de GeoRuta";
+  const enlaceHtml = enlace
+    ? `<p style="margin:16px 0;"><a href="${
+      escapeHtml(enlace)
+    }" style="display:inline-block;padding:12px 20px;background-color:${MARCA.colorPrimario};color:#ffffff;text-decoration:none;border-radius:6px;">Restablecer contraseña</a></p>`
+    : "";
+  return {
+    asunto: titulo,
+    html: layoutBase(
+      titulo,
+      "Solicitaste restablecer la contraseña de tu cuenta.",
+      `<p>Hola <strong>${escapeHtml(nombreUsuario)}</strong>,</p>
+       <p>Usa este código para crear una nueva contraseña. Vence en 15 minutos y solo puede utilizarse una vez:</p>
+       <p style="padding:12px;background-color:#f8fafc;font-family:monospace;font-size:18px;word-break:break-all;">${
+        escapeHtml(token)
+      }</p>
+       ${enlaceHtml}
+       <p>Si no solicitaste este cambio, puedes ignorar este mensaje. Tu contraseña actual no cambiará.</p>`,
+    ),
+    texto: [
+      `Hola ${nombreUsuario},`,
+      "Solicitaste restablecer la contraseña de tu cuenta.",
+      `Código de un solo uso (vence en 15 minutos): ${token}`,
+      ...(enlace ? [`Enlace: ${enlace}`] : []),
+      "Si no solicitaste este cambio, ignora este mensaje.",
+      `-- ${MARCA.nombre}`,
+    ].join("\n\n"),
+  };
+}
+
+export interface PedidoCorreoItem {
+  nombre: string;
+  cantidad: number;
+  precio_unitario: number;
+  subtotal: number;
+}
+
+export interface PedidoCorreoDatos {
+  id_pedido: number;
+  nombre_cliente: string;
+  nombre_empresa: string;
+  total: number;
+  metodo_pago: string;
+  direccion_texto: string;
+  productos: PedidoCorreoItem[];
+  nombre_proveedor?: string;
+}
+
+function resumenPedido(pedido: PedidoCorreoDatos) {
+  const filas = pedido.productos.map((producto) => `
+    <tr>
+      <td style="padding:8px;border-bottom:1px solid #e2e8f0;">${
+    escapeHtml(producto.nombre)
+  }</td>
+      <td align="center" style="padding:8px;border-bottom:1px solid #e2e8f0;">${producto.cantidad}</td>
+      <td align="right" style="padding:8px;border-bottom:1px solid #e2e8f0;">$${
+    producto.subtotal.toLocaleString("es-CO")
+  }</td>
+    </tr>`).join("");
+  const textoProductos = pedido.productos.map((producto) =>
+    `- ${producto.nombre} x ${producto.cantidad}: $${
+      producto.subtotal.toLocaleString("es-CO")
+    }`
+  );
+
+  return {
+    html: `
+      <p style="margin:0 0 12px 0;">Pedido <strong>#${pedido.id_pedido}</strong> de <strong>${
+      escapeHtml(pedido.nombre_empresa)
+    }</strong></p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th align="left" style="padding:8px;border-bottom:2px solid #cbd5e1;">Producto</th>
+            <th align="center" style="padding:8px;border-bottom:2px solid #cbd5e1;">Cantidad</th>
+            <th align="right" style="padding:8px;border-bottom:2px solid #cbd5e1;">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>${filas}</tbody>
+      </table>
+      <p style="margin:16px 0 4px 0;"><strong>Total:</strong> $${
+      pedido.total.toLocaleString("es-CO")
+    }</p>
+      <p style="margin:4px 0;"><strong>Pago:</strong> ${
+      escapeHtml(pedido.metodo_pago.replace(/_/g, " "))
+    }</p>
+      <p style="margin:4px 0;"><strong>Dirección:</strong> ${
+      escapeHtml(pedido.direccion_texto)
+    }</p>
+    `,
+    texto: [
+      `Pedido #${pedido.id_pedido} de ${pedido.nombre_empresa}`,
+      ...textoProductos,
+      `Total: $${pedido.total.toLocaleString("es-CO")}`,
+      `Pago: ${pedido.metodo_pago.replace(/_/g, " ")}`,
+      `Dirección: ${pedido.direccion_texto}`,
+    ].join("\n"),
+  };
+}
+
+export function plantillaConfirmacionPedidoCliente(
+  pedido: PedidoCorreoDatos,
+): PlantillaCorreo {
+  const titulo = `Recibimos tu pedido #${pedido.id_pedido}`;
+  const resumen = resumenPedido(pedido);
+  const mensajePago = pedido.metodo_pago === "online"
+    ? "Tu pago en línea fue aprobado."
+    : "El pago se realizará contra entrega.";
+  return {
+    asunto: titulo,
+    html: layoutBase(
+      titulo,
+      `Tu pedido en ${pedido.nombre_empresa} fue confirmado.`,
+      `<p style="margin:0 0 16px 0;">Hola <strong>${
+        escapeHtml(pedido.nombre_cliente)
+      }</strong>, recibimos tu pedido. ${
+        escapeHtml(mensajePago)
+      }</p>${resumen.html}`,
+    ),
+    texto: [
+      `Hola ${pedido.nombre_cliente}, recibimos tu pedido.`,
+      mensajePago,
+      resumen.texto,
+      `-- ${MARCA.nombre}`,
+    ].join("\n\n"),
+  };
+}
+
+export function plantillaCancelacionPedidoCliente(
+  pedido: PedidoCorreoDatos,
+  motivo?: string,
+): PlantillaCorreo {
+  const titulo = `Pedido #${pedido.id_pedido} cancelado`;
+  const notaMotivo = motivo
+    ? `<p><strong>Motivo:</strong> ${escapeHtml(motivo)}</p>`
+    : "";
+  return {
+    asunto: titulo,
+    html: layoutBase(
+      titulo,
+      `El pedido #${pedido.id_pedido} fue cancelado.`,
+      `<p style="margin:0 0 12px 0;">Hola <strong>${
+        escapeHtml(pedido.nombre_cliente)
+      }</strong>, te confirmamos que tu pedido fue cancelado.</p>${notaMotivo}<p>Si tienes dudas, responde a este correo.</p>`,
+    ),
+    texto: [
+      `Hola ${pedido.nombre_cliente}, tu pedido #${pedido.id_pedido} fue cancelado.`,
+      ...(motivo ? [`Motivo: ${motivo}`] : []),
+      `-- ${MARCA.nombre}`,
+    ].join("\n\n"),
+  };
+}
+
+export function plantillaAsignacionPedidoCliente(
+  pedido: PedidoCorreoDatos,
+): PlantillaCorreo {
+  const titulo = `Actualización del pedido #${pedido.id_pedido}`;
+  const proveedor = pedido.nombre_proveedor
+    ? ` El pedido fue asignado a ${escapeHtml(pedido.nombre_proveedor)}.`
+    : "";
+  return {
+    asunto: titulo,
+    html: layoutBase(
+      titulo,
+      `Tu pedido de ${pedido.nombre_empresa} fue asignado.`,
+      `<p style="margin:0;">Hola <strong>${
+        escapeHtml(pedido.nombre_cliente)
+      }</strong>, tu pedido de <strong>${
+        escapeHtml(pedido.nombre_empresa)
+      }</strong> ya fue asignado a un proveedor.${proveedor} Te avisaremos cuando inicie la ruta.</p>`,
+    ),
+    texto: [
+      `Hola ${pedido.nombre_cliente},`,
+      `Tu pedido #${pedido.id_pedido} de ${pedido.nombre_empresa} ya fue asignado a un proveedor.`,
+      ...(pedido.nombre_proveedor
+        ? [`Proveedor: ${pedido.nombre_proveedor}`]
+        : []),
+      "Te avisaremos cuando inicie la ruta.",
+      `-- ${MARCA.nombre}`,
+    ].join("\n\n"),
+  };
+}
+
+export function plantillaEstadoPedidoCliente(
+  pedido: PedidoCorreoDatos,
+  estado: "En transito" | "Entregado",
+): PlantillaCorreo {
+  const enRuta = estado === "En transito";
+  const titulo = enRuta
+    ? `Tu pedido #${pedido.id_pedido} está en camino`
+    : `Tu pedido #${pedido.id_pedido} fue entregado`;
+  const mensaje = enRuta
+    ? "El proveedor inició la ruta de entrega. Puedes consultar el estado y el código de entrega desde tu cuenta."
+    : "El pedido figura como entregado. Gracias por comprar en GeoRuta.";
+  return {
+    asunto: titulo,
+    html: layoutBase(
+      titulo,
+      mensaje,
+      `<p style="margin:0;">Hola <strong>${
+        escapeHtml(pedido.nombre_cliente)
+      }</strong>, ${escapeHtml(mensaje)}</p>`,
+    ),
+    texto: [
+      `Hola ${pedido.nombre_cliente},`,
+      mensaje,
+      `Pedido #${pedido.id_pedido}`,
+      `-- ${MARCA.nombre}`,
+    ].join("\n\n"),
+  };
+}
+
 // Correo 2: la empresa se registra. Llega al admin que se registró.
 export function plantillaRegistroEmpresaAdmin(
   nombreAdmin: string,
@@ -105,8 +328,12 @@ export function plantillaRegistroEmpresaAdmin(
     titulo,
     "Tu cuenta está pendiente de activación.",
     `
-      <p style="margin:0 0 12px 0;">Hola <strong>${escapeHtml(nombreAdmin)}</strong>,</p>
-      <p style="margin:0 0 12px 0;">La empresa <strong>${escapeHtml(nombreEmpresa)}</strong> fue registrada en ${MARCA.nombre}. Tu cuenta está pendiente de activación, por lo que todavía no puedes iniciar sesión.</p>
+      <p style="margin:0 0 12px 0;">Hola <strong>${
+      escapeHtml(nombreAdmin)
+    }</strong>,</p>
+      <p style="margin:0 0 12px 0;">La empresa <strong>${
+      escapeHtml(nombreEmpresa)
+    }</strong> fue registrada en ${MARCA.nombre}. Tu cuenta está pendiente de activación, por lo que todavía no puedes iniciar sesión.</p>
       <p style="margin:0;">Te avisaremos por este medio cuando esté activa. Si pasa un tiempo y no tienes respuesta, responde a este correo para solicitar la activación.</p>
     `,
   );
@@ -178,8 +405,12 @@ export function plantillaBienvenidaProveedor(
     titulo,
     `Fuiste registrado como proveedor de ${nombreEmpresa}.`,
     `
-      <p style="margin:0 0 12px 0;">Hola <strong>${escapeHtml(nombreProveedor)}</strong>,</p>
-      <p style="margin:0 0 12px 0;">Fuiste registrado como proveedor de la empresa <strong>${escapeHtml(nombreEmpresa)}</strong> en ${MARCA.nombre}.</p>
+      <p style="margin:0 0 12px 0;">Hola <strong>${
+      escapeHtml(nombreProveedor)
+    }</strong>,</p>
+      <p style="margin:0 0 12px 0;">Fuiste registrado como proveedor de la empresa <strong>${
+      escapeHtml(nombreEmpresa)
+    }</strong> en ${MARCA.nombre}.</p>
       <p style="margin:0;">Tu administrador te entregará tus datos de acceso.</p>
     `,
   );
@@ -208,8 +439,12 @@ export function plantillaEmpresaActivada(
     titulo,
     `${nombreEmpresa} ya está activa.`,
     `
-      <p style="margin:0 0 12px 0;">Hola <strong>${escapeHtml(nombreAdmin)}</strong>,</p>
-      <p style="margin:0;">La empresa <strong>${escapeHtml(nombreEmpresa)}</strong> fue activada en ${MARCA.nombre}. Ya puedes iniciar sesión.</p>
+      <p style="margin:0 0 12px 0;">Hola <strong>${
+      escapeHtml(nombreAdmin)
+    }</strong>,</p>
+      <p style="margin:0;">La empresa <strong>${
+      escapeHtml(nombreEmpresa)
+    }</strong> fue activada en ${MARCA.nombre}. Ya puedes iniciar sesión.</p>
     `,
   );
 
@@ -235,8 +470,12 @@ export function plantillaEmpresaDesactivada(
     titulo,
     `${nombreEmpresa} fue desactivada.`,
     `
-      <p style="margin:0 0 12px 0;">Hola <strong>${escapeHtml(nombreAdmin)}</strong>,</p>
-      <p style="margin:0;">La empresa <strong>${escapeHtml(nombreEmpresa)}</strong> fue desactivada en ${MARCA.nombre} y ya no puedes iniciar sesión. Si crees que es un error, responde a este correo.</p>
+      <p style="margin:0 0 12px 0;">Hola <strong>${
+      escapeHtml(nombreAdmin)
+    }</strong>,</p>
+      <p style="margin:0;">La empresa <strong>${
+      escapeHtml(nombreEmpresa)
+    }</strong> fue desactivada en ${MARCA.nombre} y ya no puedes iniciar sesión. Si crees que es un error, responde a este correo.</p>
     `,
   );
 

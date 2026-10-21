@@ -28,6 +28,7 @@ import {
   desactivarResenaCliente,
   editarResenaCliente,
 } from "../../Controller/Cliente/resenaController.ts";
+import { crearCheckoutWompi } from "../../Controller/Cliente/pagoController.ts";
 
 const clienteRouter = new Router();
 
@@ -61,6 +62,7 @@ clienteRouter.delete(
 
 clienteRouter.get("/api/cliente/pedidos", listarPedidosCliente);
 clienteRouter.post("/api/cliente/pedidos", crearPedidoCliente);
+clienteRouter.post("/api/cliente/pagos/wompi/checkout", crearCheckoutWompi);
 clienteRouter.get("/api/cliente/pedidos/:id", obtenerPedidoCliente);
 clienteRouter.patch(
   "/api/cliente/pedidos/:id/cancelar",

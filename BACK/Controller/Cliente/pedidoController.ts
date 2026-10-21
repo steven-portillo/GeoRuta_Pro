@@ -1,5 +1,6 @@
 import { Context, RouterContext } from "../../Dependencies/dependencias.ts";
 import { PedidoCliente } from "../../Model/Cliente/PedidoClienteModel.ts";
+import { notificarClienteCambioPedido } from "../../Helpers/pedidoEmails.ts";
 
 function idCliente(ctx: Context): number {
   return Number((ctx.state.user as { sub?: string }).sub);
@@ -74,6 +75,9 @@ export const crearPedidoCliente = async (ctx: Context) => {
       id_direccion,
       observaciones || undefined,
     );
+    if (resultado.success && resultado.id_pedido) {
+      await notificarClienteCambioPedido(resultado.id_pedido, "confirmado");
+    }
     ctx.response.status = resultado.success ? 201 : 400;
     ctx.response.body = resultado;
   } catch (error) {
@@ -108,6 +112,9 @@ export const cancelarPedidoCliente = async (
       id_pedido,
       motivo || undefined,
     );
+    if (resultado.success) {
+      await notificarClienteCambioPedido(id_pedido, "cancelado", motivo);
+    }
     ctx.response.status = resultado.success ? 200 : 400;
     ctx.response.body = resultado;
   } catch (error) {

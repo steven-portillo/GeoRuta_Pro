@@ -1,5 +1,5 @@
 import { conexion } from "../conexion.ts";
-import { hash, compare } from "../../Dependencies/dependencias.ts";
+import { compare, hash } from "../../Dependencies/dependencias.ts";
 
 const ID_ROL_SUPERADMIN = 1;
 
@@ -102,18 +102,18 @@ export class Usuario {
   /** Login */
   public async IniciarSesion(): Promise<
     | {
-        success: true;
-        message: string;
-        data: {
-          idUsuario: number;
-          nombre: string;
-          apellido: string;
-          email: string;
-          rol: string;
-          idRol: number;
-          idEmpresa: number | null;
-        };
-      }
+      success: true;
+      message: string;
+      data: {
+        idUsuario: number;
+        nombre: string;
+        apellido: string;
+        email: string;
+        rol: string;
+        idRol: number;
+        idEmpresa: number | null;
+      };
+    }
     | { success: false; message: string }
   > {
     try {
@@ -139,6 +139,9 @@ export class Usuario {
         return { success: false, message: "Credenciales incorrectas" };
       }
 
+      if (!usuario.password_hash) {
+        return { success: false, message: "Credenciales incorrectas" };
+      }
       const passwordValido = await compare(password, usuario.password_hash);
       if (!passwordValido) {
         return { success: false, message: "Credenciales incorrectas" };

@@ -5,11 +5,13 @@ import { clientesRouter } from "./Router/SuperAdmin/clienteRouter.ts";
 import { categoriaRouter } from "./Router/Admin/categoriaRouter.ts";
 import { productoRouter } from "./Router/Admin/productoRouter.ts";
 import { inventarioRouter } from "./Router/Admin/inventarioRouter.ts";
-import { proveedorRouter } from "./Router/Admin/proveedorRouter.ts";
+import { proveedorRouter as proveedoresAdminRouter } from "./Router/Admin/proveedorRouter.ts";
 import { pedidoRouter } from "./Router/Admin/pedidoRouter.ts";
 import { perfilRouter } from "./Router/Perfil/perfilRouter.ts";
 import { empresaPerfilRouter } from "./Router/Admin/empresaPerfilRouter.ts";
 import { clienteRouter } from "./Router/Cliente/clienteRouter.ts";
+import { proveedorRouter as proveedorOperationsRouter } from "./Router/Proveedor/proveedorRouter.ts";
+import { pagoRouter } from "./Router/Pagos/pagoRouter.ts";
 
 const app = new Application();
 
@@ -38,11 +40,13 @@ const routers = [
   categoriaRouter,
   productoRouter,
   inventarioRouter,
-  proveedorRouter,
+  proveedoresAdminRouter,
   pedidoRouter,
   perfilRouter,
   empresaPerfilRouter,
   clienteRouter,
+  proveedorOperationsRouter,
+  pagoRouter,
 ];
 
 routers.forEach((router) => {

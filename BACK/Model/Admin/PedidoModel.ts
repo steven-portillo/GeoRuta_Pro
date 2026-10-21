@@ -121,47 +121,79 @@ export class Pedido {
     id_usuario: number,
     motivo: string,
   ) {
-    const [pedido] = await conexion.query(
-      `SELECT p.id_pedido, es.nombre_estado, p.observaciones
-     FROM pedidos p INNER JOIN estados_pedido es ON es.id_estado = p.id_estado
-     WHERE p.id_pedido = ? AND p.id_empresa = ?`,
-      [id_pedido, id_empresa],
-    );
-    if (!pedido) {
-      return { success: false, message: "Pedido no encontrado" };
-    }
-    if (
-      pedido.nombre_estado === "Entregado" ||
-      pedido.nombre_estado === "Cancelado"
-    ) {
-      return {
-        success: false,
-        message: "No se puede cancelar un pedido entregado o ya cancelado",
-      };
-    }
-
-    const [estadoCancelado] = await conexion.query(
-      `SELECT id_estado FROM estados_pedido WHERE nombre_estado = 'Cancelado'`,
-    );
-
-    const items = await conexion.query(
-      `SELECT id_producto, cantidad FROM detalle_pedido WHERE id_pedido = ?`,
-      [id_pedido],
-    );
-
     try {
       await conexion.execute("START TRANSACTION");
 
+      const [pedido] = await conexion.query(
+        `SELECT p.id_pedido, p.id_estado, p.metodo_pago,
+                p.pago_confirmado, p.observaciones, es.nombre_estado,
+                pg.estado_pago
+         FROM pedidos p
+         INNER JOIN estados_pedido es ON es.id_estado = p.id_estado
+         LEFT JOIN pagos pg ON pg.id_pedido = p.id_pedido
+         WHERE p.id_pedido = ? AND p.id_empresa = ?
+         FOR UPDATE`,
+        [id_pedido, id_empresa],
+      );
+      if (!pedido) {
+        await conexion.execute("ROLLBACK");
+        return { success: false, message: "Pedido no encontrado" };
+      }
+      if (
+        pedido.nombre_estado === "Entregado" ||
+        pedido.nombre_estado === "Cancelado"
+      ) {
+        await conexion.execute("ROLLBACK");
+        return {
+          success: false,
+          message: "No se puede cancelar un pedido entregado o ya cancelado",
+        };
+      }
+      if (
+        pedido.metodo_pago === "online" &&
+        (Number(pedido.pago_confirmado) === 1 ||
+          pedido.estado_pago === "pendiente")
+      ) {
+        await conexion.execute("ROLLBACK");
+        return {
+          success: false,
+          message: Number(pedido.pago_confirmado) === 1
+            ? "El pago en línea ya fue aprobado; la cancelación requiere gestionar el reembolso"
+            : "El pago en línea sigue pendiente; espera el resultado de Wompi antes de cancelar",
+        };
+      }
+
+      const [estadoCancelado] = await conexion.query(
+        `SELECT id_estado FROM estados_pedido WHERE nombre_estado = 'Cancelado'`,
+      );
+      if (!estadoCancelado) {
+        throw new Error("No existe el estado de pedido Cancelado");
+      }
+      const items = await conexion.query(
+        `SELECT id_producto, cantidad FROM detalle_pedido
+         WHERE id_pedido = ? ORDER BY id_producto FOR UPDATE`,
+        [id_pedido],
+      );
       const observacionesNuevas = `${
         pedido.observaciones ?? ""
       } | Cancelado: ${motivo}`.trim();
-      await conexion.execute(
-        `UPDATE pedidos SET id_estado = ?, observaciones = ? WHERE id_pedido = ?`,
-        [estadoCancelado.id_estado, observacionesNuevas, id_pedido],
+      const pedidoActualizado = await conexion.execute(
+        `UPDATE pedidos SET id_estado = ?, observaciones = ?
+         WHERE id_pedido = ? AND id_estado = ?`,
+        [
+          estadoCancelado.id_estado,
+          observacionesNuevas,
+          id_pedido,
+          pedido.id_estado,
+        ],
       );
+      if (Number(pedidoActualizado.affectedRows ?? 0) !== 1) {
+        throw new Error(`No se pudo cancelar el pedido #${id_pedido}`);
+      }
 
       await conexion.execute(
-        `UPDATE pagos SET estado_pago = 'cancelado' WHERE id_pedido = ?`,
+        `UPDATE pagos SET estado_pago = 'cancelado'
+         WHERE id_pedido = ? AND estado_pago = 'pendiente'`,
         [id_pedido],
       );
 
@@ -170,8 +202,16 @@ export class Pedido {
           `SELECT stock_reservado FROM inventario WHERE id_producto = ? FOR UPDATE`,
           [item.id_producto],
         );
-        const reservadoAnterior = inventario.stock_reservado;
-        const reservadoNuevo = reservadoAnterior - item.cantidad;
+        const cantidad = Number(item.cantidad);
+        if (
+          !inventario || Number(inventario.stock_reservado) < cantidad
+        ) {
+          throw new Error(
+            `La reserva del producto ${item.id_producto} es inconsistente para el pedido #${id_pedido}`,
+          );
+        }
+        const reservadoAnterior = Number(inventario.stock_reservado);
+        const reservadoNuevo = reservadoAnterior - cantidad;
 
         await conexion.execute(
           `UPDATE inventario SET stock_reservado = ?, ultima_actualizacion = CURRENT_TIMESTAMP WHERE id_producto = ?`,
@@ -185,7 +225,7 @@ export class Pedido {
           [
             item.id_producto,
             id_usuario,
-            item.cantidad,
+            cantidad,
             reservadoAnterior,
             reservadoNuevo,
             `Liberación por cancelación pedido #${id_pedido}`,
