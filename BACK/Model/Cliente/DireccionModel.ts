@@ -10,7 +10,7 @@ export interface DireccionData {
 export class DireccionCliente {
   static async Listar(id_cliente: number) {
     return await conexion.query(
-      `SELECT id_direccion, NULL AS alias, direccion_texto, latitud, longitud, activo
+      `SELECT id_direccion, alias, direccion_texto, latitud, longitud, activo
        FROM direcciones
        WHERE id_usuario = ?
        ORDER BY activo DESC, id_direccion DESC`,
@@ -20,10 +20,11 @@ export class DireccionCliente {
 
   static async Crear(id_cliente: number, datos: DireccionData) {
     const result = await conexion.execute(
-      `INSERT INTO direcciones (id_usuario, direccion_texto, latitud, longitud, activo)
-       VALUES (?, ?, ?, ?, 1)`,
+      `INSERT INTO direcciones (id_usuario, alias, direccion_texto, latitud, longitud, activo)
+       VALUES (?, ?, ?, ?, ?, 1)`,
       [
         id_cliente,
+        datos.alias ?? null,
         datos.direccion_texto,
         datos.latitud ?? null,
         datos.longitud ?? null,
@@ -57,10 +58,11 @@ export class DireccionCliente {
 
       if (pedido) {
         const result = await conexion.execute(
-          `INSERT INTO direcciones (id_usuario, direccion_texto, latitud, longitud, activo)
-           SELECT id_usuario, ?, ?, ?, 1
+          `INSERT INTO direcciones (id_usuario, alias, direccion_texto, latitud, longitud, activo)
+           SELECT id_usuario, ?, ?, ?, ?, 1
            FROM direcciones WHERE id_direccion = ? AND id_usuario = ?`,
           [
+            datos.alias ?? null,
             datos.direccion_texto,
             datos.latitud ?? null,
             datos.longitud ?? null,
@@ -84,9 +86,10 @@ export class DireccionCliente {
 
       await conexion.execute(
         `UPDATE direcciones
-         SET direccion_texto = ?, latitud = ?, longitud = ?
+         SET alias = ?, direccion_texto = ?, latitud = ?, longitud = ?
          WHERE id_direccion = ? AND id_usuario = ?`,
         [
+          datos.alias ?? null,
           datos.direccion_texto,
           datos.latitud ?? null,
           datos.longitud ?? null,

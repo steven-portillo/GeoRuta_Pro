@@ -13,12 +13,14 @@ interface Cabecera {
   estado: string;
   empresa: string;
   empresaLogo: string;
+  alias?: string;
   direccion: string;
   latitud: number | string | null;
   longitud: number | string | null;
   estadoPago: string;
   pasarela: string;
   fechaPago: string;
+  codigoEntrega: string;
 }
 
 interface Item {
@@ -304,6 +306,15 @@ const datosCliente = {
               </div>
             </div>
           )}
+          {cabecera.codigoEntrega && (
+            <div class="dp-codigo-entrega">
+              <div class="dp-codigo-entrega-titulo">Código de entrega</div>
+              <div class="dp-codigo-entrega-numero">{cabecera.codigoEntrega}</div>
+              <div class="dp-codigo-entrega-ayuda">
+                Comparte este código de 6 dígitos con el repartidor al recibir tu pedido.
+              </div>
+            </div>
+          )}
           {fechaPago && (
             <div class="info-row">
               <span class="info-icono">📅</span>
@@ -336,6 +347,7 @@ const datosCliente = {
       <div class="dp-rastreo-sidebar">
         <div class="dp-card">
           <div class="dp-card-titulo">Dirección de entrega</div>
+          {cabecera.alias && <div class="dp-info-valor">{cabecera.alias}</div>}
           <div class="dp-info-row">
             <span class="dp-info-icono">📍</span>
             <div class="dp-info-valor">{cabecera.direccion}</div>
@@ -1101,6 +1113,34 @@ const datosCliente = {
   .badge-pago.pendiente { background: #fef9c3; color: #92400e; }
   .badge-pago.rechazado { background: #fee2e2; color: #991b1b; }
   .badge-pago.contra { background: #f0f9ff; color: #075985; }
+
+  .dp-codigo-entrega {
+    margin-top: 1rem;
+    padding: 0.9rem;
+    border: 1px solid #bae6fd;
+    border-radius: 0.75rem;
+    background: #f0f9ff;
+    text-align: center;
+  }
+
+  .dp-codigo-entrega-titulo {
+    color: #075985;
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  .dp-codigo-entrega-numero {
+    margin: 0.25rem 0;
+    color: #0c4a6e;
+    font-size: 1.8rem;
+    font-weight: 800;
+    letter-spacing: 0.25rem;
+  }
+
+  .dp-codigo-entrega-ayuda {
+    color: #334155;
+    font-size: 0.75rem;
+  }
 
   /* ── responsive ── */
   @media (max-width: 900px) {

@@ -31,6 +31,14 @@
     <div id="ck-mapa-leaflet" class="ck-mapa-leaflet"></div>
 
     <div class="ck-pie">
+      <input
+        id="ck-input-alias"
+        class="ck-input"
+        type="text"
+        maxlength="100"
+        placeholder="Alias opcional (por ejemplo: Casa)"
+        aria-label="Alias de la dirección"
+      />
       <div id="ck-direccion-txt" class="ck-direccion-txt">Mueve el marcador o busca tu dirección para continuar</div>
       <div class="ck-acciones">
         <button type="button" class="ck-btn ck-btn-secundario" data-ck-cerrar="mapa">Cancelar</button>
@@ -396,6 +404,7 @@
 
       try {
         const datos = await post('/api/auth/cliente/direcciones', {
+          alias: $('ck-input-alias').value.trim(),
           direccionTexto: coords.texto,
           latitud: coords.lat,
           longitud: coords.lng,

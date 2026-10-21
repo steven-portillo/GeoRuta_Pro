@@ -24,6 +24,7 @@ export const listarPedidosCliente = async (ctx: Context) => {
       empresa: pedido.nombre_empresa,
       empresaLogo: pedido.empresa_logo ?? "",
       direccion: pedido.direccion_texto,
+      alias: pedido.alias ?? "",
       metodoPago: pedido.metodo_pago,
       pagoConfirmado: Boolean(Number(pedido.pago_confirmado)),
       totalItems: Number(pedido.total_items ?? 0),
@@ -130,12 +131,20 @@ export const obtenerPedidoCliente = async (
           empresa: pedido.nombre_empresa,
           empresaLogo: pedido.empresa_logo ?? "",
           direccion: pedido.direccion_texto,
+          alias: pedido.alias ?? "",
           latitud: pedido.latitud,
           longitud: pedido.longitud,
           estadoPago: pedido.metodo_pago === "contra_entrega"
             ? "contra_entrega"
             : pedido.estado_pago ?? "pendiente",
           pasarela: pedido.pasarela ?? "",
+          codigoEntrega: pedido.metodo_pago === "contra_entrega" &&
+              !["entregado", "cancelado"].includes(
+                normalizarEstado(pedido.estado).normalize("NFD")
+                  .replace(/[\u0300-\u036f]/g, "").toLowerCase(),
+              )
+            ? pedido.codigo_entrega ?? ""
+            : "",
           fechaPago: pedido.fecha_pago
             ? new Date(String(pedido.fecha_pago)).toISOString()
             : "",

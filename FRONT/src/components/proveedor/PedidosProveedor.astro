@@ -9,9 +9,11 @@ export interface PedidoProveedor {
   estado: string;
   cliente: string;
   clienteEmail: string;
+  alias?: string | null;
   direccion: string;
   latitud: number | string | null;
   longitud: number | string | null;
+  alias?: string | null;
   empresa: string;
   productos: string;
   totalItems: number;
@@ -239,6 +241,7 @@ const datosJson = JSON.stringify({ pedidos: pedidosIniciales, error: error ?? nu
             <strong>Total</strong><span class="rep-total">${formatoMoneda(p.total)}</span>
           </div>
           <div class="rep-pedido-fila"><strong>Pago</strong>${textoPago(p.metodoPago)}</div>
+          ${p.alias ? `<div class="rep-pedido-fila"><strong>Alias</strong>${esc(p.alias)}</div>` : ''}
           <div class="rep-pedido-fila rep-pedido-fila-col">
             <strong>Dirección</strong>
             <span class="rep-pedido-direccion">📍 ${esc(p.direccion || 'No disponible')}</span>
@@ -307,28 +310,50 @@ const datosJson = JSON.stringify({ pedidos: pedidosIniciales, error: error ?? nu
   // ══════════════════════════════════════════════════════════
   // cambio de estado
   // ══════════════════════════════════════════════════════════
-  async function llamarCambiarEstado(idPedido: number, nuevoEstado: string): Promise<boolean> {
+  async function llamarCambiarEstado(
+    idPedido: number,
+    nuevoEstado: string,
+    codigo?: string,
+  ): Promise<{ success: boolean; message?: string }> {
     try {
       const respuesta = await fetch('/api/auth/proveedor/pedidos/cambiar-estado', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idPedido, nuevoEstado }),
+        body: JSON.stringify({ idPedido, nuevoEstado, codigo }),
       });
       const datos = await respuesta.json();
       if (!datos.success) console.warn('cambiar estado:', datos.message);
-      return Boolean(datos.success);
+      return { success: Boolean(datos.success), message: datos.message };
     } catch {
-      return false;
+      return { success: false };
     }
+  }
+
+  function solicitarCodigoEntrega(p: Pedido): string | undefined | null {
+    if (p.metodoPago !== 'contra_entrega') return undefined;
+    const codigo = window.prompt('Solicita al cliente su código de entrega de 6 dígitos:');
+    if (codigo === null) return null;
+    const codigoNormalizado = codigo.trim();
+    if (!/^\d{6}$/.test(codigoNormalizado)) {
+      alert('El código debe contener exactamente 6 dígitos.');
+      return null;
+    }
+    return codigoNormalizado;
   }
 
   // boton de la tarjeta: confirma, cambia el estado y arranca o detiene el rastreo segun corresponda
   async function accionRapida(id: number, nuevoEstado: string) {
     if (!confirm(`¿Cambiar el pedido #PED-${id} a "${nuevoEstado}"?`)) return;
 
-    const ok = await llamarCambiarEstado(id, nuevoEstado);
-    if (!ok) {
-      alert('No fue posible actualizar el estado del pedido.');
+    const pedido = pedidos.find((item) => item.id === id);
+    const codigo = nuevoEstado === 'Entregado' && pedido
+      ? solicitarCodigoEntrega(pedido)
+      : undefined;
+    if (codigo === null) return;
+
+    const resultado = await llamarCambiarEstado(id, nuevoEstado, codigo);
+    if (!resultado.success) {
+      alert(resultado.message || 'No fue posible actualizar el estado del pedido.');
       return;
     }
 
@@ -363,6 +388,7 @@ const datosJson = JSON.stringify({ pedidos: pedidosIniciales, error: error ?? nu
           <div><strong>Empresa:</strong> ${esc(p.empresa)}</div>
           <div><strong>Total:</strong> <span class="rep-total">${formatoMoneda(p.total)}</span></div>
           <div><strong>Pago:</strong> ${textoPago(p.metodoPago)}</div>
+          ${p.alias ? `<div><strong>Alias:</strong> ${esc(p.alias)}</div>` : ''}
           <div class="rep-det-direccion">📍 ${esc(p.direccion || 'Dirección no disponible')}</div>
         </div>`;
     }
@@ -435,10 +461,24 @@ const datosJson = JSON.stringify({ pedidos: pedidosIniciales, error: error ?? nu
     }
 
     const idPedido = pedidoSeleccionado.id;
-    const ok = await llamarCambiarEstado(idPedido, siguiente);
+    const codigo = siguiente === 'Entregado'
+      ? solicitarCodigoEntrega(pedidoSeleccionado)
+      : undefined;
+    if (codigo === null) {
+      if (boton) {
+        boton.textContent = textoBotonAvance(siguiente);
+        boton.disabled = false;
+      }
+      return;
+    }
+    const resultado = await llamarCambiarEstado(idPedido, siguiente, codigo);
 
-    if (!ok) {
-      mostrarMensaje(mensaje, '❌ Error al actualizar el estado.', false);
+    if (!resultado.success) {
+      mostrarMensaje(
+        mensaje,
+        `❌ ${resultado.message || 'Error al actualizar el estado.'}`,
+        false,
+      );
       if (boton) {
         boton.textContent = 'Actualizar estado';
         boton.disabled = false;

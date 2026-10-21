@@ -251,6 +251,17 @@ export class Pedido {
         [estadoAsignado.id_estado, id_pedido],
       );
 
+      await conexion.execute(
+        `INSERT INTO notificaciones
+           (id_usuario, id_pedido, tipo, mensaje, leida)
+         VALUES (?, ?, 'pedido_asignado', ?, 0)`,
+        [
+          id_proveedor,
+          id_pedido,
+          `Se te asignó el pedido #PED-${id_pedido}. Dirígete a recogerlo.`,
+        ],
+      );
+
       await conexion.execute("COMMIT");
       return { success: true, message: "Proveedor asignado correctamente" };
     } catch (error) {

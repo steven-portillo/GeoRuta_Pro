@@ -1,4 +1,5 @@
 import { conexion } from "../conexion.ts";
+import { generarCodigoEntrega } from "../../Helpers/codigoEntrega.ts";
 
 interface ItemPedido {
   id_producto: number;
@@ -146,12 +147,16 @@ export class PedidoCliente {
       if (!estado) throw new Error("No existe el estado requerido para el pedido");
 
       const total = (totalCentavos + 800000) / 100;
+      const codigoEntrega = metodo_pago === "contra_entrega"
+        ? generarCodigoEntrega()
+        : null;
       const pedidoResult = await conexion.execute(
         `INSERT INTO pedidos
            (id_empresa, id_usuario, id_direccion, id_estado, metodo_pago,
-            total, fecha_pedido, fecha_aprobacion, observaciones, pago_confirmado)
+            total, fecha_pedido, fecha_aprobacion, observaciones, pago_confirmado,
+            codigo_entrega)
          VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP,
-                 IF(? = 'contra_entrega', CURRENT_TIMESTAMP, NULL), ?, 0)`,
+                 IF(? = 'contra_entrega', CURRENT_TIMESTAMP, NULL), ?, 0, ?)`,
         [
           id_empresa,
           id_cliente,
@@ -161,6 +166,7 @@ export class PedidoCliente {
           total.toFixed(2),
           metodo_pago,
           observaciones ?? null,
+          codigoEntrega,
         ],
       );
       const id_pedido = Number(pedidoResult.lastInsertId);
@@ -226,8 +232,7 @@ export class PedidoCliente {
               e.logo_url AS empresa_logo,
               p.total, p.metodo_pago, p.pago_confirmado, p.fecha_pedido,
               p.fecha_asignacion, p.fecha_inicio_transito, p.fecha_entrega,
-              ep.nombre_estado AS estado, NULL AS alias, d.direccion_texto,
-              ap.codigo_entrega,
+              ep.nombre_estado AS estado, d.alias, d.direccion_texto,
               (SELECT COALESCE(SUM(dp.cantidad), 0)
                FROM detalle_pedido dp WHERE dp.id_pedido = p.id_pedido) AS total_items,
               (SELECT GROUP_CONCAT(CONCAT(dp.cantidad, ' x ', pr.nombre)
@@ -239,7 +244,6 @@ export class PedidoCliente {
        INNER JOIN empresas e ON e.id_empresa = p.id_empresa
        INNER JOIN estados_pedido ep ON ep.id_estado = p.id_estado
        INNER JOIN direcciones d ON d.id_direccion = p.id_direccion
-       LEFT JOIN asignacion_pedido ap ON ap.id_pedido = p.id_pedido
        WHERE p.id_usuario = ?
        ORDER BY p.fecha_pedido DESC`,
       [id_cliente],
@@ -253,8 +257,8 @@ export class PedidoCliente {
               p.total, p.metodo_pago, p.pago_confirmado, p.observaciones,
               p.fecha_pedido, p.fecha_aprobacion, p.fecha_asignacion,
               p.fecha_inicio_transito, p.fecha_entrega,
-              ep.nombre_estado AS estado, NULL AS alias, d.direccion_texto,
-              d.latitud, d.longitud, ap.codigo_entrega,
+              ep.nombre_estado AS estado, d.alias, d.direccion_texto,
+              d.latitud, d.longitud, p.codigo_entrega,
               pr.nombre AS nombre_proveedor, pr.apellido AS apellido_proveedor,
               pg.estado_pago, pg.pasarela, pg.fecha_pago
        FROM pedidos p
@@ -404,12 +408,14 @@ export class PedidoCliente {
         throw new Error("No existe el estado de pedido Aprobado");
       }
       const total = totalCentavos / 100;
+      const codigoEntrega = generarCodigoEntrega();
       const pedidoResult = await conexion.execute(
         `INSERT INTO pedidos
-           (id_empresa, id_cliente, id_direccion, id_estado, metodo_pago,
-            total, fecha_pedido, fecha_aprobacion, observaciones, pago_confirmado)
+           (id_empresa, id_usuario, id_direccion, id_estado, metodo_pago,
+            total, fecha_pedido, fecha_aprobacion, observaciones, pago_confirmado,
+            codigo_entrega)
          VALUES (?, ?, ?, ?, 'contra_entrega', ?, CURRENT_TIMESTAMP,
-                 CURRENT_TIMESTAMP, ?, 0)`,
+                 CURRENT_TIMESTAMP, ?, 0, ?)`,
         [
           carrito.id_empresa,
           id_cliente,
@@ -417,6 +423,7 @@ export class PedidoCliente {
           estadoAprobado.id_estado,
           total.toFixed(2),
           observaciones ?? null,
+          codigoEntrega,
         ],
       );
       const id_pedido = pedidoResult.lastInsertId as number;
@@ -476,6 +483,7 @@ export class PedidoCliente {
         id_pedido,
         total,
         metodo_pago: "contra_entrega",
+        codigo_entrega: codigoEntrega,
       };
     } catch (error) {
       await conexion.execute("ROLLBACK");

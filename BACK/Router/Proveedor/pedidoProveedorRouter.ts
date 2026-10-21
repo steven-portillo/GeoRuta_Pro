@@ -1,6 +1,8 @@
 import { Router } from "../../Dependencies/dependencias.ts";
 import {
   cambiarEstadoPedidoProveedor,
+  listarNotificacionesProveedor,
+  marcarNotificacionesProveedorLeidas,
   listarPedidosProveedor,
   obtenerDatosInicioProveedor,
 } from "../../Controller/Proveedor/pedidoProveedorController.ts";
@@ -16,6 +18,14 @@ pedidoProveedorRouter.get(
   obtenerDatosInicioProveedor,
 );
 pedidoProveedorRouter.get("/api/proveedor/pedidos", listarPedidosProveedor);
+pedidoProveedorRouter.get(
+  "/api/proveedor/notificaciones",
+  listarNotificacionesProveedor,
+);
+pedidoProveedorRouter.post(
+  "/api/proveedor/notificaciones/marcar-leidas",
+  marcarNotificacionesProveedorLeidas,
+);
 pedidoProveedorRouter.post(
   "/api/proveedor/pedidos/cambiar-estado",
   cambiarEstadoPedidoProveedor,
