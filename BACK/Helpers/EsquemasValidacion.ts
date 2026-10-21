@@ -175,3 +175,8 @@ export const EsquemaRestablecerPassword = z.object({
 export const EsquemaLoginGoogle = z.object({
   credencial: z.string().min(20, "falta la credencial de google"),
 });
+
+export const EsquemaConfirmarEntrega = z.object({
+  idPedido: z.number().int().positive(),
+  codigo: z.string().regex(/^\d{6}$/, "el código debe tener 6 dígitos"),
+});

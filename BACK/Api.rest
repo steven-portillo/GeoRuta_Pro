@@ -400,3 +400,4 @@ Content-Type: application/json
 
 ###
 @tokenCliente = {{loginCliente.response.body.$.data.token}}
+

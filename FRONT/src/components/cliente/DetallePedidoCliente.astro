@@ -19,6 +19,7 @@ interface Cabecera {
   estadoPago: string;
   pasarela: string;
   fechaPago: string;
+  codigoEntrega?: string;
 }
 
 interface Item {
@@ -311,6 +312,15 @@ const datosCliente = {
                 <div class="info-label">Fecha de pago</div>
                 <div class="info-valor">{fechaPago}</div>
               </div>
+            </div>
+          )}
+                    {cabecera.codigoEntrega && (
+            <div class="dp-codigo">
+              <div class="dp-codigo-label">🔐 Código de entrega</div>
+              <div class="dp-codigo-valor">{cabecera.codigoEntrega}</div>
+              <p class="dp-codigo-ayuda">
+                Dáselo al repartidor solo cuando tengas tu pedido en las manos.
+              </p>
             </div>
           )}
         </div>
@@ -1101,6 +1111,23 @@ async function conectarSocket() {
   .badge-pago.pendiente { background: #fef9c3; color: #92400e; }
   .badge-pago.rechazado { background: #fee2e2; color: #991b1b; }
   .badge-pago.contra { background: #f0f9ff; color: #075985; }
+
+  .dp-codigo {
+  margin-top: .85rem;
+  padding: .9rem;
+  text-align: center;
+  border: 2px dashed var(--gold-500);
+  border-radius: 12px;
+  background: #fffbeb;
+}
+.dp-codigo-label { font-size: .85rem; font-weight: 600; }
+.dp-codigo-valor {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: .6rem;
+  margin: .3rem 0;
+}
+.dp-codigo-ayuda { font-size: .8rem; color: #64748b; margin: 0; }
 
   /* ── responsive ── */
   @media (max-width: 900px) {

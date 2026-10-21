@@ -437,16 +437,10 @@ const { repartidoresIniciales, token } = Astro.props;
     }
   }
 
-  // ============================================================
+    // ============================================================
   // websocket de tracking en vivo — reemplaza SignalR/RastreoHub del original.
-  // se conecta a /ws/rastreo/:idPedido?token=... del backend deno/oak; el jwt
-  // viaja como query param porque el navegador no puede mandar headers propios
-  // en el handshake de un websocket (igual que documenta RastreoController.ts)
+  // la url se arma en construirUrlRastreo (mas arriba) con el host de la pagina
   // ============================================================
-  function construirUrlRastreo(idPedido) {
-    const base = backendUrlPublico.replace(/^http/, 'ws');
-    return `${base}/ws/rastreo/${idPedido}?token=${encodeURIComponent(token)}`;
-  }
 
   function conectarRastreoAdmin(idPedido) {
     desconectarRastreoAdmin();

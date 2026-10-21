@@ -1049,8 +1049,29 @@ select.rep-input-filtro { width: 160px; }
   font-size: .82rem;
   font-weight: 600;
 }
+/* caja del codigo de entrega en el modal del repartidor */
+.rep-codigo-box {
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+  padding: .9rem;
+  border: 1px dashed #94a3b8;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+.rep-codigo-box label { font-weight: 600; }
+.rep-codigo-box input {
+  text-align: center;
+  font-size: 1.6rem;
+  letter-spacing: .5rem;
+  font-weight: 700;
+  padding: .5rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+}
+.rep-codigo-box small { color: #64748b; }
 
-/* tarjeta de estadisticas (en el c# eran estilos en linea, aqui van como clases) */
+/* tarjeta de estadisticas */
 .rep-stats-lista { display: flex; flex-direction: column; gap: .75rem; }
 .rep-stat-fila {
   display: flex;

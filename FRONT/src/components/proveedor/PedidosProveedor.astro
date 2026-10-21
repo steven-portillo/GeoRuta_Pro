@@ -94,6 +94,18 @@ const datosJson = JSON.stringify({ pedidos: pedidosIniciales, error: error ?? nu
       <div class="rep-det-info" id="modal-det-info"></div>
       <div class="rep-mapa-detalle" id="mapa-detalle-rep"></div>
       <div id="modal-det-msg" style="display:none"></div>
+            <div id="modal-det-codigo" class="rep-codigo-box" style="display:none">
+        <label for="input-codigo-entrega">🔐 Código de entrega del cliente</label>
+        <input
+          id="input-codigo-entrega"
+          type="text"
+          inputmode="numeric"
+          maxlength="6"
+          autocomplete="off"
+          placeholder="000000"
+        />
+        <small>Pídeselo al cliente al entregar el pedido y cobrar.</small>
+      </div>
     </div>
     <div class="rep-modal-footer">
       <button type="button" class="rep-btn-s" id="modal-det-cerrar-2">Cerrar</button>
@@ -181,6 +193,11 @@ const datosJson = JSON.stringify({ pedidos: pedidosIniciales, error: error ?? nu
     return clave(p.estado) === 'En transito';
   }
 
+    // un pedido contra entrega en transito no se entrega con un clic: pide el codigo del cliente
+  function requiereCodigo(p: Pedido): boolean {
+    return p.metodoPago === 'contra_entrega' && esTransito(p);
+  }
+
   function formatoMoneda(valor: number): string {
     return `$${Number(valor).toLocaleString('es-CO')}`;
   }
@@ -247,10 +264,12 @@ const datosJson = JSON.stringify({ pedidos: pedidosIniciales, error: error ?? nu
         </div>
         <div class="rep-pedido-footer">
           <button type="button" class="rep-btn-s" data-accion="detalle" data-id="${p.id}">Ver mapa</button>
-          ${
-            siguiente
-              ? `<button type="button" class="rep-btn-p" data-accion="avanzar" data-id="${p.id}" data-estado="${siguiente}">${textoBotonAvance(siguiente)}</button>`
-              : ''
+                    ${
+            requiereCodigo(p)
+              ? `<button type="button" class="rep-btn-p" data-accion="detalle" data-id="${p.id}">🔐 Ingresar código</button>`
+              : siguiente
+                ? `<button type="button" class="rep-btn-p" data-accion="avanzar" data-id="${p.id}" data-estado="${siguiente}">${textoBotonAvance(siguiente)}</button>`
+                : ''
           }
         </div>
       </div>`;
@@ -367,10 +386,18 @@ const datosJson = JSON.stringify({ pedidos: pedidosIniciales, error: error ?? nu
         </div>`;
     }
 
-    const botonAccion = obtener<HTMLButtonElement>('btn-cambiar-estado-rep');
+        const botonAccion = obtener<HTMLButtonElement>('btn-cambiar-estado-rep');
+    const cajaCodigo = obtener('modal-det-codigo');
+    const entradaCodigo = obtener<HTMLInputElement>('input-codigo-entrega');
+    if (entradaCodigo) entradaCodigo.value = '';
+    if (cajaCodigo) cajaCodigo.style.display = requiereCodigo(p) ? 'block' : 'none';
+
     if (botonAccion) {
       botonAccion.disabled = false;
-      if (siguiente) {
+      if (requiereCodigo(p)) {
+        botonAccion.style.display = 'inline-flex';
+        botonAccion.textContent = '✅ Confirmar entrega';
+      } else if (siguiente) {
         botonAccion.style.display = 'inline-flex';
         botonAccion.textContent = textoBotonAvance(siguiente);
       } else {
@@ -424,6 +451,11 @@ const datosJson = JSON.stringify({ pedidos: pedidosIniciales, error: error ?? nu
   // boton "actualizar estado" del modal
   async function cambiarEstadoDesdeModal() {
     if (!pedidoSeleccionado) return;
+        // contra entrega: el boton del modal confirma con codigo en vez de cambiar el estado directo
+    if (requiereCodigo(pedidoSeleccionado)) {
+      await confirmarEntregaConCodigo();
+      return;
+    }
     const siguiente = SIGUIENTE_ESTADO[clave(pedidoSeleccionado.estado)];
     if (!siguiente) return;
 
@@ -445,6 +477,61 @@ const datosJson = JSON.stringify({ pedidos: pedidosIniciales, error: error ?? nu
       }
       return;
     }
+
+      async function llamarConfirmarEntrega(idPedido: number, codigo: string): Promise<{ ok: boolean; texto: string }> {
+    try {
+      const respuesta = await fetch('/api/auth/proveedor/pedidos/confirmar-entrega', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idPedido, codigo }),
+      });
+      const datos = await respuesta.json();
+      return { ok: Boolean(datos.success), texto: datos.message ?? '' };
+    } catch {
+      return { ok: false, texto: 'No fue posible conectar con el servidor' };
+    }
+  }
+
+  async function confirmarEntregaConCodigo() {
+    if (!pedidoSeleccionado) return;
+
+    const entrada = obtener<HTMLInputElement>('input-codigo-entrega');
+    const boton = obtener<HTMLButtonElement>('btn-cambiar-estado-rep');
+    const elMensaje = obtener('modal-det-msg');
+    const codigo = (entrada?.value ?? '').trim();
+
+    // validacion rapida en el navegador, el backend vuelve a validar
+    if (!/^\d{6}$/.test(codigo)) {
+      mostrarMensaje(elMensaje, '❌ Ingresa el código de 6 dígitos del cliente.', false);
+      entrada?.focus();
+      return;
+    }
+
+    if (boton) {
+      boton.textContent = 'Verificando...';
+      boton.disabled = true;
+    }
+
+    const { ok, texto } = await llamarConfirmarEntrega(pedidoSeleccionado.id, codigo);
+
+    if (!ok) {
+      mostrarMensaje(elMensaje, `❌ ${texto || 'Código incorrecto'}`, false);
+      if (boton) {
+        boton.textContent = '✅ Confirmar entrega';
+        boton.disabled = false;
+      }
+      entrada?.select();
+      return;
+    }
+
+    mostrarMensaje(elMensaje, '✅ Entrega confirmada y pago registrado', true);
+    detenerRastreo();
+
+    setTimeout(async () => {
+      cerrarDetalle();
+      await cargarPedidos();
+    }, 1200);
+  }
 
     mostrarMensaje(mensaje, `✅ Estado actualizado a "${siguiente}"`, true);
     if (siguiente === 'Entregado') detenerRastreo();
@@ -822,6 +909,11 @@ const datosJson = JSON.stringify({ pedidos: pedidosIniciales, error: error ?? nu
   obtener('modal-det-cerrar')?.addEventListener('click', cerrarDetalle);
   obtener('modal-det-cerrar-2')?.addEventListener('click', cerrarDetalle);
   obtener('btn-cambiar-estado-rep')?.addEventListener('click', cambiarEstadoDesdeModal);
+    // el campo del codigo solo acepta digitos, maximo 6
+  obtener<HTMLInputElement>('input-codigo-entrega')?.addEventListener('input', (e) => {
+    const entrada = e.target as HTMLInputElement;
+    entrada.value = entrada.value.replace(/\D/g, '').slice(0, 6);
+  });
   obtener('modal-detalle-rep')?.addEventListener('click', (e) => {
     // cierra solo si el clic fue en el fondo oscuro, no dentro del modal
     if (e.target === e.currentTarget) cerrarDetalle();

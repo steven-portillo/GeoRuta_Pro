@@ -1,4 +1,5 @@
 import { conexion } from "./Conexion.ts";
+import { generarCodigoEntrega, MAX_INTENTOS_CODIGO } from "../Helpers/CodigoEntrega.ts";
 
 interface MetricasPedidosRow {
   pendientes: number | null;
@@ -490,6 +491,85 @@ export class Pedido {
       return { success: false, message: "No fue posible actualizar el estado" };
     }
   }
+
+    // confirma la entrega de un pedido contra entrega validando el codigo de 6 digitos del cliente
+  public async ConfirmarEntregaConCodigo(
+    idRepartidor: number,
+    codigo: string,
+  ): Promise<{ success: boolean; message: string }> {
+    if (!this._idPedido) return { success: false, message: "Pedido no identificado" };
+
+    try {
+      const { rows } = await conexion.execute(
+        `SELECT p.metodo_pago, p.codigo_entrega, p.intentos_codigo, ep.nombre_estado AS estado
+         FROM asignacion_pedido ap
+         INNER JOIN pedidos p ON ap.id_pedido = p.id_pedido
+         INNER JOIN estados_pedido ep ON p.id_estado = ep.id_estado
+         WHERE ap.id_pedido = ? AND ap.id_proveedor = ?`,
+        [this._idPedido, idRepartidor],
+      );
+      if (!rows || rows.length === 0) {
+        return { success: false, message: "No autorizado" };
+      }
+
+      const pedido = rows[0] as {
+        metodo_pago: string;
+        codigo_entrega: string | null;
+        intentos_codigo: number;
+        estado: string;
+      };
+
+      if (pedido.metodo_pago !== "contra_entrega" || !pedido.codigo_entrega) {
+        return { success: false, message: "Este pedido no usa código de entrega" };
+      }
+      if (pedido.estado === "Entregado") {
+        return { success: false, message: "El pedido ya fue entregado" };
+      }
+      if (pedido.estado === "Cancelado") {
+        return { success: false, message: "El pedido está cancelado" };
+      }
+
+      const intentos = Number(pedido.intentos_codigo);
+      if (intentos >= MAX_INTENTOS_CODIGO) {
+        return { success: false, message: "Demasiados intentos fallidos. Contacta al administrador" };
+      }
+
+      // codigo incorrecto: se cuenta el intento fuera de la transaccion para que no se revierta
+      if (pedido.codigo_entrega !== codigo) {
+        await conexion.execute(
+          `UPDATE pedidos SET intentos_codigo = intentos_codigo + 1 WHERE id_pedido = ?`,
+          [this._idPedido],
+        );
+        const restantes = MAX_INTENTOS_CODIGO - (intentos + 1);
+        return {
+          success: false,
+          message: restantes > 0
+            ? `Código incorrecto. Te quedan ${restantes} intento(s)`
+            : "Código incorrecto. Pedido bloqueado, contacta al administrador",
+        };
+      }
+
+      // codigo correcto: entrega + pago confirmado, todo o nada
+      await conexion.transaction(async (conn) => {
+        await conn.execute(
+          `UPDATE pedidos
+           SET id_estado = (SELECT id_estado FROM estados_pedido WHERE nombre_estado = 'Entregado'),
+               fecha_entrega = NOW(), pago_confirmado = 1, intentos_codigo = 0
+           WHERE id_pedido = ?`,
+          [this._idPedido],
+        );
+        await conn.execute(
+          `UPDATE pagos SET estado_pago = 'aprobado', fecha_pago = NOW() WHERE id_pedido = ?`,
+          [this._idPedido],
+        );
+      });
+
+      return { success: true, message: "Entrega confirmada y pago registrado" };
+    } catch (error) {
+      console.error(error);
+      return { success: false, message: "No fue posible confirmar la entrega" };
+    }
+  }
     // metricas del propio cliente (distinto de ObtenerMetricas de Admin y ObtenerMetricasRepartidor)
   public async ObtenerMetricasCliente(
     idCliente: number,
@@ -642,7 +722,7 @@ export class Pedido {
 
       const { rows: cabeceraRows } = await conexion.execute(
         `SELECT
-           p.id_pedido, p.fecha_pedido, p.total, p.metodo_pago, p.pago_confirmado, p.observaciones,
+           p.id_pedido, p.fecha_pedido, p.total, p.metodo_pago, p.pago_confirmado, p.observaciones, p.codigo_entrega,
            ep.nombre_estado AS estado,
            e.nombre AS empresa, e.logo_url AS empresa_logo,
            d.direccion_texto AS direccion, d.latitud, d.longitud,
@@ -677,7 +757,12 @@ export class Pedido {
         longitud: fila.longitud,
         estadoPago: fila.estado_pago ?? "pendiente",
         pasarela: fila.pasarela ?? "",
-        fechaPago: fila.fecha_pago ?? "",
+                fechaPago: fila.fecha_pago ?? "",
+        // el codigo solo se muestra mientras el pedido contra entrega siga pendiente de entrega
+        codigoEntrega:
+          fila.metodo_pago === "contra_entrega" && fila.estado !== "Entregado" && fila.estado !== "Cancelado"
+            ? (fila.codigo_entrega ?? "")
+            : "",
       };
 
       const { rows: itemsRows } = await conexion.execute(
@@ -732,7 +817,6 @@ export class Pedido {
     if (!idEstado) {
       return { success: false, message: "Estado inicial del pedido no configurado" };
     }
-    // ... resto del metodo igual
 
       // el total se calcula desde la base de datos, nunca se confia en precios enviados por el cliente
       let total = 0;
@@ -748,16 +832,18 @@ export class Pedido {
       }
       total += _ENVIO_FIJO;
 
-      const pasarela = datos.metodoPago === "contra_entrega" ? "contra_entrega" : "stripe";
+            const pasarela = datos.metodoPago === "contra_entrega" ? "contra_entrega" : "stripe";
+      // solo los pedidos contra entrega llevan codigo
+      const codigoEntrega = datos.metodoPago === "contra_entrega" ? generarCodigoEntrega() : null;
       let idPedido = 0;
 
       await conexion.transaction(async (conn) => {
         const { lastInsertId } = await conn.execute(
-          `INSERT INTO pedidos (id_empresa, id_cliente, id_direccion, id_estado, metodo_pago, total, observaciones)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO pedidos (id_empresa, id_cliente, id_direccion, id_estado, metodo_pago, total, observaciones, codigo_entrega)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             datos.idEmpresa, idCliente, datos.idDireccion, idEstado,
-            datos.metodoPago ?? "online", total, datos.observaciones ?? null,
+            datos.metodoPago ?? "online", total, datos.observaciones ?? null, codigoEntrega,
           ],
         );
         idPedido = lastInsertId as number;

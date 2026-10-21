@@ -1,6 +1,6 @@
 import { RouterContext } from "../../Dependencies/Dependencias.ts";
 import { Pedido } from "../../Models/Pedido.model.ts";
-import { EsquemaCambiarEstadoPedido } from "../../Helpers/EsquemasValidacion.ts";
+import { EsquemaCambiarEstadoPedido, EsquemaConfirmarEntrega } from "../../Helpers/EsquemasValidacion.ts";
 import { obtenerUsuarioAutenticado } from "../../Helpers/ContextoAuth.ts";
 
 // GET /proveedor/pedidos
@@ -46,5 +46,37 @@ export const cambiarEstado = async (ctx: RouterContext<string>) => {
     console.error(error);
     response.status = 500;
     response.body = { success: false, message: "No fue posible actualizar el estado" };
+  }
+};
+// POST /proveedor/pedidos/confirmar-entrega
+export const confirmarEntrega = async (ctx: RouterContext<string>) => {
+  const { request, response } = ctx;
+  try {
+    const cuerpo = await request.body.json();
+    const resultado = EsquemaConfirmarEntrega.safeParse(cuerpo);
+
+    if (!resultado.success) {
+      response.status = 400;
+      response.body = {
+        success: false,
+        message: "Datos inválidos",
+        errors: resultado.error.flatten().fieldErrors,
+      };
+      return;
+    }
+
+    const { idUsuario } = obtenerUsuarioAutenticado(ctx);
+    const ObjPedido = new Pedido(resultado.data.idPedido);
+    const resultadoEntrega = await ObjPedido.ConfirmarEntregaConCodigo(
+      idUsuario as number,
+      resultado.data.codigo,
+    );
+
+    response.status = resultadoEntrega.success ? 200 : 400;
+    response.body = resultadoEntrega;
+  } catch (error) {
+    console.error(error);
+    response.status = 500;
+    response.body = { success: false, message: "No fue posible confirmar la entrega" };
   }
 };
