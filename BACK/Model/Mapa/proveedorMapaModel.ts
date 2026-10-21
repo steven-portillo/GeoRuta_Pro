@@ -13,7 +13,7 @@ export interface DestinoRuta {
 }
 
 export class ProveedorMapaModel {
-  /** Usado por el hub WS (broadcast a pedido-*) */
+  /** Usado por el hub WS*/
   public async pedidoEnTransitoDeProveedor(
     idProveedor: number,
   ): Promise<number[]> {
@@ -30,6 +30,24 @@ export class ProveedorMapaModel {
     const lista = (rows ?? []) as PedidoIdRow[];
     return lista.map((r) => Number(r.id_pedido));
   }
+
+  public async datosProveedor(
+    idProveedor: number,
+    idEmpresa: number
+  ):Promise<{nombre: string | null, empresa: string | null}> {
+    const rows = await conexion.query(
+      `
+      select concat(u.nombre," ", u.apellido) as nombre, e.nombre as empresa
+      from usuarios u
+      left join empresas e on e.id_empresa = u.id_empresa
+      where u.id_usuario = ?
+        and u.id_empresa = ?
+      `,
+      [idProveedor, idEmpresa]
+    );
+    return {nombre: rows.nombre, empresa:rows.empresa}
+  }
+
 
   /** Sidebar + pines de destinos. q = búsqueda opcional */
   public async destinosRutaProveedor(

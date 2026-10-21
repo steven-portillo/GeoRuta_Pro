@@ -17,9 +17,7 @@ if (!key) {
 export interface DatosToken extends Payload{
     id:number;
     rol:string;
-    nombre: string;
     idEmpresa: number | null;
-    empresa: string | null;
 }
 
 export const crearToken = async (datos:DatosToken): Promise<string> =>{

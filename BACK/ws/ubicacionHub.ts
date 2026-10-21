@@ -99,6 +99,7 @@ async function procesarMensaje(ws: WebSocket, data: Record<string, unknown>) {
       ws.close();
       return;
     }
+    const {nombre, empresa} = await new ProveedorMapaModel().datosProveedor(payload.id as number, payload.idEmpresa as number);
     //aqui es donde metemos toda la info necesaria para los sockets
     conexiones.set(ws, {
       usuarioId: payload.id as number,
@@ -109,8 +110,8 @@ async function procesarMensaje(ws: WebSocket, data: Record<string, unknown>) {
       grupos: new Set(),
       modoRuta: "inactivo",
       //esta info de aqui la agregue despues, es para la info en los pins de lso repartidores
-      nombre: payload.nombre as string,
-      empresa: typeof payload.empresa === "string" ? payload.empresa : null,
+      nombre: nombre as string,
+      empresa: empresa as string,
     });
 
     enviarA(ws, {

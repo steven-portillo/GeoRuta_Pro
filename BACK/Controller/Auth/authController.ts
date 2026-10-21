@@ -45,10 +45,8 @@ export const iniciarSesion = async (ctx: Context) => {
     if (result.success && result.data) {
       const token = await crearToken({
         id: result.data.idUsuario,
-        nombre: result.data.nombre,
         rol: result.data.rol,
-        idEmpresa: result.data.idEmpresa,
-        empresa: result.data.empresa,
+        idEmpresa: result.data.idEmpresa
       });
       response.status = 200;
       response.body = {
