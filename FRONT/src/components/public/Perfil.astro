@@ -24,7 +24,7 @@ const nombreActual = perfil.nombre ?? "";
 const apellidoActual = perfil.apellido ?? "";
 const emailActual = perfil.email ?? "";
 const rolActual = perfil.rol ?? "";
-const fotoUrl = perfil.imagen_url ? `${IMG_BASE}/Uploads/${perfil.imagen_url}` : "/defaults/usuarios.png";
+const fotoUrl = perfil.imagen_url ? `${IMG_BASE}${perfil.imagen_url}` : "/defaults/usuarios.png";
 const nombreCompleto = `${nombreActual} ${apellidoActual}`.trim();
 ---
 

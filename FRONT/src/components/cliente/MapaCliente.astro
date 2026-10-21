@@ -82,7 +82,10 @@ const pedidoIdsJson = JSON.stringify(pedidoIds);
   const datos = document.getElementById("datospagina") as HTMLElement;
   const token = datos.dataset.token ?? "";
   const pedidoIds: number[] = JSON.parse(datos.dataset.ids || "[]");
-  const WS_URL = import.meta.env.PUBLIC_WS_URL;
+  const WS_BASE = import.meta.env.PUBLIC_WS_URL;
+  const WS_URL = WS_BASE.startsWith("/")
+    ? `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}${WS_BASE}`
+    : WS_BASE;
   const API_DENO = import.meta.env.PUBLIC_API_DENO;
 
   const iconRepartidor = L.icon({
@@ -225,7 +228,7 @@ const pedidoIdsJson = JSON.stringify(pedidoIds);
         const visible = estado === "Activo" && g.lat != null && g.lng != null;
         const nombre = String(g.nombre ?? "");
         const avatar = g.foto_url
-          ? `<img src="${escapeHtml(g.foto_url)}" alt="" />`
+          ? `<img src="${API_DENO}${escapeHtml(g.foto_url)}" alt="" />`
           : escapeHtml(iniciales(nombre));
         const botones = g.pedidos
           .map(
@@ -374,7 +377,6 @@ const pedidoIdsJson = JSON.stringify(pedidoIds);
     },
     onMensaje: (msg) => {
       const id = Number(msg.proveedorId);
-
 
       if (msg.tipo === "ProveedorEnDescanso") {
         quitarMarcadorProveedor(Number(msg.proveedorId));

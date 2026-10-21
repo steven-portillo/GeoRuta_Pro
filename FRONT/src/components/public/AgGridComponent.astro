@@ -139,13 +139,13 @@ const columnasBase64 = utf8ToBase64(JSON.stringify(columnas));
             } else {
               // Archivo real subido, servido por el middleware de Deno bajo /Uploads/
               let relativo = valor.replace(/^\/+/, "");
-              if (relativo.startsWith("Uploads/")) {
-                relativo = relativo.slice("Uploads/".length);
+              if (relativo.startsWith("uploads/")) {
+                relativo = relativo.slice("uploads/".length);
               }
               const segmentos = relativo
                 .split("/")
                 .map((s: string) => encodeURIComponent(s));
-              src = `${IMG_BASE}/Uploads/${segmentos.join("/")}`; // "Uploads/" restaurado
+              src = `${IMG_BASE}/uploads/${segmentos.join("/")}`; // "Uploads/" restaurado
             }
 
             return `

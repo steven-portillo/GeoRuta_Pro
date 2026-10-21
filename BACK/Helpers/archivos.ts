@@ -1,4 +1,4 @@
-const UPLOADS_URL_PREFIX = "/Uploads";
+const UPLOADS_URL_PREFIX = "/uploads";
 
 const MIME_PERMITIDOS = ["image/jpeg", "image/png", "image/webp"];
 const TAMANO_MAXIMO = 2 * 1024 * 1024; // 2MB

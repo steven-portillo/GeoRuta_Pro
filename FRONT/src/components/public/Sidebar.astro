@@ -135,7 +135,7 @@ if (rol === "SUPERADMIN") {
           usuario?.fotoUrl ? (
             <>
               <img
-                src=`http://127.0.0.1:8005/Uploads/${usuario.fotoUrl}`
+                src=`http://127.0.0.1:8005${usuario.fotoUrl}`
                 alt={usuario.nombre}
                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
               />

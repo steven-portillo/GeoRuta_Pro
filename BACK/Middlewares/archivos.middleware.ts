@@ -19,7 +19,7 @@ export const servirArchivos = async (
   const url = ctx.request.url.pathname;
 
   // Solo rutas bajo /Uploads/
-  if (!url.startsWith("/Uploads/")) {
+  if (!url.startsWith("/uploads/")) {
     await next();
     return;
   }
@@ -29,7 +29,7 @@ export const servirArchivos = async (
     ctx.request.url.searchParams.get("download") === "1" ||
     ctx.request.url.searchParams.get("download") === "true";
 
-  let relativo = decodeURIComponent(url.replace(/^\/Uploads\//, ""));
+  let relativo = decodeURIComponent(url.replace(/^\/uploads\//, ""));
   if (relativo === "default" || relativo === "") {
     relativo = DEFAULT_IMG;
   }
@@ -41,7 +41,7 @@ export const servirArchivos = async (
     return;
   }
 
-  const rutaCompleta = `./Uploads/${relativo}`;
+  const rutaCompleta = `./uploads/${relativo}`;
   const punto = rutaCompleta.lastIndexOf(".");
   const extension =
     punto >= 0 ? rutaCompleta.slice(punto).toLowerCase() : "";
@@ -73,7 +73,7 @@ export const servirArchivos = async (
     // Fallback solo para imágenes de perfil; PDFs de solicitud → 404
     if (extension !== ".pdf") {
       try {
-        const bytes = await Deno.readFile(`./Uploads/${DEFAULT_IMG}`);
+        const bytes = await Deno.readFile(`./uploads/${DEFAULT_IMG}`);
         ctx.response.status = 200;
         ctx.response.headers.set("Content-Type", "image/png");
         ctx.response.body = bytes;

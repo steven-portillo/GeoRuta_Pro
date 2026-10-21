@@ -76,7 +76,10 @@ const token = Astro.cookies.get("token")?.value;
   const datos = document.getElementById("datostoken") as HTMLElement;
   const token = datos.dataset.token ?? "";
   const API_DENO = import.meta.env.PUBLIC_API_DENO;
-  const WS_URL = import.meta.env.PUBLIC_WS_URL;
+  const WS_BASE = import.meta.env.PUBLIC_WS_URL;
+  const WS_URL = WS_BASE.startsWith("/")
+    ? `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}${WS_BASE}`
+    : WS_BASE;
   const MARCADOR_YO = -1;
   const btnIniciar = document.getElementById(
     "btnIniciarRuta",
@@ -312,7 +315,7 @@ const token = Astro.cookies.get("token")?.value;
           nombre: "Mi ubicación",
           empresa: "",
         });
-
+        console.log("Lat: " + lat, " Lng: " + lng);
         enviarFn({ tipo: "EnviarUbicacion", lat, lng });
       },
       (err) => console.error("GPS", err),

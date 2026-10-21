@@ -217,7 +217,7 @@ const formatoCOP = new Intl.NumberFormat("es-CO", { style: "currency", currency:
 
   // AJUSTA este prefijo al que realmente sirva tus imágenes
   const IMG_BASE = import.meta.env.PUBLIC_API_DENO;
-  const urlImagen = (ruta: string) => `${IMG_BASE}/Uploads/${encodeURI(ruta)}`;
+  const urlImagen = (ruta: string) => `${IMG_BASE}/uploads/${encodeURI(ruta)}`;
 
   function validarRequerido(val: string, label: string) {
     const value = val.trim();
