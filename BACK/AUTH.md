@@ -5,7 +5,8 @@
 Para una base ya existente, ejecuta `auth_google_password_migration.sql` una
 sola vez. Permite usuarios sin contraseña local (cuentas de Google), almacena el
 identificador de Google y amplía la tabla de recuperación para guardar hashes
-de tokens de un solo uso. Las instalaciones nuevas pueden usar `georuta.sql`.
+de tokens de un solo uso. Las instalaciones nuevas pueden usar
+`BD_Georuta.sql`.
 
 ## Inicio y registro con Google
 
@@ -31,9 +32,11 @@ de tokens de un solo uso. Las instalaciones nuevas pueden usar `georuta.sql`.
   siempre el mismo mensaje genérico para evitar revelar si existe la cuenta.
 - Para cuentas activas se manda un token aleatorio de un solo uso, con
   vencimiento de 15 minutos. Solo se guarda su SHA-256; se limitan las
-  solicitudes a tres por cuenta por minuto.
+  solicitudes a tres por cuenta por minuto y el token se bloquea tras cinco
+  intentos incorrectos. El token enviado al cliente tiene el formato
+  `idSolicitud.secreto`; un token bloqueado requiere pedir un enlace nuevo.
 - `POST /api/auth/reset-password` acepta
-  `{ "token": "<token>", "password": "<nueva contraseña>" }`, hashea la nueva
+  `{ "token": "<idSolicitud.secreto>", "password": "<nueva contraseña>" }`, hashea la nueva
   contraseña con el mismo bcrypt que usa el login y consume todos los tokens
   pendientes de esa cuenta.
 - `PASSWORD_RESET_URL` es opcional y apunta a la pantalla del frontend que
@@ -41,3 +44,6 @@ de tokens de un solo uso. Las instalaciones nuevas pueden usar `georuta.sql`.
   introducirlo manualmente.
 - El cambio de contraseña invalida enlaces de recuperación existentes. Los
   JWT de sesiones activas no se revocan; vencen según su expiración habitual.
+- Para bases existentes, aplica también `proveedor_password_security_migration.sql`
+  después de la migración de autenticación. Esta invalida enlaces antiguos para
+  comenzar a usar el nuevo formato con límite de intentos.

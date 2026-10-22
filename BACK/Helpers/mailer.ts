@@ -6,6 +6,13 @@ const SMTP_USER = Deno.env.get("SMTP_USER");
 const SMTP_PASS = Deno.env.get("SMTP_PASS");
 const SMTP_FROM = Deno.env.get("SMTP_FROM") || SMTP_USER;
 
+export interface AdjuntoCorreo {
+  filename: string;
+  content: string;
+  contentType: string;
+  encoding: "base64";
+}
+
 if (!SMTP_HOST || !SMTP_PORT || !SMTP_USER || !SMTP_PASS) {
   console.warn(
     "⚠ Variables SMTP incompletas en el .env. El envío de correos va a fallar hasta que las configures.",
@@ -26,6 +33,7 @@ export async function enviarCorreo(
   asunto: string,
   contenidoHtml: string,
   contenidoTexto?: string,
+  attachments: AdjuntoCorreo[] = [],
 ): Promise<void> {
   const cliente = new SMTPClient({
     connection: {
@@ -46,6 +54,7 @@ export async function enviarCorreo(
       subject: asunto,
       content: contenidoTexto,
       html: limpiarHtml(contenidoHtml),
+      ...(attachments.length > 0 ? { attachments } : {}),
     });
   } catch (error) {
     // No se relanza: un fallo de correo nunca debe tumbar la operación

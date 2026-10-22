@@ -7,6 +7,10 @@ import {
   plantillaConfirmacionPedidoCliente,
   plantillaEstadoPedidoCliente,
 } from "./emailTemplates.ts";
+import {
+  generarComprobantePedidoPdf,
+  pdfBase64,
+} from "./comprobantePedidoPdf.ts";
 
 export type EventoCorreoPedido =
   | "confirmado"
@@ -22,7 +26,8 @@ export async function notificarClienteCambioPedido(
 ): Promise<void> {
   try {
     const [pedido] = await conexion.query(
-      `SELECT p.id_pedido, p.total, p.metodo_pago,
+      `SELECT p.id_pedido, p.total, p.metodo_pago, p.fecha_pedido,
+              p.fecha_entrega, p.pago_confirmado, pg.estado_pago,
               c.nombre AS nombre_cliente, c.email,
               e.nombre AS nombre_empresa, d.direccion_texto,
               CONCAT(pr.nombre, ' ', pr.apellido) AS nombre_proveedor
@@ -30,6 +35,7 @@ export async function notificarClienteCambioPedido(
        INNER JOIN usuarios c ON c.id_usuario = p.id_cliente
        INNER JOIN empresas e ON e.id_empresa = p.id_empresa
        INNER JOIN direcciones d ON d.id_direccion = p.id_direccion
+       LEFT JOIN pagos pg ON pg.id_pedido = p.id_pedido
        LEFT JOIN asignacion_pedido ap ON ap.id_pedido = p.id_pedido
        LEFT JOIN usuarios pr ON pr.id_usuario = ap.id_proveedor
        WHERE p.id_pedido = ?`,
@@ -80,7 +86,35 @@ export async function notificarClienteCambioPedido(
       ? plantillaAsignacionPedidoCliente(datos)
       : plantillaEstadoPedidoCliente(datos, evento);
 
-    await enviarCorreo(pedido.email, correo.asunto, correo.html, correo.texto);
+    const adjuntos = evento === "Entregado"
+      ? [{
+        filename: `comprobante-pedido-${id_pedido}.pdf`,
+        contentType: "application/pdf",
+        encoding: "base64" as const,
+        content: pdfBase64(generarComprobantePedidoPdf({
+          id_pedido: Number(pedido.id_pedido),
+          fecha_pedido: String(pedido.fecha_pedido ?? ""),
+          fecha_entrega: String(pedido.fecha_entrega ?? ""),
+          nombre_cliente: pedido.nombre_cliente,
+          email_cliente: pedido.email,
+          nombre_empresa: pedido.nombre_empresa,
+          direccion_texto: pedido.direccion_texto,
+          metodo_pago: pedido.metodo_pago,
+          pago_confirmado: Boolean(Number(pedido.pago_confirmado)),
+          estado_pago: pedido.estado_pago ?? undefined,
+          total: datos.total,
+          productos: datos.productos,
+        })),
+      }]
+      : [];
+
+    await enviarCorreo(
+      pedido.email,
+      correo.asunto,
+      correo.html,
+      correo.texto,
+      adjuntos,
+    );
   } catch (error) {
     console.error(
       `El pedido #${id_pedido} se procesó, pero no se pudo preparar su correo de ${evento}:`,

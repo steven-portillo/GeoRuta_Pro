@@ -23,7 +23,9 @@ export class Pedido {
   static async ObtenerDetalle(id_pedido: number, id_empresa: number) {
     const [pedido] = await conexion.query(
       `SELECT p.id_pedido, p.total, p.metodo_pago, p.pago_confirmado, p.observaciones,
-              p.fecha_pedido, p.fecha_aprobacion, p.fecha_asignacion, p.fecha_inicio_transito, p.fecha_entrega,
+              p.fecha_pedido, p.fecha_aprobacion, p.fecha_asignacion,
+              p.fecha_inicio_transito, p.fecha_entrega,
+              p.motivo_cancelacion, p.fecha_cancelacion, p.cancelado_por,
               es.nombre_estado AS estado,
               c.id_usuario AS id_cliente, c.nombre AS nombre_cliente, c.apellido AS apellido_cliente, c.email AS email_cliente,
               d.direccion_texto, d.latitud, d.longitud,

@@ -28,7 +28,9 @@ POST {{baseUrl}}/api/proveedor/entregas/iniciar
 Authorization: Bearer {{tokenProveedor}}
 
 ### Confirmar entrega contraentrega
-# Obtén el código desde la cuenta del cliente. Informa si se recibió el pago.
+# Obtén el código desde la cuenta del cliente. Solo confirma después de recibir
+# el pago completo. Si el cliente no paga, usa el endpoint cancelar-entrega.
+# Al confirmar la entrega, el cliente recibe el correo con un PDF resumen del pedido.
 POST {{baseUrl}}/api/proveedor/pedidos/{{idPedido}}/confirmar-entrega
 Authorization: Bearer {{tokenProveedor}}
 Content-Type: application/json
@@ -37,6 +39,25 @@ Content-Type: application/json
   "codigo_entrega": "{{codigoEntrega}}",
   "pago_recibido": true
 }
+
+### Cancelar un pedido en tránsito porque no se pudo completar la entrega
+# El motivo es obligatorio (3 a 1000 caracteres); queda guardado en el pedido.
+# Si el pago online ya fue aprobado o sigue pendiente, se requiere revisión
+# administrativa o esperar la respuesta de Wompi antes de cancelar.
+POST {{baseUrl}}/api/proveedor/pedidos/{{idPedido}}/cancelar-entrega
+Authorization: Bearer {{tokenProveedor}}
+Content-Type: application/json
+
+{
+  "motivo": "El cliente rechazó el pedido al momento de la entrega"
+}
+
+### Solicitar un nuevo código si se bloquearon cinco intentos incorrectos
+# Se permiten hasta 3 reemisiones por asignación. El cliente verá el nuevo
+# código al consultar el pedido desde su propia cuenta; no se envía por correo
+# ni se devuelve en la respuesta del proveedor.
+POST {{baseUrl}}/api/proveedor/pedidos/{{idPedido}}/nuevo-codigo-entrega
+Authorization: Bearer {{tokenProveedor}}
 
 ### Confirmar entrega con pago online
 # No envíes pago_recibido para pago online; la pasarela es responsable del pago.

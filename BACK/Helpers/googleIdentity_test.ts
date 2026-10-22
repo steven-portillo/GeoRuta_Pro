@@ -73,4 +73,15 @@ Deno.test("Google ID token valida firma, audiencia y correo verificado", async (
   ) {
     throw new Error("Se aceptó un ID token con audiencia incorrecta");
   }
+
+  const malformedSignature = `${signedContent}.%`;
+  if (
+    await verificarGoogleIdToken(
+      malformedSignature,
+      "test-client-id",
+      mockFetch,
+    ) !== null
+  ) {
+    throw new Error("Se aceptó una firma de ID token malformada");
+  }
 });

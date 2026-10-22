@@ -2,8 +2,10 @@ import { Router } from "../../Dependencies/dependencias.ts";
 import { authMiddleware } from "../../Middlewares/validarJWT.ts";
 import { soloProveedor } from "../../Middlewares/roles.ts";
 import {
+  cancelarEntregaProveedor,
   confirmarEntregaProveedor,
   iniciarEntregasProveedor,
+  reemitirCodigoEntregaProveedor,
 } from "../../Controller/Proveedor/entregaController.ts";
 import {
   listarPedidosProveedor,
@@ -27,6 +29,14 @@ proveedorRouter.post(
 proveedorRouter.post(
   "/api/proveedor/pedidos/:id/confirmar-entrega",
   confirmarEntregaProveedor,
+);
+proveedorRouter.post(
+  "/api/proveedor/pedidos/:id/nuevo-codigo-entrega",
+  reemitirCodigoEntregaProveedor,
+);
+proveedorRouter.post(
+  "/api/proveedor/pedidos/:id/cancelar-entrega",
+  cancelarEntregaProveedor,
 );
 
 export { proveedorRouter };

@@ -86,7 +86,8 @@ export const restablecerPassword = async (ctx: Context) => {
     const token = data.token;
     const password = data.password;
     if (
-      typeof token !== "string" || !/^[\da-f]{64}$/i.test(token) ||
+      typeof token !== "string" ||
+      !/^\d+\.[\da-f]{64}$/i.test(token) ||
       typeof password !== "string" ||
       password.length < 8 ||
       new TextEncoder().encode(password).length > 72
@@ -95,7 +96,7 @@ export const restablecerPassword = async (ctx: Context) => {
       ctx.response.body = {
         success: false,
         message:
-          "El código o la contraseña no son válidos; usa una contraseña de al menos 8 caracteres",
+          "El código o la contraseña no son válidos; usa el código completo recibido por correo y una contraseña de al menos 8 caracteres",
       };
       return;
     }

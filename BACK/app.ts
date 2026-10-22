@@ -12,6 +12,10 @@ import { empresaPerfilRouter } from "./Router/Admin/empresaPerfilRouter.ts";
 import { clienteRouter } from "./Router/Cliente/clienteRouter.ts";
 import { proveedorRouter as proveedorOperationsRouter } from "./Router/Proveedor/proveedorRouter.ts";
 import { pagoRouter } from "./Router/Pagos/pagoRouter.ts";
+import { adminMapaRouter } from "./Router/Mapa/adminMapaRouter.ts";
+import { clienteMapaRouter } from "./Router/Mapa/clienteMapaRouter.ts";
+import { proveedorMapaRouter } from "./Router/Mapa/proveedorMapaRouter.ts";
+import { manejarWsUbicacion } from "./ws/ubicacionHub.ts";
 
 const app = new Application();
 
@@ -32,6 +36,18 @@ app.use(async (ctx, next) => {
   await next();
 });
 
+app.use(async (ctx, next) => {
+  if (
+    ctx.request.url.pathname === "/ws" &&
+    ctx.request.headers.get("upgrade")?.toLowerCase() === "websocket"
+  ) {
+    const socket = await ctx.upgrade();
+    manejarWsUbicacion(socket);
+    return;
+  }
+  await next();
+});
+
 // Rutas
 const routers = [
   authRouter,
@@ -47,6 +63,9 @@ const routers = [
   clienteRouter,
   proveedorOperationsRouter,
   pagoRouter,
+  adminMapaRouter,
+  clienteMapaRouter,
+  proveedorMapaRouter,
 ];
 
 routers.forEach((router) => {

@@ -85,6 +85,9 @@ export async function verificarGoogleIdToken(
   if (
     parts.length !== 3 ||
     parts.some((part) => part.length === 0) ||
+    parts.some((part) =>
+      !/^[A-Za-z0-9_-]+$/.test(part) || part.length % 4 === 1
+    ) ||
     idToken.length > 10_000
   ) {
     return null;

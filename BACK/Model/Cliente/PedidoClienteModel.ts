@@ -31,6 +31,7 @@ export class PedidoCliente {
       `SELECT p.id_pedido, p.id_empresa, e.nombre AS nombre_empresa,
               p.total, p.metodo_pago, p.pago_confirmado, p.fecha_pedido,
               p.fecha_asignacion, p.fecha_inicio_transito, p.fecha_entrega,
+              p.motivo_cancelacion, p.fecha_cancelacion,
               ep.nombre_estado AS estado, d.alias, d.direccion_texto,
               ap.codigo_entrega
        FROM pedidos p
@@ -50,6 +51,7 @@ export class PedidoCliente {
               p.total, p.metodo_pago, p.pago_confirmado, p.observaciones,
               p.fecha_pedido, p.fecha_aprobacion, p.fecha_asignacion,
               p.fecha_inicio_transito, p.fecha_entrega,
+              p.motivo_cancelacion, p.fecha_cancelacion,
               ep.nombre_estado AS estado, d.alias, d.direccion_texto,
               d.latitud, d.longitud, ap.codigo_entrega,
               pr.nombre AS nombre_proveedor, pr.apellido AS apellido_proveedor,

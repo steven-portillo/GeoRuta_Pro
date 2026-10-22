@@ -62,18 +62,18 @@ export class RecuperacionPassword {
       );
       const token = tokenAleatorio();
       const tokenHash = await hashToken(token);
-      await conexion.execute(
+      const insert = await conexion.execute(
         `INSERT INTO recuperacion_password
-           (id_usuario, codigo, expiracion, usado, creado_en)
+           (id_usuario, codigo, expiracion, usado, creado_en, intentos, bloqueado)
          VALUES (?, ?, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 15 MINUTE), 0,
-                 CURRENT_TIMESTAMP)`,
+                 CURRENT_TIMESTAMP, 0, 0)`,
         [usuario.id_usuario, tokenHash],
       );
       await conexion.execute("COMMIT");
       return {
         email: usuario.email,
         nombre: usuario.nombre,
-        token,
+        token: `${insert.lastInsertId}.${token}`,
       };
     } catch (error) {
       await conexion.execute("ROLLBACK");
@@ -83,32 +83,30 @@ export class RecuperacionPassword {
   }
 
   static async Restablecer(token: string, nuevaPassword: string) {
-    const tokenHash = await hashToken(token);
-    const [tokenExistente] = await conexion.query(
-      `SELECT r.id FROM recuperacion_password r
-       INNER JOIN usuarios u ON u.id_usuario = r.id_usuario
-       WHERE r.codigo = ? AND r.usado = 0
-         AND r.expiracion > CURRENT_TIMESTAMP AND u.activo = 1`,
-      [tokenHash],
-    );
-    if (!tokenExistente) {
+    const [idParte, secreto] = token.split(".");
+    const idSolicitud = Number(idParte);
+    if (
+      !Number.isSafeInteger(idSolicitud) || idSolicitud <= 0 ||
+      !/^[\da-f]{64}$/i.test(secreto ?? "")
+    ) {
       return {
         success: false as const,
         message: "El enlace es inválido o expiró",
       };
     }
-    const passwordHash = await hash(nuevaPassword);
+    const tokenHash = await hashToken(secreto.toLowerCase());
 
     await conexion.execute("START TRANSACTION");
     try {
       const [solicitud] = await conexion.query(
-        `SELECT r.id, r.id_usuario
+        `SELECT r.id, r.id_usuario, r.codigo, r.expiracion, r.usado,
+                r.intentos, r.bloqueado, u.activo,
+                (r.expiracion <= CURRENT_TIMESTAMP) AS expirada
          FROM recuperacion_password r
          INNER JOIN usuarios u ON u.id_usuario = r.id_usuario
-         WHERE r.codigo = ? AND r.usado = 0
-           AND r.expiracion > CURRENT_TIMESTAMP AND u.activo = 1
+         WHERE r.id = ?
          FOR UPDATE`,
-        [tokenHash],
+        [idSolicitud],
       );
       if (!solicitud) {
         await conexion.execute("ROLLBACK");
@@ -117,7 +115,40 @@ export class RecuperacionPassword {
           message: "El enlace es inválido o expiró",
         };
       }
+      if (
+        Number(solicitud.usado) === 1 ||
+        Number(solicitud.bloqueado) === 1 ||
+        Number(solicitud.activo) !== 1 ||
+        Number(solicitud.expirada) === 1
+      ) {
+        await conexion.execute("ROLLBACK");
+        return {
+          success: false as const,
+          message: Number(solicitud.bloqueado) === 1
+            ? "Se agotaron los intentos. Solicita un nuevo enlace para restablecer la contraseña."
+            : "El enlace es inválido o expiró",
+        };
+      }
+      if (solicitud.codigo !== tokenHash) {
+        const intentos = Number(solicitud.intentos) + 1;
+        const bloqueado = intentos >= 5;
+        await conexion.execute(
+          `UPDATE recuperacion_password
+           SET intentos = ?, bloqueado = ?
+           WHERE id = ? AND usado = 0`,
+          [intentos, bloqueado ? 1 : 0, idSolicitud],
+        );
+        await conexion.execute("COMMIT");
+        return {
+          success: false as const,
+          message: bloqueado
+            ? "Se agotaron los intentos. Solicita un nuevo enlace para restablecer la contraseña."
+            : `El enlace no es válido. Te quedan ${5 - intentos} intento(s).`,
+          intentos_restantes: Math.max(0, 5 - intentos),
+        };
+      }
 
+      const passwordHash = await hash(nuevaPassword);
       await conexion.execute(
         `UPDATE usuarios SET password_hash = ? WHERE id_usuario = ?`,
         [passwordHash, solicitud.id_usuario],
