@@ -1,6 +1,7 @@
 import { RouterContext } from "../Dependencies/Dependencias.ts";
 import { Usuario } from "../Models/Usuario.model.ts";
 import { EsquemaRegistro } from "../Helpers/EsquemasValidacion.ts";
+import { notificarRegistroCliente } from "../Helpers/EnviarNotificaciones.ts";
 
 // autoregistro publico de un cliente nuevo — equivalente a POST /Registro/Registrar del original
 export const registrar = async (ctx: RouterContext<string>) => {
@@ -21,6 +22,9 @@ export const registrar = async (ctx: RouterContext<string>) => {
 
     const ObjUsuario = new Usuario(null, null, resultado.data);
     const resultadoRegistro = await ObjUsuario.CrearUsuario();
+
+    // correo de bienvenida: sin await para no demorar la respuesta, y nunca rompe el registro
+    if (resultadoRegistro.success) notificarRegistroCliente(resultado.data.email, resultado.data.nombre);
 
     response.status = resultadoRegistro.success ? 201 : 409;
     response.body = resultadoRegistro;

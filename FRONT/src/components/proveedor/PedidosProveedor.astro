@@ -408,17 +408,34 @@ const datosJson = JSON.stringify({ pedidos: pedidosIniciales, error: error ?? nu
     const mensaje = obtener('modal-det-msg');
     if (mensaje) mensaje.style.display = 'none';
 
-    const modal = obtener('modal-detalle-rep');
-    if (modal) modal.style.display = 'flex';
+    // Ocultar el banner de ubicación cuando se abre el modal
+   const bannerRastreo = obtener('banner-rastreo-activo');
+   if (bannerRastreo) {
+  bannerRastreo.style.display = 'none';
+}
+   
+const modal = obtener('modal-detalle-rep');
+if (modal) {
+  modal.style.display = 'flex';
+}
 
     // el contenedor del mapa necesita estar visible antes de inicializar leaflet
     setTimeout(() => pintarMapaDetalle(p), 150);
   }
 
   function cerrarDetalle() {
-    const modal = obtener('modal-detalle-rep');
-    if (modal) modal.style.display = 'none';
+  const modal = obtener('modal-detalle-rep');
+  if (modal) {
+    modal.style.display = 'none';
   }
+
+  // Volver a mostrar el banner al cerrar el modal
+  const bannerRastreo = obtener('banner-rastreo-activo');
+
+  if (bannerRastreo) {
+    bannerRastreo.style.display = 'flex';
+  }
+}
 
   function pintarMapaDetalle(p: Pedido) {
     const L = leaflet();

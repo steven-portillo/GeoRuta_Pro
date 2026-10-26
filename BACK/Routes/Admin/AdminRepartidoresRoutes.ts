@@ -7,6 +7,7 @@ import {
   obtenerRepartidoresDisponibles,
   asignarRepartidor,
   obtenerPedidosRepartidor,
+  actualizarCredencialesRepartidor,
 } from "../../Controllers/Admin/AdminRepartidoresController.ts";
 
 const router = new Router();
@@ -25,6 +26,12 @@ router.get(
   VerificarAutenticacion,
   VerificarRol("ADMIN"),
   obtenerPedidosRepartidor,
+);
+router.post(
+  "/admin/repartidores/:id/credenciales",
+  VerificarAutenticacion,
+  VerificarRol("ADMIN"),
+  actualizarCredencialesRepartidor,
 );
 
 export default router;

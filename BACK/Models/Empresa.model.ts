@@ -190,4 +190,69 @@ export class Empresa {
       return { success: false, message: "No fue posible cambiar el estado de la empresa" };
     }
   }
+
+    // nombre de la empresa y datos de su admin, para los correos de activacion/desactivacion
+  // y para el de bienvenida del repartidor (que necesita el nombre de la empresa).
+  // el admin puede no existir, por eso sus campos pueden venir en null
+  public async ObtenerDatosParaCorreo(idEmpresa: number): Promise<{
+    success: boolean;
+    message: string;
+    data?: {
+      nombreEmpresa: string;
+      nombreAdmin: string | null;
+      apellidoAdmin: string | null;
+      emailAdmin: string | null;
+    };
+  }> {
+    try {
+      const { rows } = await conexion.execute(
+        `SELECT e.nombre AS nombre_empresa,
+                u.nombre AS nombre_admin, u.apellido AS apellido_admin, u.email AS email_admin
+         FROM empresas e
+         LEFT JOIN usuarios u ON u.id_empresa = e.id_empresa
+              AND u.id_rol = (SELECT id_rol FROM roles WHERE nombre_rol = 'ADMIN')
+         WHERE e.id_empresa = ?
+         LIMIT 1`,
+        [idEmpresa],
+      );
+
+      if (!rows || rows.length === 0) {
+        return { success: false, message: "Empresa no encontrada" };
+      }
+
+      const fila = rows[0] as Record<string, string | null>;
+
+      return {
+        success: true,
+        message: "Datos obtenidos",
+        data: {
+          nombreEmpresa: fila.nombre_empresa as string,
+          nombreAdmin: fila.nombre_admin,
+          apellidoAdmin: fila.apellido_admin,
+          emailAdmin: fila.email_admin,
+        },
+      };
+    } catch (error) {
+      console.error(error);
+      return { success: false, message: "No fue posible obtener los datos de la empresa" };
+    }
+  }
+
+  // correos de los superadmin activos, para avisarles de una empresa nueva por aprobar
+  public async ObtenerCorreosSuperAdmin(): Promise<{ success: boolean; message: string; data?: string[] }> {
+    try {
+      const { rows } = await conexion.execute(
+        `SELECT u.email
+         FROM usuarios u
+         INNER JOIN roles r ON u.id_rol = r.id_rol
+         WHERE r.nombre_rol = 'SUPERADMIN' AND u.activo = 1`,
+      );
+
+      const correos = (rows as { email: string }[] | undefined ?? []).map((fila) => fila.email);
+      return { success: true, message: "Correos obtenidos", data: correos };
+    } catch (error) {
+      console.error(error);
+      return { success: false, message: "No fue posible obtener los correos de los superadmin" };
+    }
+  }
 }

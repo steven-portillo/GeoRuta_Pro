@@ -890,5 +890,93 @@ export class Pedido {
       };
     }
   }
+
+    // datos del pedido para armar los correos al cliente (confirmacion, asignacion, estado, cancelacion).
+  // los nombres coinciden con la interfaz PedidoCorreoDatos de PlantillasCorreo.ts
+  public async ObtenerDatosParaCorreo(): Promise<{
+    success: boolean;
+    message: string;
+    data?: {
+      idPedido: number;
+      nombreCliente: string;
+      emailCliente: string;
+      nombreEmpresa: string;
+      total: number;
+      metodoPago: string;
+      direccion: string;
+      nombreRepartidor?: string;
+      productos: { nombre: string; cantidad: number; precioUnitario: number; subtotal: number }[];
+    };
+  }> {
+    if (!this._idPedido) return { success: false, message: "Pedido no identificado" };
+
+    try {
+      const { rows: cabeceraRows } = await conexion.execute(
+        `SELECT p.id_pedido, p.total, p.metodo_pago,
+                CONCAT(u.nombre, ' ', IFNULL(u.apellido, '')) AS cliente, u.email AS cliente_email,
+                e.nombre AS empresa,
+                d.direccion_texto AS direccion,
+                CONCAT(urep.nombre, ' ', IFNULL(urep.apellido, '')) AS repartidor
+         FROM pedidos p
+         INNER JOIN usuarios u ON p.id_cliente = u.id_usuario
+         INNER JOIN empresas e ON p.id_empresa = e.id_empresa
+         LEFT JOIN direcciones d ON p.id_direccion = d.id_direccion
+         LEFT JOIN asignacion_pedido ap ON p.id_pedido = ap.id_pedido
+         LEFT JOIN usuarios urep ON ap.id_proveedor = urep.id_usuario
+         WHERE p.id_pedido = ?`,
+        [this._idPedido],
+      );
+
+      if (!cabeceraRows || cabeceraRows.length === 0) {
+        return { success: false, message: "Pedido no encontrado" };
+      }
+
+      const fila = cabeceraRows[0] as Record<string, unknown>;
+
+      const { rows: itemsRows } = await conexion.execute(
+        `SELECT pr.nombre, dp.cantidad, dp.precio_unitario
+         FROM detalle_pedido dp
+         INNER JOIN productos pr ON dp.id_producto = pr.id_producto
+         WHERE dp.id_pedido = ?
+         ORDER BY pr.nombre`,
+        [this._idPedido],
+      );
+
+      // number() porque mysql puede devolver los decimales como texto
+      const productos = (itemsRows as Record<string, unknown>[]).map((f) => {
+        const cantidad = Number(f.cantidad);
+        const precioUnitario = Number(f.precio_unitario);
+        return {
+          nombre: f.nombre as string,
+          cantidad,
+          precioUnitario,
+          subtotal: cantidad * precioUnitario,
+        };
+      });
+
+      const nombreRepartidor = String(fila.repartidor ?? "").trim();
+
+      return {
+        success: true,
+        message: "Datos obtenidos",
+        data: {
+          idPedido: Number(fila.id_pedido),
+          nombreCliente: String(fila.cliente ?? "").trim(),
+          emailCliente: fila.cliente_email as string,
+          nombreEmpresa: fila.empresa as string,
+          total: Number(fila.total),
+          metodoPago: fila.metodo_pago as string,
+          direccion: (fila.direccion as string | null) ?? "No especificada",
+          nombreRepartidor: nombreRepartidor || undefined,
+          productos,
+        },
+      };
+    } catch (error) {
+      console.error(error);
+      return { success: false, message: "No fue posible obtener los datos del pedido para el correo" };
+    }
+  }
   
 }
+
+

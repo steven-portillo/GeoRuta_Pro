@@ -91,7 +91,10 @@ const { pedidosIniciales, metricasIniciales } = Astro.props;
       <tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:2rem">Cargando pedidos...</td></tr>
     </tbody>
   </table>
+  <div id="paginacion-pedidos"></div>
 </div>
+
+<script is:inline src="/js/paginador.js"></script>
 
 <!-- modal detalle (unificado con acciones) -->
 <div class="modal-overlay" id="modal-det-admin" style="display:none">
@@ -175,6 +178,13 @@ const { pedidosIniciales, metricasIniciales } = Astro.props;
   let repartidorSeleccionado = null;
   let mapaDetalle = null;
 
+    // 10 pedidos por pagina; alCambiar repinta conservando la pagina
+  const paginadorPedidos = crearPaginador({
+    contenedor: 'paginacion-pedidos',
+    porPagina: 10,
+    alCambiar: renderPedidos,
+  });
+
   const badgeEstado = {
     Pendiente: { clase: 'badge-amber', icono: '⏳' },
     'En preparacion': { clase: 'badge-azul', icono: '📦' },
@@ -221,12 +231,16 @@ const { pedidosIniciales, metricasIniciales } = Astro.props;
         (!estadoFiltro || p.estado === estadoFiltro),
     );
 
-    if (!filtrados.length) {
+      if (!filtrados.length) {
       tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:2rem">No hay pedidos registrados.</td></tr>`;
+      paginadorPedidos.rango(0);
       return;
     }
 
+    const { desde, hasta } = paginadorPedidos.rango(filtrados.length);
+
     tbody.innerHTML = filtrados
+      .slice(desde, hasta)
       .map((p) => {
         const est = badgeEstado[p.estado] || { clase: 'badge-slate', icono: '📋' };
         const pagoBadge = p.pagoConfirmado
@@ -503,8 +517,15 @@ const { pedidosIniciales, metricasIniciales } = Astro.props;
   // ============================================================
   // listeners
   // ============================================================
-  document.getElementById('buscar-pedido')?.addEventListener('input', renderPedidos);
-  document.getElementById('filtro-estado')?.addEventListener('change', renderPedidos);
+    // al buscar o filtrar se vuelve a la pagina 1
+  document.getElementById('buscar-pedido')?.addEventListener('input', () => {
+    paginadorPedidos.irAPrimera();
+    renderPedidos();
+  });
+  document.getElementById('filtro-estado')?.addEventListener('change', () => {
+    paginadorPedidos.irAPrimera();
+    renderPedidos();
+  });
   document.getElementById('btn-cerrar-detalle')?.addEventListener('click', cerrarDetalle);
   document.getElementById('btn-cerrar-detalle-footer')?.addEventListener('click', cerrarDetalle);
   document.getElementById('btn-confirmar-asignar')?.addEventListener('click', confirmarAsignacion);

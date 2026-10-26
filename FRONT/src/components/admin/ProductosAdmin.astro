@@ -77,7 +77,10 @@ const { productosIniciales, categoriasIniciales } = Astro.props;
       <tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:2rem">Cargando productos...</td></tr>
     </tbody>
   </table>
+  <div id="paginacion-productos"></div>
 </div>
+
+<script is:inline src="/js/paginador.js"></script>
 
 <!-- modal agregar / editar -->
 <div class="modal-overlay" id="modal-producto" style="display:none">
@@ -152,6 +155,13 @@ const { productosIniciales, categoriasIniciales } = Astro.props;
   let categorias = categoriasIniciales;
   let tabActual = 'activos';
 
+    // 5 productos por pagina; alCambiar repinta la tabla conservando la pagina
+  const paginadorProductos = crearPaginador({
+    contenedor: 'paginacion-productos',
+    porPagina: 5,
+    alCambiar: renderProductos,
+  });
+
   const svgSinImagen = `
     <svg viewBox="0 0 24 24" style="width:36px;height:36px;fill:#94a3b8">
       <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0
@@ -208,13 +218,19 @@ const { productosIniciales, categoriasIniciales } = Astro.props;
         (!catFiltro || p.categoria === catFiltro),
     );
 
-    if (!filtrados.length) {
+        if (!filtrados.length) {
       tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:2rem">
         No hay productos en esta categoría.</td></tr>`;
+      // sin filas tampoco debe quedar el paginador anterior
+      paginadorProductos.rango(0);
       return;
     }
 
+    // solo se pintan los productos de la pagina actual
+    const { desde, hasta } = paginadorProductos.rango(filtrados.length);
+
     tbody.innerHTML = filtrados
+      .slice(desde, hasta)
       .map((p) => {
         const imagen = p.imagen_url
           ? `<img src="${p.imagen_url}" style="width:44px;height:44px;object-fit:contain;border-radius:6px;border:1px solid #e2e8f0">`
@@ -246,16 +262,22 @@ const { productosIniciales, categoriasIniciales } = Astro.props;
       .join('');
   }
 
+  // al buscar, filtrar o cambiar de pestaña se vuelve a la pagina 1
+  function renderDesdePrimera() {
+    paginadorProductos.irAPrimera();
+    renderProductos();
+  }
+
   // ============================================================
   // pestanas activos / inactivos
   // ============================================================
   function cambiarTab(tab) {
     tabActual = tab;
-    document.getElementById('tab-activos')?.classList.toggle('tab-activo', tab === 'activos');
-    document.getElementById('tab-inactivos')?.classList.toggle('tab-activo', tab === 'inactivos');
-    document.getElementById('count-activos')?.classList.toggle('tab-contador-activo', tab === 'activos');
-    document.getElementById('count-inactivos')?.classList.toggle('tab-contador-activo', tab === 'inactivos');
-    renderProductos();
+  document.getElementById('buscar-producto')?.addEventListener('input', renderDesdePrimera);
+  document.getElementById('filtro-categoria')?.addEventListener('change', renderDesdePrimera);
+  document.getElementById('tab-activos')?.addEventListener('click', () => cambiarTab('activos'));
+  document.getElementById('tab-inactivos')?.addEventListener('click', () => cambiarTab('inactivos'));
+    renderDesdePrimera();
   }
 
   // ============================================================

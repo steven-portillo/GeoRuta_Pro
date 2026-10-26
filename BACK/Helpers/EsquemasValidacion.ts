@@ -70,7 +70,7 @@ export const EsquemaGuardarRepartidor = z.object({
   nombre: z.string().min(2, "el nombre debe tener al menos 2 caracteres").max(100),
   apellido: z.string().max(100).optional(),
   email: z.string().email("el correo no es válido"),
-  password: z.string().min(8, "la contraseña debe tener mínimo 6 caracteres"),
+  password: z.string().min(6, "la contraseña debe tener mínimo 6 caracteres"),
   telefono: z.string().max(20).optional(),
 });
 
@@ -179,4 +179,11 @@ export const EsquemaLoginGoogle = z.object({
 export const EsquemaConfirmarEntrega = z.object({
   idPedido: z.number().int().positive(),
   codigo: z.string().regex(/^\d{6}$/, "el código debe tener 6 dígitos"),
+});
+
+// cambio de credenciales de un repartidor: el correo siempre llega,
+// la contraseña solo si el admin quiere cambiarla
+export const EsquemaActualizarCredencialesRepartidor = z.object({
+  email: z.string().email("el correo no es válido"),
+  password: z.string().min(6, "la contraseña debe tener mínimo 6 caracteres").optional(),
 });

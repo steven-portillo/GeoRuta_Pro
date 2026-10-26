@@ -2,6 +2,7 @@ import { RouterContext } from "../../Dependencies/Dependencias.ts";
 import { Pedido } from "../../Models/Pedido.model.ts";
 import { EsquemaCambiarEstadoPedido } from "../../Helpers/EsquemasValidacion.ts";
 import { obtenerUsuarioAutenticado } from "../../Helpers/ContextoAuth.ts";
+import { notificarCambioEstadoPedido } from "../../Helpers/EnviarNotificaciones.ts";
 
 // GET /admin/pedidos
 export const obtenerPedidos = async (ctx: RouterContext<string>) => {
@@ -36,6 +37,7 @@ export const obtenerPedidos = async (ctx: RouterContext<string>) => {
 };
 
 // POST /admin/pedidos/cambiar-estado
+// POST /admin/pedidos/cambiar-estado
 export const cambiarEstadoPedido = async (ctx: RouterContext<string>) => {
   const { request, response } = ctx;
   try {
@@ -51,6 +53,9 @@ export const cambiarEstadoPedido = async (ctx: RouterContext<string>) => {
     const { idEmpresa } = obtenerUsuarioAutenticado(ctx);
     const ObjPedido = new Pedido(resultado.data.idPedido, idEmpresa);
     const resultadoCambio = await ObjPedido.CambiarEstado(resultado.data.nuevoEstado);
+
+    // avisa al cliente si el pedido quedo en camino, entregado o cancelado (otros estados se ignoran)
+    if (resultadoCambio.success) notificarCambioEstadoPedido(resultado.data.idPedido, resultado.data.nuevoEstado);
 
     response.status = resultadoCambio.success ? 200 : 404;
     response.body = resultadoCambio;

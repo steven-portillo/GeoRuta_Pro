@@ -110,9 +110,12 @@ const activas = empresas.filter((e) => e.estado).length;
           {empresas.length ? 'No se encontraron empresas con ese filtro.' : 'Aún no hay empresas registradas.'}
         </td>
       </tr>
-    </tbody>
+            </tbody>
   </table>
+  <div id="paginacion-empresas"></div>
 </div>
+
+<script is:inline src="/js/paginador.js"></script>
 
 <script>
   const cuerpo = document.getElementById('tbody-empresas');
@@ -124,21 +127,36 @@ const activas = empresas.filter((e) => e.estado).length;
 
   const filas = () => Array.from(document.querySelectorAll<HTMLTableRowElement>('.fila-empresa'));
 
-  function aplicarFiltros() {
+    // 5 empresas por pagina; alCambiar vuelve a aplicar los filtros conservando la pagina
+  const paginador = (window as any).crearPaginador({
+    contenedor: 'paginacion-empresas',
+    porPagina: 5,
+    alCambiar: () => aplicarFiltros(false),
+  });
+
+  // reiniciar = true cuando cambia la busqueda o el filtro (vuelve a la pagina 1)
+  function aplicarFiltros(reiniciar = false) {
     const texto = buscador?.value.toLowerCase().trim() ?? '';
     const estado = filtroEstado?.value ?? '';
-    let visibles = 0;
+
+    if (reiniciar) paginador.irAPrimera();
+
+    // primero se filtra sobre todas las filas, despues se pagina solo lo que coincide
+    const coincidentes = filas().filter(
+      (fila) => (!texto || (fila.dataset.texto ?? '').includes(texto)) && (!estado || fila.dataset.estado === estado),
+    );
+
+    const { desde, hasta } = paginador.rango(coincidentes.length);
+    const enPagina = new Set(coincidentes.slice(desde, hasta));
 
     for (const fila of filas()) {
-      const coincide =
-        (!texto || (fila.dataset.texto ?? '').includes(texto)) && (!estado || fila.dataset.estado === estado);
-      fila.style.display = coincide ? '' : 'none';
-      if (coincide) visibles++;
+      fila.style.display = enPagina.has(fila) ? '' : 'none';
     }
 
-    if (contadorVisibles) contadorVisibles.textContent = String(visibles);
+    // el contador muestra cuantas empresas coinciden en total, no cuantas hay en la pagina
+    if (contadorVisibles) contadorVisibles.textContent = String(coincidentes.length);
     // la fila de "sin resultados" solo tiene sentido si hay filas y ninguna coincide
-    if (filaVacia && filas().length) filaVacia.style.display = visibles === 0 ? '' : 'none';
+    if (filaVacia && filas().length) filaVacia.style.display = coincidentes.length === 0 ? '' : 'none';
   }
 
   function contarActivas() {
@@ -204,8 +222,11 @@ const activas = empresas.filter((e) => e.estado).length;
     }
   });
 
-  buscador?.addEventListener('input', aplicarFiltros);
-  filtroEstado?.addEventListener('change', aplicarFiltros);
+  buscador?.addEventListener('input', () => aplicarFiltros(true));
+  filtroEstado?.addEventListener('change', () => aplicarFiltros(true));
+
+  // primer pintado: oculta las filas que pasan de 5 y dibuja los botones
+  aplicarFiltros();
 </script>
 
 <style>

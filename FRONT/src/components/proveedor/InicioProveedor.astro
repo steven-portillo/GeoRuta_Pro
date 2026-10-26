@@ -138,7 +138,7 @@ const subtitulo = !metricas
           <th>Estado</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="tbody-ultimos-pedidos">
         {
           pedidos.length === 0 ? (
             <tr>
@@ -165,7 +165,10 @@ const subtitulo = !metricas
       </tbody>
     </table>
   </div>
+  <div id="paginacion-ultimos-pedidos" style="--pag-color: var(--verde-600, #16a34a)"></div>
 </div>
+
+<script is:inline src="/js/paginador.js"></script>
 
 <script>
   // saludo segun la hora local del navegador (mismos rangos que Script_Repartidor.js)
@@ -174,4 +177,11 @@ const subtitulo = !metricas
     hora >= 5 && hora < 12 ? '¡Buenos días,' : hora >= 12 && hora < 18 ? '¡Buenas tardes,' : '¡Buenas noches,';
   const elHora = document.getElementById('rep-saludo-hora');
   if (elHora) elHora.textContent = saludo;
+
+    // pagina los ultimos pedidos (5 por pagina)
+  (window as any).paginarTabla({
+    tbody: document.getElementById('tbody-ultimos-pedidos'),
+    contenedor: 'paginacion-ultimos-pedidos',
+    porPagina: 5,
+  });
 </script>

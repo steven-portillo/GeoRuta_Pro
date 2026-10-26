@@ -71,10 +71,62 @@ export class Repartidor {
         ],
       );
 
+      
+
       return { success: true, message: "Repartidor creado correctamente" };
     } catch (error) {
       console.error(error);
       return { success: false, message: "No fue posible crear el repartidor" };
+    }
+  }
+
+    // cambia el correo y, si viene, la contraseña de un repartidor de la empresa.
+  // devuelve un codigo http para que el controller sepa que status responder
+  public async ActualizarCredenciales(
+    idRepartidor: number,
+    email: string,
+    password?: string,
+  ): Promise<{ success: boolean; message: string; codigo?: number }> {
+    if (!this._idEmpresa) return { success: false, message: "Empresa no identificada", codigo: 400 };
+
+    try {
+      // el repartidor debe existir, ser de esta empresa y tener rol proveedor
+      // (asi un admin no puede tocar usuarios de otra empresa)
+      const { rows: encontrados } = await conexion.execute(
+        `SELECT id_usuario FROM usuarios WHERE id_usuario = ? AND id_empresa = ? AND id_rol = ?`,
+        [idRepartidor, this._idEmpresa, ID_ROL_PROVEEDOR],
+      );
+      if ((encontrados?.length ?? 0) === 0) {
+        return { success: false, message: "Repartidor no encontrado", codigo: 404 };
+      }
+
+      // el correo no puede pertenecer a otro usuario
+      const { rows: enUso } = await conexion.execute(
+        `SELECT id_usuario FROM usuarios WHERE email = ? AND id_usuario != ?`,
+        [email, idRepartidor],
+      );
+      if ((enUso?.length ?? 0) > 0) {
+        return { success: false, message: "Este correo ya está en uso", codigo: 409 };
+      }
+
+      if (password) {
+        const passwordHasheado = await bcrypt.hash(password);
+        await conexion.execute(`UPDATE usuarios SET email = ?, password_hash = ? WHERE id_usuario = ?`, [
+          email,
+          passwordHasheado,
+          idRepartidor,
+        ]);
+      } else {
+        await conexion.execute(`UPDATE usuarios SET email = ? WHERE id_usuario = ?`, [email, idRepartidor]);
+      }
+
+      return {
+        success: true,
+        message: password ? "Correo y contraseña actualizados correctamente" : "Correo actualizado correctamente",
+      };
+    } catch (error) {
+      console.error(error);
+      return { success: false, message: "No fue posible actualizar el repartidor", codigo: 500 };
     }
   }
 

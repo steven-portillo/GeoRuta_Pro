@@ -2,6 +2,7 @@ import { RouterContext } from "../../Dependencies/Dependencias.ts";
 import { Empresa } from "../../Models/Empresa.model.ts";
 import { Usuario } from "../../Models/Usuario.model.ts";
 import { EsquemaCambiarEstadoEmpresa } from "../../Helpers/EsquemasValidacion.ts";
+import { notificarCambioEstadoEmpresa } from "../../Helpers/EnviarNotificaciones.ts";
 
 // GET /superadmin/empresas?busqueda=texto si
 export const obtenerEmpresas = async (ctx: RouterContext<string>) => {
@@ -21,6 +22,7 @@ export const obtenerEmpresas = async (ctx: RouterContext<string>) => {
 };
 
 // POST /superadmin/empresas/cambiar-estado
+// POST /superadmin/empresas/cambiar-estado
 export const cambiarEstadoEmpresa = async (ctx: RouterContext<string>) => {
   const { request, response } = ctx;
   try {
@@ -35,6 +37,9 @@ export const cambiarEstadoEmpresa = async (ctx: RouterContext<string>) => {
 
     const ObjEmpresa = new Empresa(resultado.data.idEmpresa);
     const resultadoCambio = await ObjEmpresa.CambiarEstado(resultado.data.idEmpresa, resultado.data.activar);
+
+    // le avisa al admin de la empresa si quedo activada o desactivada
+    if (resultadoCambio.success) notificarCambioEstadoEmpresa(resultado.data.idEmpresa, resultado.data.activar);
 
     response.status = resultadoCambio.success ? 200 : 400;
     response.body = resultadoCambio;

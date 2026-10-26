@@ -196,8 +196,11 @@ const barras = serieDiariaInicial.map((d, i) => {
       </thead>
       <tbody id="tbody-pagos"></tbody>
     </table>
+    <div id="paginacion-pagos"></div>
   </div>
 </div>
+
+<script is:inline src="/js/paginador.js"></script>
 
 <script define:vars={{ pagosIniciales }}>
   // los pagos ya vienen resueltos por ssr; este script solo filtra en memoria,
@@ -213,21 +216,35 @@ const barras = serieDiariaInicial.map((d, i) => {
 
   const fmtMonto = (n) => '$' + Number(n).toLocaleString('es-CO');
 
+    // 10 pagos por pagina; alCambiar repinta la lista que este activa (filtrada o no)
+  let listaActual = pagos;
+  const paginadorPagos = crearPaginador({
+    contenedor: 'paginacion-pagos',
+    porPagina: 10,
+    alCambiar: () => renderPagos(listaActual),
+  });
+
   function renderPagos(lista) {
+    listaActual = lista;
     const tbody = document.getElementById('tbody-pagos');
     if (!tbody) return;
     if (!lista.length) {
       tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:2rem">Aún no se han registrado pagos.</td></tr>`;
+      paginadorPagos.rango(0);
       return;
     }
+
+    const { desde, hasta } = paginadorPagos.rango(lista.length);
+
     tbody.innerHTML = lista
+      .slice(desde, hasta)
       .map((p) => {
         const est = badgeEstadoPago[p.estadoPago] || { clase: 'badge-slate', icono: '📋', texto: p.estadoPago };
         const fechaTxt = p.fecha ? new Date(p.fecha).toLocaleString('es-CO') : '—';
         return `<tr>
           <td class="celda-mono">#PED-${p.idPedido}</td>
           <td style="font-weight:600">${p.cliente}</td>
-          <td style="font-size:.82rem">${pasarela}</td>
+          <td style="font-size:.82rem">${p.pasarela || '—'}</td>
           <td style="font-size:.78rem;color:var(--gris-500)">${p.referencia || '—'}</td>
           <td style="font-weight:700">${fmtMonto(p.monto)}</td>
           <td><span class="badge ${est.clase}">${est.icono} ${est.texto}</span></td>
@@ -240,6 +257,10 @@ const barras = serieDiariaInicial.map((d, i) => {
   function filtrarPagos() {
     const texto = document.getElementById('buscar-pago')?.value.toLowerCase() ?? '';
     const estado = document.getElementById('filtro-estado-pago')?.value ?? '';
+
+    // al filtrar se vuelve a la pagina 1
+    paginadorPagos.irAPrimera();
+
     renderPagos(
       pagos.filter(
         (p) =>

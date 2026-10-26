@@ -7,6 +7,17 @@ interface DatosCorreo {
   texto?: string;
 }
 
+
+// quita la indentacion y las lineas vacias del html antes de enviarlo.
+// evita que los espacios al final de linea salgan como "=20" en el cliente de correo
+function limpiarHtml(html: string): string {
+  return html
+    .split("\n")
+    .map((linea) => linea.trim())
+    .filter((linea) => linea.length > 0)
+    .join("\n");
+}
+
 // envia un correo por smtp con la configuracion del .env.
 // nunca lanza: devuelve true si salio y false si fallo, para que cada flujo decida que hacer
 export async function enviarCorreo(datos: DatosCorreo): Promise<boolean> {
@@ -33,7 +44,7 @@ export async function enviarCorreo(datos: DatosCorreo): Promise<boolean> {
         to: datos.para,
         subject: datos.asunto,
         content: datos.texto ?? "Este mensaje requiere un cliente de correo compatible con HTML.",
-        html: datos.html,
+        html: limpiarHtml(datos.html),
       });
     } finally {
       await smtp.close();

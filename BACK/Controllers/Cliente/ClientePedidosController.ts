@@ -1,5 +1,6 @@
 import { RouterContext } from "../../Dependencies/Dependencias.ts";
 import { Direccion } from "../../Models/Direccion.model.ts";
+import { notificarPedidoCreado } from "../../Helpers/EnviarNotificaciones.ts";
 import { Pedido } from "../../Models/Pedido.model.ts";
 import { EsquemaGuardarDireccion, EsquemaCrearPedido } from "../../Helpers/EsquemasValidacion.ts";
 import { obtenerUsuarioAutenticado } from "../../Helpers/ContextoAuth.ts";
@@ -35,6 +36,7 @@ const resultadoGuardar = await ObjDireccion.Crear();
 };
 
 // POST /cliente/pedidos
+// POST /cliente/pedidos
 export const crearPedido = async (ctx: RouterContext<string>) => {
   const { request, response } = ctx;
   try {
@@ -54,6 +56,9 @@ export const crearPedido = async (ctx: RouterContext<string>) => {
     const { idUsuario } = obtenerUsuarioAutenticado(ctx);
     const ObjPedido = new Pedido();
     const resultadoCrear = await ObjPedido.CrearPedidoCliente(idUsuario as number, resultado.data);
+
+    // correo de confirmacion al cliente; sin await para no demorar la respuesta
+    if (resultadoCrear.success && resultadoCrear.data) notificarPedidoCreado(resultadoCrear.data.idPedido);
 
     response.status = resultadoCrear.success ? 201 : 400;
     response.body = resultadoCrear;
