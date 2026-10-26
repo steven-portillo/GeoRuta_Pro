@@ -10,7 +10,7 @@ interface Props {
 const { mensajeError } = Astro.props;
 ---
 
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script is:inline id="googleIdentityServices" src="https://accounts.google.com/gsi/client" async defer></script>
 
 <div class="login-page-wrapper">
   <!-- PANEL IZQUIERDO -->
@@ -120,7 +120,7 @@ const { mensajeError } = Astro.props;
           <div class="input-group-custom mb-3">
             <div class="d-flex justify-content-between align-items-center mb-1">
               <label for="passwordInput" class="form-label-custom mb-0">Contraseña</label>
-              <a href="/password" class="forgot-link">¿Olvidaste tu contraseña?</a>
+              <a href="#recoveryModal" class="forgot-link" id="openRecoveryModal">¿Olvidaste tu contraseña?</a>
             </div>
             <div class="input-field-wrapper">
               <i class="bi bi-key field-icon"></i>
@@ -154,25 +154,7 @@ const { mensajeError } = Astro.props;
           </div>
 
           <!-- Google Sign-In -->
-          <div
-            id="g_id_onload"
-            data-client_id="326172460152-tf164aeq7s3p3nqotj1ml221dgsrl6i0.apps.googleusercontent.com"
-            data-callback="handleCredentialResponse"
-            data-auto_prompt="false"
-          >
-          </div>
-
-          <div
-            class="g_id_signin"
-            data-type="standard"
-            data-size="large"
-            data-theme="outline"
-            data-text="signin_with"
-            data-shape="rectangular"
-            data-logo_alignment="left"
-            data-width="100%"
-          >
-          </div>
+          <div id="googleSignInButton" class="google-sign-in-button"></div>
 
           <div class="text-center mt-3">
             <p class="register-prompt mb-0">
@@ -188,8 +170,76 @@ const { mensajeError } = Astro.props;
   </div>
 </div>
 
+<div id="recoveryModal" class="recovery-modal" role="dialog" aria-modal="true" aria-labelledby="recoveryTitle" hidden>
+  <section class="recovery-card">
+    <button type="button" id="closeRecoveryModal" class="recovery-close" aria-label="Cerrar ventana">×</button>
+    <h2 id="recoveryTitle">Recuperar contraseña</h2>
+    <p class="recovery-intro">Te enviaremos un código de 6 dígitos al correo asociado a tu cuenta.</p>
+    <div id="recoveryMessage" class="recovery-message" role="status" aria-live="polite" hidden></div>
+
+    <form id="recoveryRequestForm" class="recovery-form">
+      <label for="recoveryEmail">Correo electrónico</label>
+      <input id="recoveryEmail" type="email" autocomplete="email" required maxlength="254" />
+      <button type="submit" class="recovery-submit" id="sendRecoveryCode">Enviar código</button>
+    </form>
+
+    <div id="recoveryCodeStage" class="recovery-form" hidden>
+      <label for="recoveryCode">Código de verificación</label>
+      <input id="recoveryCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" />
+      <button type="button" class="recovery-submit" id="verifyRecoveryCode">Verificar código</button>
+      <button type="button" class="recovery-secondary" id="changeRecoveryEmail">Usar otro correo</button>
+    </div>
+
+    <form id="recoveryPasswordStage" class="recovery-form" hidden>
+      <label for="recoveryPassword">Nueva contraseña</label>
+      <input id="recoveryPassword" type="password" autocomplete="new-password" minlength="8" required />
+      <label for="recoveryPasswordConfirm">Confirmar contraseña</label>
+      <input id="recoveryPasswordConfirm" type="password" autocomplete="new-password" minlength="8" required />
+      <button type="submit" class="recovery-submit" id="saveRecoveryPassword">Cambiar contraseña</button>
+    </form>
+
+    <div id="recoveryDoneStage" class="recovery-form" hidden>
+      <p class="recovery-success">Contraseña actualizada correctamente. Ya puedes iniciar sesión con tu nueva contraseña.</p>
+    </div>
+  </section>
+</div>
+
 <script>
   import { validarFormatoEmail, validarPassword, attachFieldValidation } from '../../utils/validaciones';
+
+  interface GoogleCredentialResponse {
+    credential: string;
+  }
+
+  interface GoogleIdentityServices {
+    accounts: {
+      id: {
+        initialize: (options: {
+          client_id: string;
+          callback: (response: GoogleCredentialResponse) => void;
+          auto_select: boolean;
+        }) => void;
+        renderButton: (
+          element: HTMLElement,
+          options: {
+            type: 'standard';
+            size: 'large';
+            theme: 'outline';
+            text: 'signin_with';
+            shape: 'rectangular';
+            logo_alignment: 'left';
+            width: number;
+          },
+        ) => void;
+      };
+    };
+  }
+
+  declare global {
+    interface Window {
+      google?: GoogleIdentityServices;
+    }
+  }
 
   const RUTA_POR_ROL: Record<string, string> = {
     CLIENTE: '/cliente/inicio',
@@ -208,6 +258,169 @@ const { mensajeError } = Astro.props;
   const formAlertMessage = document.getElementById('formAlertMessage');
   const loginForm = document.getElementById('loginForm') as HTMLFormElement | null;
   const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement | null;
+  const openRecoveryModal = document.getElementById('openRecoveryModal');
+  const recoveryModal = document.getElementById('recoveryModal');
+  const closeRecoveryModal = document.getElementById('closeRecoveryModal');
+  const recoveryEmail = document.getElementById('recoveryEmail') as HTMLInputElement | null;
+  const recoveryCode = document.getElementById('recoveryCode') as HTMLInputElement | null;
+  const recoveryPassword = document.getElementById('recoveryPassword') as HTMLInputElement | null;
+  const recoveryPasswordConfirm = document.getElementById('recoveryPasswordConfirm') as HTMLInputElement | null;
+  const recoveryMessage = document.getElementById('recoveryMessage');
+  const recoveryRequestForm = document.getElementById('recoveryRequestForm') as HTMLFormElement | null;
+  const recoveryCodeStage = document.getElementById('recoveryCodeStage');
+  const recoveryPasswordStage = document.getElementById('recoveryPasswordStage') as HTMLFormElement | null;
+  const recoveryDoneStage = document.getElementById('recoveryDoneStage');
+  const sendRecoveryCode = document.getElementById('sendRecoveryCode') as HTMLButtonElement | null;
+  const verifyRecoveryCode = document.getElementById('verifyRecoveryCode') as HTMLButtonElement | null;
+  const changeRecoveryEmail = document.getElementById('changeRecoveryEmail');
+  const saveRecoveryPassword = document.getElementById('saveRecoveryPassword') as HTMLButtonElement | null;
+
+  function showRecoveryMessage(message: string, isError = false) {
+    if (!recoveryMessage) return;
+    recoveryMessage.textContent = message;
+    recoveryMessage.className = `recovery-message ${isError ? 'is-error' : 'is-success'}`;
+    recoveryMessage.hidden = false;
+  }
+
+  function clearRecoveryMessage() {
+    if (recoveryMessage) recoveryMessage.hidden = true;
+  }
+
+  function setRecoveryStage(stage: 'request' | 'code' | 'password' | 'done') {
+    if (!recoveryRequestForm || !recoveryCodeStage || !recoveryPasswordStage || !recoveryDoneStage) return;
+    recoveryRequestForm.hidden = stage !== 'request';
+    recoveryCodeStage.hidden = stage !== 'code';
+    recoveryPasswordStage.hidden = stage !== 'password';
+    recoveryDoneStage.hidden = stage !== 'done';
+    clearRecoveryMessage();
+  }
+
+  openRecoveryModal?.addEventListener('click', (event) => {
+    event.preventDefault();
+    if (!recoveryModal) return;
+    if (recoveryEmail && emailInput?.value.trim()) recoveryEmail.value = emailInput.value.trim();
+    setRecoveryStage('request');
+    recoveryModal.hidden = false;
+    recoveryEmail?.focus();
+  });
+
+  function cerrarModalRecuperacion() {
+    if (recoveryModal) recoveryModal.hidden = true;
+    openRecoveryModal?.focus();
+  }
+
+  closeRecoveryModal?.addEventListener('click', cerrarModalRecuperacion);
+
+  recoveryModal?.addEventListener('click', (event) => {
+    if (event.target === recoveryModal) cerrarModalRecuperacion();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && recoveryModal && !recoveryModal.hidden) {
+      cerrarModalRecuperacion();
+    }
+  });
+
+  recoveryRequestForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!recoveryEmail || !sendRecoveryCode) return;
+    clearRecoveryMessage();
+    sendRecoveryCode.disabled = true;
+    sendRecoveryCode.textContent = 'Enviando...';
+    try {
+      const response = await fetch('/api/auth/password-recovery/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: recoveryEmail.value.trim() }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        showRecoveryMessage(result.message ?? 'No se pudo enviar el código.', true);
+        return;
+      }
+      showRecoveryMessage(result.message);
+      setRecoveryStage('code');
+      recoveryCode?.focus();
+    } catch {
+      showRecoveryMessage('No fue posible conectar con el servidor. Inténtalo de nuevo.', true);
+    } finally {
+      sendRecoveryCode.disabled = false;
+      sendRecoveryCode.textContent = 'Enviar código';
+    }
+  });
+
+  verifyRecoveryCode?.addEventListener('click', async () => {
+    if (!recoveryEmail || !recoveryCode || !verifyRecoveryCode) return;
+    clearRecoveryMessage();
+    verifyRecoveryCode.disabled = true;
+    verifyRecoveryCode.textContent = 'Verificando...';
+    try {
+      const response = await fetch('/api/auth/password-recovery/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: recoveryEmail.value.trim(), codigo: recoveryCode.value.trim() }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        showRecoveryMessage(result.message ?? 'El código no es válido.', true);
+        return;
+      }
+      setRecoveryStage('password');
+      recoveryPassword?.focus();
+    } catch {
+      showRecoveryMessage('No fue posible conectar con el servidor. Inténtalo de nuevo.', true);
+    } finally {
+      verifyRecoveryCode.disabled = false;
+      verifyRecoveryCode.textContent = 'Verificar código';
+    }
+  });
+
+  changeRecoveryEmail?.addEventListener('click', () => {
+    setRecoveryStage('request');
+    recoveryEmail?.focus();
+  });
+
+  recoveryPasswordStage?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!recoveryEmail || !recoveryCode || !recoveryPassword || !recoveryPasswordConfirm || !saveRecoveryPassword) return;
+    const passwordCheck = validarPassword(recoveryPassword.value, { minLength: 8 });
+    if (!passwordCheck.isValid) {
+      showRecoveryMessage(passwordCheck.mensaje ?? 'La contraseña debe tener al menos 8 caracteres.', true);
+      recoveryPassword.focus();
+      return;
+    }
+    if (recoveryPassword.value !== recoveryPasswordConfirm.value) {
+      showRecoveryMessage('Las contraseñas no coinciden.', true);
+      recoveryPasswordConfirm.focus();
+      return;
+    }
+
+    clearRecoveryMessage();
+    saveRecoveryPassword.disabled = true;
+    saveRecoveryPassword.textContent = 'Guardando...';
+    try {
+      const response = await fetch('/api/auth/password-recovery/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: recoveryEmail.value.trim(),
+          codigo: recoveryCode.value.trim(),
+          nuevaContrasena: recoveryPassword.value,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        showRecoveryMessage(result.message ?? 'No fue posible cambiar la contraseña.', true);
+        return;
+      }
+      setRecoveryStage('done');
+    } catch {
+      showRecoveryMessage('No fue posible conectar con el servidor. Inténtalo de nuevo.', true);
+    } finally {
+      saveRecoveryPassword.disabled = false;
+      saveRecoveryPassword.textContent = 'Cambiar contraseña';
+    }
+  });
 
   if (togglePasswordBtn && passwordInput && togglePasswordIcon) {
     togglePasswordBtn.addEventListener('click', () => {
@@ -280,7 +493,9 @@ const { mensajeError } = Astro.props;
         formAlertMessage.textContent = 'Inicio de sesión exitoso. Redirigiendo a tu panel...';
         formAlert.className = 'alert-custom alert-custom-success d-flex';
 
-        const rol = resultado.usuario?.rol ?? resultado.data?.rol ?? '';
+        const rol = String(resultado.usuario?.rol ?? resultado.data?.rol ?? '')
+          .trim()
+          .toUpperCase();
         const destino = RUTA_POR_ROL[rol] ?? '/';
         setTimeout(() => {
           window.location.href = destino;
@@ -301,7 +516,7 @@ const { mensajeError } = Astro.props;
   // ============================================================
   // Login con Google
   // ============================================================
-  (window as any).handleCredentialResponse = async (response: any) => {
+  async function handleCredentialResponse(response: GoogleCredentialResponse) {
     if (!formAlert || !formAlertMessage) return;
 
     try {
@@ -315,7 +530,7 @@ const { mensajeError } = Astro.props;
 
       const resultado = await res.json();
 
-      if (!resultado.success) {
+      if (!res.ok || !resultado.success) {
         formAlertMessage.textContent = resultado.message ?? 'Error al iniciar sesión con Google';
         formAlert.className = 'alert-custom alert-custom-danger d-flex';
         return;
@@ -324,7 +539,9 @@ const { mensajeError } = Astro.props;
       formAlertMessage.textContent = 'Inicio de sesión exitoso. Redirigiendo...';
       formAlert.className = 'alert-custom alert-custom-success d-flex';
 
-      const rol = resultado.usuario?.rol ?? resultado.data?.rol ?? '';
+      const rol = String(resultado.usuario?.rol ?? resultado.data?.rol ?? '')
+        .trim()
+        .toUpperCase();
       const destino = RUTA_POR_ROL[rol] ?? '/';
       setTimeout(() => {
         window.location.href = destino;
@@ -333,20 +550,44 @@ const { mensajeError } = Astro.props;
       formAlertMessage.textContent = 'No fue posible conectar con el servidor';
       formAlert.className = 'alert-custom alert-custom-danger d-flex';
     }
-  };
+  }
+
+  const googleScript = document.getElementById('googleIdentityServices');
+  const googleSignInButton = document.getElementById('googleSignInButton');
+  let googleSignInInitialized = false;
+
+  function initializeGoogleSignIn() {
+    if (!window.google || !googleSignInButton || googleSignInInitialized) return;
+
+    window.google.accounts.id.initialize({
+      client_id: '326172460152-tf164aeq7s3p3nqotj1ml221dgsrl6i0.apps.googleusercontent.com',
+      callback: handleCredentialResponse,
+      auto_select: false,
+    });
+    window.google.accounts.id.renderButton(googleSignInButton, {
+      type: 'standard',
+      size: 'large',
+      theme: 'outline',
+      text: 'signin_with',
+      shape: 'rectangular',
+      logo_alignment: 'left',
+      width: Math.max(1, Math.floor(googleSignInButton.getBoundingClientRect().width)),
+    });
+    googleSignInInitialized = true;
+  }
+
+  googleScript?.addEventListener('load', initializeGoogleSignIn);
+  initializeGoogleSignIn();
 </script>
 
 <style>
-  /* Botón de Google a todo el ancho */
-  .g_id_signin {
+  .google-sign-in-button {
     width: 100% !important;
-    display: flex !important;
-    justify-content: center;
+    min-height: 40px;
   }
 
-  .g_id_signin > div,
-  .g_id_signin iframe {
-    width: 100% !important;
-    max-width: 100% !important;
+  .google-sign-in-button > div,
+  .google-sign-in-button iframe {
+    max-width: 100%;
   }
 </style>

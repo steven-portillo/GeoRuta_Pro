@@ -436,7 +436,7 @@ const { pedidosIniciales, metricasIniciales } = Astro.props;
     btn.disabled = true;
     try {
       const res = await fetch('/api/auth/admin/repartidores/asignar', {
-        method: 'POST',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idPedido: pedidoAbierto, idRepartidor: repartidorSeleccionado, notas: notas || null }),
       });
@@ -476,7 +476,7 @@ const { pedidosIniciales, metricasIniciales } = Astro.props;
     const msg = document.getElementById('det-admin-msg');
     try {
       const res = await fetch('/api/auth/admin/pedidos/cambiar-estado', {
-        method: 'POST',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idPedido: pedidoAbierto, nuevoEstado }),
       });

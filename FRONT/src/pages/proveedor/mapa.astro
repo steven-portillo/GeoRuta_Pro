@@ -1,0 +1,25 @@
+---
+import LayoutRepartidor from "../../layouts/ProveedorLayout.astro";
+import MapaRepartidor from "../../components/proveedor/MapaRepartidor.astro";
+import { llamarBackend, obtenerToken } from '../../lib/Backend';
+
+const token = obtenerToken(Astro.cookies);
+
+// perfil (para el sidebar) y pedidos en paralelo
+const [respuestaPerfil] = await Promise.all([
+  llamarBackend<{ nombre?: string; apellido?: string; imagenUrl?: string; empresaNombre?: string }>(
+    '/proveedor/perfil',
+    { token },
+  ),
+]);
+
+const perfil = respuestaPerfil.datos.data ?? {};
+
+---
+<LayoutRepartidor titulo="Mapa"
+  vistaActual="mapa"
+  nombreProveedor={`${perfil.nombre ?? ''} ${perfil.apellido ?? ''}`.trim()}
+  imagenUrl={perfil.imagenUrl || null}
+  empresaNombre={perfil.empresaNombre || undefined}>
+    <MapaRepartidor/>
+</LayoutRepartidor>

@@ -8,7 +8,7 @@ export const GET: APIRoute = async ({ params, cookies }) => {
   const idPedido = params.id;
   const token = obtenerToken(cookies);
 
-  const respuesta = await llamarBackend(`/cliente/pedidos/${idPedido}`, { token });
+  const respuesta = await llamarBackend(`/api/cliente/pedidos/${idPedido}`, { token });
 
   return new Response(JSON.stringify(respuesta.datos), {
     status: respuesta.datos.success ? 200 : 404,

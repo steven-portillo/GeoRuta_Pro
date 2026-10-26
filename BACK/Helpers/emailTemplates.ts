@@ -14,6 +14,24 @@ export interface PlantillaCorreo {
   texto: string;
 }
 
+export function plantillaCodigoRecuperacion(codigo: string): PlantillaCorreo {
+  const asunto = "Código para recuperar tu contraseña";
+  const html = layoutBase(
+    "Recupera tu contraseña",
+    "Tu código de recuperación vence en 10 minutos.",
+    `<p style="margin:0 0 12px 0;">Usa este código para verificar tu identidad:</p>
+      <p style="margin:0 0 16px 0;text-align:center;font-size:32px;font-weight:bold;letter-spacing:8px;color:${MARCA.colorPrimario};">${escapeHtml(codigo)}</p>
+      <p style="margin:0;">El código vence en 10 minutos. Si no solicitaste este cambio, ignora este correo.</p>`,
+  );
+  const texto = [
+    "Usa este código para recuperar tu contraseña:",
+    codigo,
+    "",
+    "El código vence en 10 minutos. Si no solicitaste este cambio, ignora este correo.",
+  ].join("\n");
+  return { asunto, html, texto };
+}
+
 // Todo dato que venga de un usuario debe pasar por aquí antes de ir al HTML.
 function escapeHtml(valor: unknown): string {
   return String(valor ?? "")

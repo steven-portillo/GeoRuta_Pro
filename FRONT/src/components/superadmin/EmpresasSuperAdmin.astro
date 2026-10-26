@@ -182,7 +182,7 @@ const activas = empresas.filter((e) => e.estado).length;
 
     try {
       const res = await fetch('/api/auth/superadmin/empresas/cambiar-estado', {
-        method: 'POST',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           idEmpresa: Number(fila.dataset.id),

@@ -1,4 +1,5 @@
 const UPLOADS_URL_PREFIX = "/uploads";
+const UPLOADS_DIRECTORY = new URL("../uploads/", import.meta.url);
 
 const MIME_PERMITIDOS = ["image/jpeg", "image/png", "image/webp"];
 const TAMANO_MAXIMO = 2 * 1024 * 1024; // 2MB
@@ -9,8 +10,17 @@ export function generarRutaArchivo(archivo: File, subcarpeta: string): string {
   return `${UPLOADS_URL_PREFIX}/${subcarpeta}/${nombreUnico}`;
 }
 
-function rutaADisco(rutaUrl: string): string {
-  return `.${rutaUrl}`; // "/uploads/x.png" -> "./uploads/x.png"
+function rutaADisco(rutaUrl: string): URL {
+  const rutaRelativa = rutaUrl.replace(/^\/uploads\//, "");
+  if (
+    rutaRelativa === rutaUrl ||
+    rutaRelativa.split("/").some((segmento) =>
+      !segmento || segmento === "." || segmento === ".."
+    )
+  ) {
+    throw new Error("Ruta de archivo subido inválida");
+  }
+  return new URL(rutaRelativa, UPLOADS_DIRECTORY);
 }
 
 export async function escribirArchivo(
@@ -18,7 +28,7 @@ export async function escribirArchivo(
   rutaUrl: string,
 ): Promise<void> {
   const rutaDisco = rutaADisco(rutaUrl);
-  const carpeta = rutaDisco.substring(0, rutaDisco.lastIndexOf("/"));
+  const carpeta = new URL(".", rutaDisco);
   await Deno.mkdir(carpeta, { recursive: true });
   const bytes = new Uint8Array(await archivo.arrayBuffer());
   await Deno.writeFile(rutaDisco, bytes);

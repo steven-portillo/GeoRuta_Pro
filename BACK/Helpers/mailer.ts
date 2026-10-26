@@ -26,20 +26,20 @@ export async function enviarCorreo(
   asunto: string,
   contenidoHtml: string,
   contenidoTexto?: string,
-): Promise<void> {
-  const cliente = new SMTPClient({
-    connection: {
-      hostname: SMTP_HOST!,
-      port: SMTP_PORT,
-      tls: true,
-      auth: {
-        username: SMTP_USER!,
-        password: SMTP_PASS!,
-      },
-    },
-  });
-
+): Promise<boolean> {
+  let cliente: SMTPClient | null = null;
   try {
+    cliente = new SMTPClient({
+      connection: {
+        hostname: SMTP_HOST!,
+        port: SMTP_PORT,
+        tls: true,
+        auth: {
+          username: SMTP_USER!,
+          password: SMTP_PASS!,
+        },
+      },
+    });
     await cliente.send({
       from: `GeoRuta <${SMTP_FROM!}>`,
       to: destinatario,
@@ -47,15 +47,17 @@ export async function enviarCorreo(
       content: contenidoTexto,
       html: limpiarHtml(contenidoHtml),
     });
+    return true;
   } catch (error) {
-    // No se relanza: un fallo de correo nunca debe tumbar la operación
-    // principal. Se registra en consola para diagnosticarlo.
     console.error("Error al enviar correo:", error);
+    return false;
   } finally {
-    try {
-      await cliente.close();
-    } catch {
-      // Si la conexión ni siquiera se abrió, no hay nada que cerrar.
+    if (cliente) {
+      try {
+        await cliente.close();
+      } catch {
+        // Si la conexión ni siquiera se abrió, no hay nada que cerrar.
+      }
     }
   }
 }

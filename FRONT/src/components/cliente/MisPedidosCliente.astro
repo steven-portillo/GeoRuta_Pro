@@ -79,6 +79,7 @@ const pasoActivoIndice = pedidoActivo
 const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) === 'cancelado' : false;
 ---
 
+<main class="mis-pedidos">
 <!-- ── metricas ── -->
 <div class="grilla-metricas">
   <div class="metrica-card">
@@ -197,6 +198,7 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
     </div>
   )}
 </div>
+</main>
 
 
 <script>
@@ -217,6 +219,16 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
 </script>
 
 <style>
+  :global(.zona-contenido:has(.mis-pedidos)) {
+    max-width: none;
+    padding: clamp(1rem, 2.4vw, 2.5rem) clamp(1rem, 3vw, 3rem) 3rem;
+  }
+
+  .mis-pedidos {
+    width: 100%;
+    min-width: 0;
+  }
+
   .encabezado-seccion {
     display: flex;
     align-items: center;
@@ -233,9 +245,9 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
   /* ── metricas ── */
   .grilla-metricas {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 10px;
-    margin-bottom: 1.25rem;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+    gap: 12px;
+    margin-bottom: 1.5rem;
   }
 
   .metrica-card {
@@ -278,7 +290,7 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
 
   /* ── pedido activo ── */
   .seccion-activo {
-    margin-bottom: 1.5rem;
+    margin-bottom: 2rem;
   }
 
   .tarjeta-activo {
@@ -430,8 +442,8 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
 
   .grilla-pedidos {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+    gap: 16px;
   }
 
   .tarjeta-pedido {
@@ -441,9 +453,11 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
     background: white;
     border: 1px solid var(--secondary-200);
     border-radius: 14px;
-    padding: 1rem 1.1rem;
+    min-width: 0;
+    padding: 1.1rem 1.2rem;
     cursor: pointer;
-    transition: all 0.15s;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.035);
+    transition: box-shadow 0.15s, transform 0.15s;
   }
 
   .tarjeta-pedido:hover {
@@ -508,6 +522,8 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.6rem;
     padding-top: 0.75rem;
     border-top: 1px solid var(--secondary-100);
   }
@@ -538,26 +554,62 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
 
 
   @media (max-width: 900px) {
-    .grilla-metricas {
-      grid-template-columns: repeat(3, 1fr);
-    }
-
-    .grilla-pedidos {
-      grid-template-columns: repeat(2, 1fr);
+    :global(.zona-contenido:has(.mis-pedidos)) {
+      padding: 1.25rem 1.25rem 2rem;
     }
   }
 
   @media (max-width: 600px) {
+    :global(.zona-contenido:has(.mis-pedidos)) {
+      padding: 1rem 0.85rem 1.5rem;
+    }
+
     .grilla-metricas {
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .metrica-card {
+      padding: 0.75rem 0.5rem;
+    }
+
+    .metrica-valor {
+      font-size: 1.2rem;
+    }
+
+    .activo-encabezado {
+      flex-direction: column;
+    }
+
+    .activo-pie {
+      align-items: flex-start;
+      gap: 0.6rem;
+      flex-direction: column;
     }
 
     .grilla-pedidos {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 10px;
     }
 
-    .mped-datos-grid {
-      grid-template-columns: 1fr;
+    .tarjeta-pedido {
+      padding: 0.95rem;
+    }
+
+    .pedido-encabezado {
+      flex-wrap: wrap;
+    }
+
+    .pedido-encabezado .badge-estado {
+      margin-left: auto;
+    }
+
+    .pedido-pie {
+      justify-content: flex-start;
+    }
+
+    .pedido-total {
+      margin-left: auto;
     }
   }
 </style>

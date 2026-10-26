@@ -7,7 +7,7 @@ import { resolverUrlBackend } from '../lib/Backend';
 
 interface Props {
   titulo: string;
-  vistaActual: 'inicio' | 'categorias' | 'productos' | 'pedidos' | 'pagos' | 'repartidores' | 'perfil';
+  vistaActual: 'inicio' | 'categorias' | 'productos' | 'pedidos' | 'pagos' | 'repartidores' | 'perfil' | "mapa";
   nombreAdmin?: string;
   inicialesAdmin?: string;
   imagenUrl?: string | null;
@@ -65,6 +65,7 @@ const links: SidebarLink[] = [
   { href: '/admin/pedidos', label: 'Pedidos', icon: 'bi-cart3' },
   { href: '/admin/pagos', label: 'Pagos', icon: 'bi-credit-card' },
   { href: '/admin/repartidores', label: 'Repartidores', icon: 'bi-truck' },
+  { href: '/admin/mapa', label: 'Mapa', icon:'bi-map'},
 ];
 
 const activePath = `/admin/${vistaActual}`;

@@ -11,7 +11,6 @@ export interface PerfilAdmin {
   empresaNombre: string;
   empresaDesc: string;
   empresaLogo: string;
-  empresaPortada: string;
 }
 
 interface Props {
@@ -121,27 +120,6 @@ const inicialEmpresaInicial = (p.empresaNombre || 'E').charAt(0).toUpperCase();
         </div>
       </div>
 
-      <!-- portada de la empresa: se muestra arriba de la tarjeta en el catalogo del cliente -->
-      <div class="admin-empresa-portada-wrap">
-        <div class="admin-empresa-portada" id="admin-empresa-portada-preview">
-          {p.empresaPortada ? (
-            <img src={p.empresaPortada} alt="Portada de la empresa" style="width:100%;height:100%;object-fit:cover" />
-          ) : (
-            <span>Sin portada</span>
-          )}
-        </div>
-        <div>
-          <label class="admin-perfil-btn-logo" for="admin-input-portada">
-            <svg viewBox="0 0 24 24">
-              <path d="M19.35 10.04A7.49 7.49 0 0012 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 000 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z" />
-            </svg>
-            Cambiar portada
-          </label>
-          <input type="file" id="admin-input-portada" accept="image/jpeg,image/png,image/webp" style="display:none" />
-          <p style="font-size:0.72rem;color:#94a3b8;margin-top:4px">JPG, PNG, WEBP — máx. 3MB. Usa una imagen horizontal (proporción 16:6).</p>
-        </div>
-      </div>
-
       <div class="admin-perfil-grupo">
         <label class="admin-perfil-label">Nombre de la empresa</label>
         <input class="admin-perfil-input" id="admin-empresa-nombre" placeholder="Nombre de tu empresa" value={p.empresaNombre} />
@@ -173,6 +151,23 @@ const inicialEmpresaInicial = (p.empresaNombre || 'E').charAt(0).toUpperCase();
 
   const inicialesActuales = document.getElementById('admin-perfil-nombre-display')
     ?.textContent?.trim().split(' ').map((s) => s[0]).join('').toUpperCase().slice(0, 2) || 'AD';
+
+  document.addEventListener('error', (evento) => {
+    const imagen = evento.target;
+    if (!(imagen instanceof HTMLImageElement)) return;
+
+    const avatar = imagen.closest('#admin-avatar-grande, .sidebar-profile-avatar');
+    if (avatar) {
+      avatar.textContent = inicialesActuales;
+      return;
+    }
+
+    const logo = imagen.closest('#admin-empresa-logo-preview');
+    if (logo) {
+      const nombre = (document.getElementById('admin-empresa-nombre') as HTMLInputElement | null)?.value;
+      logo.textContent = (nombre || 'E').charAt(0).toUpperCase();
+    }
+  }, true);
 
   function mostrarMsgAdmin(el: HTMLElement | null, texto: string, ok: boolean) {
     if (!el) return;
@@ -219,12 +214,6 @@ const inicialEmpresaInicial = (p.empresaNombre || 'E').charAt(0).toUpperCase();
     if (logoSidebar && urlFinal) {
       logoSidebar.innerHTML = `<img src="${urlFinal}" alt="Logo de la empresa">`;
     }
-  }
-
-  function actualizarPortadaEmpresa(url: string) {
-    const el = document.getElementById('admin-empresa-portada-preview');
-    if (!el) return;
-    el.innerHTML = `<img src="${urlAbsolutaBackend(url)}" alt="Portada de la empresa" style="width:100%;height:100%;object-fit:cover">`;
   }
 
   // ── guardar datos personales ──
@@ -364,22 +353,4 @@ const inicialEmpresaInicial = (p.empresaNombre || 'E').charAt(0).toUpperCase();
     }
   });
 
-  // ── portada de la empresa ──
-  document.getElementById('admin-input-portada')?.addEventListener('change', async (e) => {
-    const input = e.target as HTMLInputElement | null;
-    const archivo = input?.files?.[0];
-    if (!archivo) return;
-    if (archivo.size > 3 * 1024 * 1024) { alert('La imagen no puede superar 3MB.'); return; }
-
-    const formData = new FormData();
-    formData.append('portada', archivo);
-    try {
-      const res = await fetch('/api/auth/admin/perfil/portada', { method: 'POST', body: formData });
-      const data = await res.json();
-      if (data.success) actualizarPortadaEmpresa(data.portadaUrl + '?t=' + Date.now());
-      else alert(data.message ?? 'No fue posible subir la portada.');
-    } catch (err) {
-      console.error('Error subiendo portada:', err);
-    }
-  });
 </script>

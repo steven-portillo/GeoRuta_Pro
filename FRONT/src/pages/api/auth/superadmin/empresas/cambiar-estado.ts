@@ -3,12 +3,12 @@
 import type { APIRoute } from 'astro';
 import { llamarBackend, obtenerToken } from '../../../../../lib/Backend';
 
-export const POST: APIRoute = async ({ request, cookies }) => {
+export const PATCH: APIRoute = async ({ request, cookies }) => {
   const token = obtenerToken(cookies);
   const cuerpo = await request.json();
 
   const respuesta = await llamarBackend('/superadmin/empresas/cambiar-estado', {
-    metodo: 'POST',
+    metodo: 'PATCH',
     cuerpo,
     token,
   });

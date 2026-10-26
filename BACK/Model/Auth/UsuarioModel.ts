@@ -171,6 +171,126 @@ export class Usuario {
     }
   }
 
+  public static async SolicitarCodigoRecuperacion(
+    email: string,
+    codigo: string,
+  ): Promise<boolean> {
+    const [usuario] = await conexion.query(
+      `SELECT id_usuario FROM usuarios WHERE email = ? AND activo = 1 LIMIT 1`,
+      [email],
+    );
+    if (!usuario) return false;
+
+    const [codigoReciente] = await conexion.query(
+      `SELECT id FROM recuperacion_password
+       WHERE id_usuario = ?
+         AND usado = 0
+         AND expiracion > DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 9 MINUTE)
+       LIMIT 1`,
+      [usuario.id_usuario],
+    );
+    if (codigoReciente) return false;
+
+    await conexion.execute(
+      `DELETE FROM recuperacion_password WHERE id_usuario = ? AND usado = 0`,
+      [usuario.id_usuario],
+    );
+    await conexion.execute(
+      `INSERT INTO recuperacion_password (id_usuario, codigo, expiracion, usado)
+       VALUES (?, ?, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 10 MINUTE), 0)`,
+      [usuario.id_usuario, codigo],
+    );
+    return true;
+  }
+
+  public static async InvalidarCodigoRecuperacion(
+    email: string,
+    codigo: string,
+  ): Promise<void> {
+    await conexion.execute(
+      `DELETE rp FROM recuperacion_password rp
+       INNER JOIN usuarios u ON u.id_usuario = rp.id_usuario
+       WHERE u.email = ? AND rp.codigo = ? AND rp.usado = 0`,
+      [email, codigo],
+    );
+  }
+
+  public static async VerificarCodigoRecuperacion(
+    email: string,
+    codigo: string,
+  ): Promise<boolean> {
+    await conexion.execute("START TRANSACTION");
+    try {
+      const [registro] = await conexion.query(
+        `SELECT rp.id, rp.codigo, rp.expiracion > CURRENT_TIMESTAMP AS vigente
+         FROM recuperacion_password rp
+         INNER JOIN usuarios u ON u.id_usuario = rp.id_usuario
+         WHERE u.email = ? AND u.activo = 1 AND rp.usado = 0
+         ORDER BY rp.id DESC LIMIT 1 FOR UPDATE`,
+        [email],
+      );
+
+      if (!registro || !Number(registro.vigente)) {
+        await conexion.execute("COMMIT");
+        return false;
+      }
+
+      await conexion.execute("COMMIT");
+      return registro.codigo === codigo;
+    } catch (error) {
+      await conexion.execute("ROLLBACK");
+      throw error;
+    }
+  }
+
+  public static async RestablecerContrasena(
+    email: string,
+    codigo: string,
+    nuevaContrasena: string,
+  ): Promise<boolean> {
+    const passwordHash = await hash(nuevaContrasena);
+    await conexion.execute("START TRANSACTION");
+    try {
+      const [registro] = await conexion.query(
+        `SELECT rp.id, u.id_usuario, rp.codigo,
+                rp.expiracion > CURRENT_TIMESTAMP AS vigente
+         FROM recuperacion_password rp
+         INNER JOIN usuarios u ON u.id_usuario = rp.id_usuario
+         WHERE u.email = ? AND u.activo = 1 AND rp.usado = 0
+         ORDER BY rp.id DESC LIMIT 1 FOR UPDATE`,
+        [email],
+      );
+
+      if (
+        !registro ||
+        registro.codigo !== codigo ||
+        !Number(registro.vigente)
+      ) {
+        await conexion.execute("COMMIT");
+        return false;
+      }
+
+      const resultado = await conexion.execute(
+        `UPDATE usuarios SET password_hash = ? WHERE id_usuario = ? AND activo = 1`,
+        [passwordHash, registro.id_usuario],
+      );
+      if (Number(resultado.affectedRows) !== 1) {
+        await conexion.execute("ROLLBACK");
+        return false;
+      }
+
+      await conexion.execute(
+        `UPDATE recuperacion_password SET usado = 1 WHERE id = ? AND usado = 0`,
+        [registro.id],
+      );
+      await conexion.execute("COMMIT");
+      return true;
+    } catch (error) {
+      await conexion.execute("ROLLBACK");
+      throw error;
+    }
+  }
+
   public async RegistrarEmpresa(): Promise<
     { success: true; message: string } | { success: false; message: string }
   > {

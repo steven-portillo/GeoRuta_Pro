@@ -3,7 +3,11 @@ import type { APIRoute } from 'astro';
 
 export const prerender = false;
 
-const API_DENO = import.meta.env.API_DENO;
+const API_DENO = (
+  import.meta.env.API_DENO ||
+  import.meta.env.PUBLIC_API_DENO ||
+  'http://127.0.0.1:8005'
+).replace(/\/+$/, '');
 
 const json = (cuerpo: unknown, status: number) =>
   new Response(JSON.stringify(cuerpo), {

@@ -7,7 +7,7 @@ import { llamarBackend, obtenerToken } from '../lib/Backend';
 
 interface Props {
   titulo: string;
-  vistaActual: 'inicio' | 'pedidos' | 'perfil';
+  vistaActual: 'inicio' | 'pedidos' | 'perfil' | 'mapa';
   // si la pagina ya cargo el perfil, los manda y el layout no repite la peticion
   nombreProveedor?: string;
   imagenUrl?: string | null;
@@ -42,6 +42,7 @@ if (nombreCompleto === undefined) {
 // mismas pestañas que tenia la navbar del c# (el perfil va en el footer del sidebar)
 const links: SidebarLink[] = [
   { href: '/proveedor/inicio', label: 'Inicio', icon: 'bi-house-door' },
+  { href: '/proveedor/mapa', label:'Mapa', icon: 'bi-map'},
   { href: '/proveedor/pedidos', label: 'Mis pedidos', icon: 'bi-truck' },
 ];
 

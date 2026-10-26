@@ -104,9 +104,13 @@ const backendUrlPublico = (
             <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" />
           </svg>
           <span>Haz clic para agregar imagen</span>
-          <span style="font-size:0.72rem;color:#cbd5e1">JPG, PNG, WEBP — máx. 3MB</span>
+          <span style="font-size:0.72rem;color:#cbd5e1">Puedes seleccionar varias · JPG, PNG, WEBP · máx. 3MB cada una</span>
         </div>
-        <input type="file" id="prod-imagen" accept="image/jpeg,image/png,image/webp" style="display:none" />
+        <input type="file" id="prod-imagen" accept="image/jpeg,image/png,image/webp" multiple style="display:none" />
+      </div>
+      <div class="prod-galeria-actual" id="prod-galeria-actual" hidden>
+        <span class="form-label">Imágenes guardadas</span>
+        <div class="prod-galeria-lista" id="prod-galeria-lista"></div>
       </div>
 
       <input type="hidden" id="prod-id" value="" />
@@ -157,6 +161,7 @@ const backendUrlPublico = (
   let productos = productosIniciales;
   let categorias = categoriasIniciales;
   let tabActual = 'activos';
+  let urlsImagenesSeleccionadas = [];
 
   const svgSinImagen = `
     <svg viewBox="0 0 24 24" style="width:36px;height:36px;fill:#94a3b8">
@@ -274,10 +279,16 @@ const backendUrlPublico = (
   // ============================================================
   function limpiarPreview() {
     const preview = document.getElementById('prod-imagen-preview');
+    urlsImagenesSeleccionadas.forEach((url) => URL.revokeObjectURL(url));
+    urlsImagenesSeleccionadas = [];
     if (preview) {
       preview.innerHTML = `${svgSinImagen}<span>Haz clic para agregar imagen</span>
-        <span style="font-size:0.72rem;color:#cbd5e1">JPG, PNG, WEBP — máx. 3MB</span>`;
+        <span style="font-size:0.72rem;color:#cbd5e1">Puedes seleccionar varias · JPG, PNG, WEBP · máx. 3MB cada una</span>`;
     }
+    const galeriaActual = document.getElementById('prod-galeria-actual');
+    const listaActual = document.getElementById('prod-galeria-lista');
+    if (galeriaActual) galeriaActual.hidden = true;
+    if (listaActual) listaActual.replaceChildren();
   }
 
   async function abrirModalCrear() {
@@ -297,6 +308,24 @@ const backendUrlPublico = (
     const p = productos.find((x) => x.id_producto === id);
     if (!p) return;
 
+    limpiarPreview();
+    let respuesta;
+    let detalle;
+    try {
+      respuesta = await fetch(`/api/auth/admin/productos/${id}`);
+      detalle = await respuesta.json();
+    } catch (error) {
+      console.error('Error al cargar el producto para editar:', error);
+      mostrarMensaje('✗ No se pudo cargar el producto.', false);
+      document.getElementById('modal-producto').style.display = 'flex';
+      return;
+    }
+    if (!respuesta.ok || !detalle.success) {
+      mostrarMensaje('✗ ' + (detalle.message ?? 'No se pudo cargar la galería del producto.'), false);
+      document.getElementById('modal-producto').style.display = 'flex';
+      return;
+    }
+
     document.getElementById('modal-titulo-txt').textContent = 'Editar producto';
     document.getElementById('prod-id').value = String(p.id_producto);
     document.getElementById('prod-nombre').value = p.nombre;
@@ -309,12 +338,20 @@ const backendUrlPublico = (
     const select = document.getElementById('prod-categoria');
     if (select) select.value = String(p.id_categoria);
 
-    const preview = document.getElementById('prod-imagen-preview');
-    if (preview) {
-      preview.innerHTML = p.imagen_url
-        ? `<img src="${resolverImagenProducto(p.imagen_url)}" style="max-height:140px;object-fit:contain">
-           <span style="font-size:0.75rem;color:#94a3b8">Haz clic para cambiar</span>`
-        : `${svgSinImagen}<span>Haz clic para cambiar imagen</span>`;
+    const imagenes = Array.isArray(detalle.data.imagenes) ? detalle.data.imagenes : [];
+    const galeriaActual = document.getElementById('prod-galeria-actual');
+    const listaActual = document.getElementById('prod-galeria-lista');
+    if (imagenes.length && galeriaActual && listaActual) {
+      renderizarCarruselImagenes(
+        listaActual,
+        imagenes.map((imagen) => ({
+          id: Number(imagen.id_imagen),
+          url: resolverImagenProducto(imagen.url),
+        })),
+        p.nombre,
+        (idImagen) => eliminarImagenProducto(p.id_producto, idImagen),
+      );
+      galeriaActual.hidden = false;
     }
 
     ocultarMensaje();
@@ -326,22 +363,143 @@ const backendUrlPublico = (
   }
 
   function previsualizarImagen(input) {
-    if (!input.files || !input.files[0]) return;
-    const archivo = input.files[0];
-    if (archivo.size > 3 * 1024 * 1024) {
-      alert('La imagen no puede superar 3MB.');
+    const archivos = Array.from(input.files ?? []);
+    const archivoInvalido = archivos.find((archivo) => archivo.size > 3 * 1024 * 1024);
+    if (archivoInvalido) {
+      alert(`La imagen "${archivoInvalido.name}" supera el límite de 3MB.`);
       input.value = '';
       return;
     }
-    const lector = new FileReader();
-    lector.onload = (e) => {
-      const preview = document.getElementById('prod-imagen-preview');
-      if (preview) {
-        preview.innerHTML = `<img src="${e.target.result}" style="max-height:140px;object-fit:contain;border-radius:6px">
-          <span style="font-size:0.75rem;color:#94a3b8;margin-top:4px">Haz clic para cambiar</span>`;
-      }
+
+    const preview = document.getElementById('prod-imagen-preview');
+    if (!preview) return;
+    urlsImagenesSeleccionadas.forEach((url) => URL.revokeObjectURL(url));
+    urlsImagenesSeleccionadas = [];
+    if (!archivos.length) {
+      limpiarPreview();
+      return;
+    }
+    urlsImagenesSeleccionadas = archivos.map((archivo) => URL.createObjectURL(archivo));
+    renderizarCarruselImagenes(preview, urlsImagenesSeleccionadas, 'Imagen seleccionada');
+    const texto = document.createElement('span');
+    texto.textContent = `${archivos.length} imagen${archivos.length === 1 ? '' : 'es'} seleccionada${archivos.length === 1 ? '' : 's'}`;
+    preview.append(texto);
+  }
+
+  function renderizarCarruselImagenes(contenedor, imagenes, descripcion, alEliminar = null) {
+    contenedor.replaceChildren();
+    if (!imagenes.length) return;
+
+    let indice = 0;
+    const carrusel = document.createElement('div');
+    carrusel.className = 'prod-carrusel';
+    const marco = document.createElement('div');
+    marco.className = 'prod-carrusel-marco';
+    const img = document.createElement('img');
+    img.alt = `${descripcion}, imagen 1 de ${imagenes.length}`;
+    img.src = typeof imagenes[indice] === 'string' ? imagenes[indice] : imagenes[indice].url;
+    marco.appendChild(img);
+
+    const contador = document.createElement('span');
+    contador.className = 'prod-carrusel-contador';
+    contador.textContent = `1 / ${imagenes.length}`;
+    marco.appendChild(contador);
+
+    const actualizar = (direccion) => {
+      indice = (indice + direccion + imagenes.length) % imagenes.length;
+      img.src = typeof imagenes[indice] === 'string' ? imagenes[indice] : imagenes[indice].url;
+      img.alt = `${descripcion}, imagen ${indice + 1} de ${imagenes.length}`;
+      contador.textContent = `${indice + 1} / ${imagenes.length}`;
+      img.classList.remove('prod-carrusel-deslizar-izquierda', 'prod-carrusel-deslizar-derecha');
+      void img.offsetWidth;
+      img.classList.add(direccion > 0 ? 'prod-carrusel-deslizar-derecha' : 'prod-carrusel-deslizar-izquierda');
     };
-    lector.readAsDataURL(archivo);
+
+    if (imagenes.length > 1) {
+      const anterior = document.createElement('button');
+      anterior.type = 'button';
+      anterior.className = 'prod-carrusel-nav prod-carrusel-anterior';
+      anterior.setAttribute('aria-label', 'Ver imagen anterior');
+      anterior.textContent = '‹';
+      anterior.addEventListener('click', (evento) => {
+        evento.stopPropagation();
+        actualizar(-1);
+      });
+
+      const siguiente = document.createElement('button');
+      siguiente.type = 'button';
+      siguiente.className = 'prod-carrusel-nav prod-carrusel-siguiente';
+      siguiente.setAttribute('aria-label', 'Ver imagen siguiente');
+      siguiente.textContent = '›';
+      siguiente.addEventListener('click', (evento) => {
+        evento.stopPropagation();
+        actualizar(1);
+      });
+      marco.append(anterior, siguiente);
+    }
+
+    if (alEliminar && typeof imagenes[indice] !== 'string') {
+      const eliminar = document.createElement('button');
+      eliminar.type = 'button';
+      eliminar.className = 'prod-carrusel-eliminar';
+      eliminar.textContent = 'Eliminar imagen';
+      eliminar.addEventListener('click', (evento) => {
+        evento.stopPropagation();
+        alEliminar(imagenes[indice].id);
+      });
+      marco.appendChild(eliminar);
+    }
+
+    carrusel.appendChild(marco);
+    contenedor.appendChild(carrusel);
+  }
+
+  async function eliminarImagenProducto(idProducto, idImagen) {
+    if (!confirm('¿Eliminar esta imagen del producto? Esta acción no se puede deshacer.')) return;
+
+    const galeriaActual = document.getElementById('prod-galeria-actual');
+    const listaActual = document.getElementById('prod-galeria-lista');
+    const boton = listaActual?.querySelector('.prod-carrusel-eliminar');
+    if (boton) boton.disabled = true;
+
+    try {
+      const res = await fetch(`/api/auth/admin/productos/${idProducto}?idImagen=${idImagen}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        mostrarMensaje('✗ ' + (data.message ?? 'No se pudo eliminar la imagen.'), false);
+        return;
+      }
+
+      const detalleRes = await fetch(`/api/auth/admin/productos/${idProducto}`);
+      const detalle = await detalleRes.json();
+      if (!detalleRes.ok || !detalle.success) {
+        mostrarMensaje('✓ Imagen eliminada, pero no se pudo actualizar la galería. Cierra y vuelve a abrir el producto.', true);
+        return;
+      }
+
+      const imagenes = Array.isArray(detalle.data.imagenes) ? detalle.data.imagenes : [];
+      if (imagenes.length && listaActual) {
+        renderizarCarruselImagenes(
+          listaActual,
+          imagenes.map((imagen) => ({
+            id: Number(imagen.id_imagen),
+            url: resolverImagenProducto(imagen.url),
+          })),
+          document.getElementById('prod-nombre')?.value || 'Producto',
+          (id) => eliminarImagenProducto(idProducto, id),
+        );
+      } else if (galeriaActual && listaActual) {
+        galeriaActual.hidden = true;
+        listaActual.replaceChildren();
+      }
+      await refrescarProductos();
+      mostrarMensaje('✓ Imagen eliminada correctamente.', true);
+    } catch (error) {
+      console.error('Error al eliminar imagen del producto:', error);
+      mostrarMensaje('✗ Error de conexión al eliminar la imagen.', false);
+    }
   }
 
   // ============================================================
@@ -370,7 +528,7 @@ const backendUrlPublico = (
     const stock = document.getElementById('prod-stock')?.value ?? '';
     const desc = document.getElementById('prod-desc')?.value.trim() ?? '';
     const idProd = document.getElementById('prod-id')?.value ?? '';
-    const archivo = document.getElementById('prod-imagen')?.files[0];
+    const archivos = Array.from(document.getElementById('prod-imagen')?.files ?? []);
     const btn = document.getElementById('btn-guardar-prod');
 
     if (!nombre) return mostrarMensaje('El nombre es obligatorio.', false);
@@ -389,10 +547,12 @@ const backendUrlPublico = (
       formData.append('precio', precio);
       formData.append('stock_disponible', stock);
       formData.append('descripcion', desc);
-      if (idProd) formData.append('idProducto', idProd);
-      if (archivo) formData.append('imagenes', archivo);
+      for (const archivo of archivos) formData.append('imagenes', archivo);
 
-      const res = await fetch('/api/auth/admin/productos', { method: 'POST', body: formData });
+      const ruta = idProd
+        ? `/api/auth/admin/productos/${idProd}`
+        : '/api/auth/admin/productos';
+      const res = await fetch(ruta, { method: idProd ? 'PUT' : 'POST', body: formData });
       const data = await res.json();
 
       if (res.ok && data.success) {
@@ -440,7 +600,10 @@ const backendUrlPublico = (
   document.getElementById('btn-cerrar-modal-producto')?.addEventListener('click', cerrarModal);
   document.getElementById('btn-cancelar-producto')?.addEventListener('click', cerrarModal);
   document.getElementById('btn-guardar-prod')?.addEventListener('click', guardarProducto);
-  document.getElementById('prod-imagen-zona')?.addEventListener('click', () => document.getElementById('prod-imagen')?.click());
+  document.getElementById('prod-imagen-zona')?.addEventListener('click', (evento) => {
+    if (evento.target.closest('.prod-carrusel-nav')) return;
+    document.getElementById('prod-imagen')?.click();
+  });
   document.getElementById('prod-imagen')?.addEventListener('change', (e) => previsualizarImagen(e.target));
   document.getElementById('buscar-producto')?.addEventListener('input', renderProductos);
   document.getElementById('filtro-categoria')?.addEventListener('change', renderProductos);
@@ -464,6 +627,33 @@ const backendUrlPublico = (
 </script>
 
 <style>
+  #modal-producto.modal-overlay {
+    align-items: flex-start;
+    overflow-y: auto;
+    padding: 1rem;
+  }
+
+  #modal-producto .modal-box {
+    display: flex;
+    flex-direction: column;
+    width: min(560px, 100%);
+    max-height: calc(100vh - 2rem);
+    max-height: calc(100dvh - 2rem);
+    margin: auto;
+  }
+
+  #modal-producto .modal-header,
+  #modal-producto .modal-footer {
+    flex: 0 0 auto;
+  }
+
+  #modal-producto .modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
   .tabs-productos {
     display: flex;
     gap: 0;
@@ -501,5 +691,108 @@ const backendUrlPublico = (
   .tab-contador-activo {
     background: #dbeafe;
     color: #1d4ed8;
+  }
+
+  .prod-galeria-actual { margin: 0.75rem 0 1rem; }
+  .prod-galeria-actual { margin: 0.75rem 0 1rem; }
+  .prod-galeria-lista { margin-top: 0.5rem; }
+  :global(.prod-carrusel) { width: 100%; }
+  :global(.prod-carrusel-marco) {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: clamp(150px, 28vh, 220px);
+    overflow: hidden;
+    border: 1px solid var(--secondary-200, #e2e8f0);
+    border-radius: 12px;
+    background: var(--white, #fff);
+  }
+
+  :global(.prod-carrusel-marco img) {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    padding: 0.6rem;
+    object-fit: contain;
+  }
+
+  :global(.prod-carrusel-nav) {
+    position: absolute;
+    top: 50%;
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--secondary-200, #e2e8f0);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.92);
+    color: var(--secondary-700, #334155);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    transform: translateY(-50%);
+    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.14);
+  }
+
+  :global(.prod-carrusel-nav:hover) { background: #fff; }
+  :global(.prod-carrusel-anterior) { left: 0.6rem; }
+  :global(.prod-carrusel-siguiente) { right: 0.6rem; }
+  :global(.prod-carrusel-contador) {
+    position: absolute;
+    right: 0.65rem;
+    bottom: 0.55rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.68);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+
+  :global(.prod-carrusel-eliminar) {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+    padding: 0.4rem 0.65rem;
+    border: 0;
+    border-radius: 8px;
+    background: rgba(185, 28, 28, 0.92);
+    color: #fff;
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  :global(.prod-carrusel-eliminar:disabled) {
+    cursor: wait;
+    opacity: 0.65;
+  }
+
+  :global(.prod-carrusel-deslizar-derecha) { animation: prod-deslizar-derecha 220ms ease both; }
+  :global(.prod-carrusel-deslizar-izquierda) { animation: prod-deslizar-izquierda 220ms ease both; }
+
+  @keyframes prod-deslizar-derecha {
+    from { opacity: 0.45; transform: translateX(18px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes prod-deslizar-izquierda {
+    from { opacity: 0.45; transform: translateX(-18px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  @media (max-width: 540px) {
+    #modal-producto.modal-overlay { padding: 0.5rem; }
+    #modal-producto .modal-box {
+      max-height: calc(100vh - 1rem);
+      max-height: calc(100dvh - 1rem);
+    }
+    #modal-producto .modal-header,
+    #modal-producto .modal-footer,
+    #modal-producto .modal-body {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
   }
 </style>

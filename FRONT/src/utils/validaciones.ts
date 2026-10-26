@@ -20,9 +20,10 @@ export function validarFormatoEmail(valor: string): ResultadoValidacion {
 // (no se le puede exigir 8 caracteres a un usuario que ya tiene su clave), pero
 // en registro se puede llamar como validarPassword(valor, { minLength: 8 })
 export function validarPassword(valor: string, opciones: { minLength?: number } = {}): ResultadoValidacion {
-  if (!valor) return { isValid: false, mensaje: 'La contraseña es obligatoria' };
+  const texto = valor.trim();
+  if (!texto) return { isValid: false, mensaje: 'La contraseña es obligatoria' };
 
-  if (opciones.minLength && valor.length < opciones.minLength) {
+  if (opciones.minLength && texto.length < opciones.minLength) {
     return { isValid: false, mensaje: `Debe tener al menos ${opciones.minLength} caracteres` };
   }
 

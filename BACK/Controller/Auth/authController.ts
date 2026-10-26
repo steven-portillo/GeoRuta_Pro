@@ -13,6 +13,7 @@ import {
   plantillaBienvenidaCliente,
   plantillaRegistroEmpresaAdmin,
   plantillaNuevaEmpresaSuperAdmin,
+  plantillaCodigoRecuperacion,
 } from "../../Helpers/emailTemplates.ts";
 
 const GOOGLE_CLIENT_ID =
@@ -78,6 +79,120 @@ export const iniciarSesion = async (ctx: Context) => {
     console.error(error);
     response.status = 500;
     response.body = { success: false, message: "Error interno del servidor" };
+  }
+};
+
+const normalizarEmail = (valor: unknown): string =>
+  typeof valor === "string" ? valor.trim().toLowerCase() : "";
+
+/** POST /api/auth/password-recovery/request */
+export const solicitarRecuperacionContrasena = async (ctx: Context) => {
+  const { request, response } = ctx;
+  try {
+    const body = await request.body.json();
+    const email = normalizarEmail(body.email);
+    if (!email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      response.status = 400;
+      response.body = { success: false, message: "Ingresa un correo válido" };
+      return;
+    }
+
+    const codigo = crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000;
+    const codigoTexto = String(codigo).padStart(6, "0");
+    const creado = await Usuario.SolicitarCodigoRecuperacion(email, codigoTexto);
+
+    if (creado) {
+      const correo = plantillaCodigoRecuperacion(codigoTexto);
+      const enviado = await enviarCorreo(email, correo.asunto, correo.html, correo.texto);
+      if (!enviado) {
+        await Usuario.InvalidarCodigoRecuperacion(email, codigoTexto);
+        response.status = 503;
+        response.body = {
+          success: false,
+          message: "No fue posible enviar el código. Inténtalo más tarde.",
+        };
+        return;
+      }
+    }
+
+    response.status = 200;
+    response.body = {
+      success: true,
+      message: "Si el correo corresponde a una cuenta activa, recibirás un código en breve.",
+    };
+  } catch (error) {
+    console.error("Error al solicitar recuperación de contraseña:", error);
+    response.status = 500;
+    response.body = { success: false, message: "No fue posible procesar la solicitud" };
+  }
+};
+
+/** POST /api/auth/password-recovery/verify */
+export const verificarCodigoRecuperacion = async (ctx: Context) => {
+  const { request, response } = ctx;
+  try {
+    const body = await request.body.json();
+    const email = normalizarEmail(body.email);
+    const codigo = typeof body.codigo === "string" ? body.codigo.trim() : "";
+    if (!email || !/^\d{6}$/.test(codigo)) {
+      response.status = 400;
+      response.body = { success: false, message: "Correo o código inválido" };
+      return;
+    }
+
+    const valido = await Usuario.VerificarCodigoRecuperacion(
+      email,
+      codigo,
+    );
+    response.status = valido ? 200 : 400;
+    response.body = {
+      success: valido,
+      message: valido
+        ? "Código verificado. Ya puedes definir una contraseña nueva."
+        : "El código es incorrecto o venció.",
+    };
+  } catch (error) {
+    console.error("Error al verificar código de recuperación:", error);
+    response.status = 500;
+    response.body = { success: false, message: "No fue posible verificar el código" };
+  }
+};
+
+/** POST /api/auth/password-recovery/reset */
+export const restablecerContrasena = async (ctx: Context) => {
+  const { request, response } = ctx;
+  try {
+    const body = await request.body.json();
+    const email = normalizarEmail(body.email);
+    const codigo = typeof body.codigo === "string" ? body.codigo.trim() : "";
+    const nuevaContrasena = typeof body.nuevaContrasena === "string"
+      ? body.nuevaContrasena
+      : "";
+    if (!email || !/^\d{6}$/.test(codigo) || nuevaContrasena.length < 8) {
+      response.status = 400;
+      response.body = {
+        success: false,
+        message: "El código o la nueva contraseña no son válidos",
+      };
+      return;
+    }
+
+    const actualizado = await Usuario.RestablecerContrasena(
+      email,
+      codigo,
+      nuevaContrasena,
+    );
+    response.status = actualizado ? 200 : 400;
+    response.body = {
+      success: actualizado,
+      message: actualizado
+        ? "Tu contraseña fue actualizada. Ya puedes iniciar sesión."
+        : "El código ya no es válido. Solicita uno nuevo.",
+    };
+  } catch (error) {
+    console.error("Error al restablecer contraseña:", error);
+    response.status = 500;
+    response.body = { success: false, message: "No fue posible cambiar la contraseña" };
   }
 };
 
