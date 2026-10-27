@@ -14,7 +14,7 @@ export class Pedido {
                FROM detalle_pedido dp WHERE dp.id_pedido = p.id_pedido) AS totalItems
        FROM pedidos p
        INNER JOIN estados_pedido es ON es.id_estado = p.id_estado
-       INNER JOIN usuarios c ON c.id_usuario = p.id_usuario
+       INNER JOIN usuarios c ON c.id_usuario = p.id_cliente
        INNER JOIN direcciones d ON d.id_direccion = p.id_direccion
        LEFT JOIN pagos pg ON pg.id_pedido = p.id_pedido
        LEFT JOIN asignacion_pedido ap ON ap.id_pedido = p.id_pedido
@@ -36,7 +36,7 @@ export class Pedido {
               pg.estado_pago
        FROM pedidos p
        INNER JOIN estados_pedido es ON es.id_estado = p.id_estado
-       INNER JOIN usuarios c ON c.id_usuario = p.id_usuario
+       INNER JOIN usuarios c ON c.id_usuario = p.id_cliente
        INNER JOIN direcciones d ON d.id_direccion = p.id_direccion
        LEFT JOIN pagos pg ON pg.id_pedido = p.id_pedido
        LEFT JOIN asignacion_pedido ap ON ap.id_pedido = p.id_pedido

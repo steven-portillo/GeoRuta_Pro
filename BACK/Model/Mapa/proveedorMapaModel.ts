@@ -79,7 +79,7 @@ export class ProveedorMapaModel {
       FROM pedidos p
       INNER JOIN asignacion_pedido a ON a.id_pedido = p.id_pedido
       INNER JOIN direcciones d ON d.id_direccion = p.id_direccion
-      INNER JOIN usuarios u ON u.id_usuario = p.id_usuario
+      INNER JOIN usuarios u ON u.id_usuario = p.id_cliente
       WHERE a.id_proveedor = ?
         AND p.id_estado = 4
         AND d.latitud IS NOT NULL

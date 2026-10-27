@@ -535,3 +535,41 @@
   background:var(--primary-50);
   color:var(--primary-700)
 }
+
+
+/* Botón "centrar en mi ubicación" (repartidor) */
+.mapa-centrar{
+  position:absolute;
+  left:50%;
+  bottom:12px;
+  transform:translateX(-50%);
+  z-index:500;
+  display:flex;
+  align-items:center;
+  gap:.5rem;
+  padding:.6rem 1rem;
+  border:1px solid var(--secondary-200);
+  border-radius:999px;
+  background:var(--color-surface);
+  color:var(--color-text-primary);
+  font:inherit;
+  font-size:.875rem;
+  font-weight:600;
+  box-shadow:0 4px 14px rgba(var(--color-shadow-rgb),.2);
+  cursor:pointer;
+  transition:background .2s,color .2s
+}
+.mapa-centrar svg{width:20px;height:20px;flex:none}
+.mapa-centrar:hover{background:var(--primary-50);color:var(--primary-700)}
+.mapa-centrar:disabled{opacity:.6;cursor:progress}
+
+@media (max-width:640px){
+  /* solo icono, redondo y de 44px (tamaño cómodo para el dedo) */
+  .mapa-centrar{width:44px;height:44px;padding:0;justify-content:center}
+  .mapa-centrar span{display:none}
+  /* la leyenda sube para no chocar con el botón centrado */
+  [data-rol="repartidor"] .mapa-legend{bottom:64px}
+}
+
+.mapa-centrar.is-activo{background:var(--primary-700);border-color:var(--primary-700);color:var(--color-text-on-primary)}
+.mapa-centrar.is-activo:hover{background:var(--primary-800);color:var(--color-text-on-primary)}

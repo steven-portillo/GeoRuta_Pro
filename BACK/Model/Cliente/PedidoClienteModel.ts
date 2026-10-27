@@ -152,7 +152,7 @@ export class PedidoCliente {
         : null;
       const pedidoResult = await conexion.execute(
         `INSERT INTO pedidos
-           (id_empresa, id_usuario, id_direccion, id_estado, metodo_pago,
+           (id_empresa, id_cliente, id_direccion, id_estado, metodo_pago,
             total, fecha_pedido, fecha_aprobacion, observaciones, pago_confirmado,
             codigo_entrega)
          VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP,
@@ -244,7 +244,7 @@ export class PedidoCliente {
        INNER JOIN empresas e ON e.id_empresa = p.id_empresa
        INNER JOIN estados_pedido ep ON ep.id_estado = p.id_estado
        INNER JOIN direcciones d ON d.id_direccion = p.id_direccion
-       WHERE p.id_usuario = ?
+       WHERE p.id_cliente = ?
        ORDER BY p.fecha_pedido DESC`,
       [id_cliente],
     );
@@ -268,7 +268,7 @@ export class PedidoCliente {
        LEFT JOIN asignacion_pedido ap ON ap.id_pedido = p.id_pedido
        LEFT JOIN usuarios pr ON pr.id_usuario = ap.id_proveedor
        LEFT JOIN pagos pg ON pg.id_pedido = p.id_pedido
-       WHERE p.id_pedido = ? AND p.id_usuario = ?`,
+       WHERE p.id_pedido = ? AND p.id_cliente = ?`,
       [id_pedido, id_cliente],
     );
     if (!pedido) return null;
@@ -411,7 +411,7 @@ export class PedidoCliente {
       const codigoEntrega = generarCodigoEntrega();
       const pedidoResult = await conexion.execute(
         `INSERT INTO pedidos
-           (id_empresa, id_usuario, id_direccion, id_estado, metodo_pago,
+           (id_empresa, id_cliente, id_direccion, id_estado, metodo_pago,
             total, fecha_pedido, fecha_aprobacion, observaciones, pago_confirmado,
             codigo_entrega)
          VALUES (?, ?, ?, ?, 'contra_entrega', ?, CURRENT_TIMESTAMP,
@@ -503,7 +503,7 @@ export class PedidoCliente {
         `SELECT p.id_pedido, p.observaciones, ep.nombre_estado
          FROM pedidos p
          INNER JOIN estados_pedido ep ON ep.id_estado = p.id_estado
-         WHERE p.id_pedido = ? AND p.id_usuario = ?
+         WHERE p.id_pedido = ? AND p.id_cliente = ?
          FOR UPDATE`,
         [id_pedido, id_cliente],
       );

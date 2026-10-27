@@ -1,0 +1,27 @@
+---
+// src/pages/admin/inventario.astro
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import InventarioAdmin from '../../components/admin/InventarioAdmin.astro';
+import { llamarBackend, obtenerToken } from '../../lib/Backend';
+
+const token = obtenerToken(Astro.cookies);
+
+const [respuestaPerfil, respuestaInventario] = await Promise.all([
+  llamarBackend('/admin/perfil', { token }),
+  llamarBackend('/api/admin/inventario', { token }),
+]);
+
+const perfil = respuestaPerfil.datos.data as { nombre: string; apellido: string; imagenUrl: string };
+const inventario = (respuestaInventario.datos.data ?? []) as import('../../components/admin/InventarioAdmin.astro').ItemInventario[];
+
+const iniciales = `${perfil.nombre?.[0] ?? ''}${perfil.apellido?.[0] ?? ''}`.toUpperCase();
+---
+
+<AdminLayout
+  titulo="Inventario"
+  vistaActual="inventario"
+  nombreAdmin={`${perfil.nombre} ${perfil.apellido}`}
+  inicialesAdmin={iniciales}
+>
+  <InventarioAdmin inventarioInicial={inventario} />
+</AdminLayout>

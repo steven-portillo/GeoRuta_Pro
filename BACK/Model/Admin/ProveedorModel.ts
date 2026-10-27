@@ -65,7 +65,7 @@ export class Proveedor {
        FROM asignacion_pedido ap
        INNER JOIN pedidos p ON p.id_pedido = ap.id_pedido
        INNER JOIN estados_pedido ep ON ep.id_estado = p.id_estado
-       INNER JOIN usuarios c ON c.id_usuario = p.id_usuario
+       INNER JOIN usuarios c ON c.id_usuario = p.id_cliente
        INNER JOIN direcciones d ON d.id_direccion = p.id_direccion
        WHERE ap.id_proveedor = ? AND p.id_empresa = ?
        ORDER BY p.fecha_pedido DESC`,

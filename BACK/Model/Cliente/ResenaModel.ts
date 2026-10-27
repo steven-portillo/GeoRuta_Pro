@@ -20,7 +20,7 @@ export class ResenaCliente {
        INNER JOIN empresas e ON e.id_empresa = p.id_empresa
        INNER JOIN detalle_pedido dp ON dp.id_pedido = p.id_pedido
        INNER JOIN productos pr ON pr.id_producto = dp.id_producto
-       WHERE p.id_usuario = ? AND ep.nombre_estado = 'Entregado'
+       WHERE p.id_cliente = ? AND ep.nombre_estado = 'Entregado'
          AND NOT EXISTS (
            SELECT 1 FROM resenas r
            WHERE r.id_pedido = p.id_pedido
@@ -40,7 +40,7 @@ export class ResenaCliente {
        INNER JOIN pedidos p ON p.id_pedido = r.id_pedido
        INNER JOIN productos pr ON pr.id_producto = r.id_producto
        INNER JOIN empresas e ON e.id_empresa = p.id_empresa
-       WHERE r.id_cliente = ? AND p.id_usuario = ? AND r.activo = 1
+       WHERE r.id_cliente = ? AND p.id_cliente = ? AND r.activo = 1
        ORDER BY r.fecha DESC`,
       [id_cliente, id_cliente],
     );
@@ -59,7 +59,7 @@ export class ResenaCliente {
        FROM pedidos p
        INNER JOIN estados_pedido ep ON ep.id_estado = p.id_estado
        INNER JOIN detalle_pedido dp ON dp.id_pedido = p.id_pedido
-       WHERE p.id_pedido = ? AND p.id_usuario = ?
+       WHERE p.id_pedido = ? AND p.id_cliente = ?
          AND dp.id_producto = ? AND ep.nombre_estado = 'Entregado'`,
       [id_pedido, id_cliente, id_producto],
     );

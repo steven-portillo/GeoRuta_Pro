@@ -9,7 +9,7 @@ import { resolverUrlBackend } from '../lib/Backend';
 
 interface Props {
   titulo: string;
-  vistaActual: 'inicio' | 'empresas' | 'perfil';
+  vistaActual: 'inicio' | 'empresas' | 'clientes' | 'perfil';
   // si la pagina ya cargo el perfil, los manda y el layout no repite la peticion
   nombreAdmin?: string;
   imagenUrl?: string | null;
@@ -46,6 +46,7 @@ foto = resolverUrlBackend(foto) ?? null;
 const links: SidebarLink[] = [
   { href: '/superadmin/inicio', label: 'Inicio', icon: 'bi-house-door' },
   { href: '/superadmin/empresas', label: 'Empresas', icon: 'bi-buildings' },
+  { href: '/superadmin/clientes', label: 'Clientes', icon: 'bi-people' },
 ];
 
 // la vista "perfil" no esta en la lista, asi que no marca ningun link como activo

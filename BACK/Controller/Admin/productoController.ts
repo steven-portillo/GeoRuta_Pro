@@ -77,18 +77,23 @@ export const crearProducto = async (ctx: Context) => {
       ? 0
       : Number(stockDisponibleRaw);
     const stockMinimoRaw = form.get("stock_minimo");
-    const stock_minimo = stockMinimoRaw ? Number(stockMinimoRaw) : undefined;
+    const stock_minimo = stockMinimoRaw === null || stockMinimoRaw === ""
+      ? undefined
+      : Number(stockMinimoRaw);
     const imagenes = form.getAll("imagenes");
 
     if (
       !nombre || !Number.isSafeInteger(id_categoria) || id_categoria <= 0 ||
       !Number.isFinite(precio) || precio < 0 ||
-      !Number.isSafeInteger(stock_disponible) || stock_disponible < 0
+      !Number.isSafeInteger(stock_disponible) || stock_disponible < 0 ||
+      (stock_minimo !== undefined &&
+        (!Number.isSafeInteger(stock_minimo) || stock_minimo < 0))
     ) {
       ctx.response.status = 400;
       ctx.response.body = {
         success: false,
-        message: "Verifica el nombre, la categoría, el precio y el stock del producto",
+        message:
+          "Verifica el nombre, la categoría, el precio y el stock del producto",
       };
       return;
     }
@@ -171,10 +176,24 @@ export const editarProducto = async (
       ? String(descripcionRaw).trim()
       : undefined;
     const precio = form.get("precio") ? Number(form.get("precio")) : undefined;
-    const stock_minimo = form.get("stock_minimo")
-      ? Number(form.get("stock_minimo"))
-      : undefined;
+    const stockMinimoRaw = form.get("stock_minimo");
+    const stock_minimo = stockMinimoRaw === null || stockMinimoRaw === ""
+      ? undefined
+      : Number(stockMinimoRaw);
     const imagenes = form.getAll("imagenes");
+
+    if (
+      stock_minimo !== undefined &&
+      (!Number.isSafeInteger(stock_minimo) || stock_minimo < 0)
+    ) {
+      ctx.response.status = 400;
+      ctx.response.body = {
+        success: false,
+        message:
+          "El stock mínimo debe ser un número entero igual o mayor a cero",
+      };
+      return;
+    }
 
     const archivosValidados: File[] = [];
     for (const imagen of imagenes) {

@@ -1,13 +1,22 @@
 ---
 // src/layouts/AdminLayout.astro
-import '../styles/AdminPanel.css';
-import Sidebar from '../components/comunes/Sidebar.astro';
-import type { SidebarLink } from '../components/comunes/Sidebar.astro';
-import { resolverUrlBackend } from '../lib/Backend';
+import "../styles/AdminPanel.css";
+import Sidebar from "../components/comunes/Sidebar.astro";
+import type { SidebarLink } from "../components/comunes/Sidebar.astro";
+import { resolverUrlBackend } from "../lib/Backend";
 
 interface Props {
   titulo: string;
-  vistaActual: 'inicio' | 'categorias' | 'productos' | 'pedidos' | 'pagos' | 'repartidores' | 'perfil' | "mapa";
+  vistaActual:
+    | "inicio"
+    | "categorias"
+    | "productos"
+    | "inventario"
+    | "pedidos"
+    | "pagos"
+    | "repartidores"
+    | "perfil"
+    | "mapa";
   nombreAdmin?: string;
   inicialesAdmin?: string;
   imagenUrl?: string | null;
@@ -15,8 +24,8 @@ interface Props {
 
 const { titulo, vistaActual, nombreAdmin, imagenUrl } = Astro.props;
 
-const BACKEND_URL = import.meta.env.API_DENO || 'http://127.0.0.1:8005';
-const token = Astro.cookies.get('token')?.value;
+const BACKEND_URL = import.meta.env.API_DENO || "http://127.0.0.1:8005";
+const token = Astro.cookies.get("token")?.value;
 
 interface PerfilSidebar {
   nombre?: string;
@@ -41,37 +50,39 @@ if (token) {
       if (data.success) {
         perfil = data.data ?? {};
       } else {
-        console.error('Perfil error:', data.message);
+        console.error("Perfil error:", data.message);
       }
     } else {
-      console.error('Perfil: respuesta vacía, status', respuesta.status);
+      console.error("Perfil: respuesta vacía, status", respuesta.status);
     }
   } catch (error) {
-    console.error('AdminLayout: no se pudo cargar el perfil', error);
+    console.error("AdminLayout: no se pudo cargar el perfil", error);
   }
 }
 
 const nombreCompleto =
-  nombreAdmin ?? (`${perfil.nombre ?? ''} ${perfil.apellido ?? ''}`.trim() || 'Administrador');
+  nombreAdmin ??
+  (`${perfil.nombre ?? ""} ${perfil.apellido ?? ""}`.trim() || "Administrador");
 const logoEmpresa = resolverUrlBackend(perfil.empresaLogo);
 const fotoUsuario = resolverUrlBackend(
   imagenUrl || perfil.imagenUrl || perfil.imagen_url,
 );
 
 const links: SidebarLink[] = [
-  { href: '/admin/inicio', label: 'Inicio', icon: 'bi-house-door' },
-  { href: '/admin/categorias', label: 'Categorías', icon: 'bi-tags' },
-  { href: '/admin/productos', label: 'Productos', icon: 'bi-box-seam' },
-  { href: '/admin/pedidos', label: 'Pedidos', icon: 'bi-cart3' },
-  { href: '/admin/pagos', label: 'Pagos', icon: 'bi-credit-card' },
-  { href: '/admin/repartidores', label: 'Repartidores', icon: 'bi-truck' },
-  { href: '/admin/mapa', label: 'Mapa', icon:'bi-map'},
+  { href: "/admin/inicio", label: "Inicio", icon: "bi-house-door" },
+  { href: "/admin/categorias", label: "Categorías", icon: "bi-tags" },
+  { href: "/admin/productos", label: "Productos", icon: "bi-box-seam" },
+  { href: "/admin/inventario", label: "Inventario", icon: "bi-clipboard-data" },
+  { href: "/admin/pedidos", label: "Pedidos", icon: "bi-cart3" },
+  { href: "/admin/pagos", label: "Pagos", icon: "bi-credit-card" },
+  { href: "/admin/repartidores", label: "Repartidores", icon: "bi-truck" },
+  { href: "/admin/mapa", label: "Mapa", icon: "bi-map" },
 ];
 
 const activePath = `/admin/${vistaActual}`;
 ---
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
@@ -94,9 +105,12 @@ const activePath = `/admin/${vistaActual}`;
     />
 
     <script is:inline>
-      if (localStorage.getItem('sidebar-collapsed') === 'true' && window.innerWidth >= 992) {
-        document.body.classList.add('sidebar-collapsed');
-        document.getElementById('appSidebar')?.classList.add('is-collapsed');
+      if (
+        localStorage.getItem("sidebar-collapsed") === "true" &&
+        window.innerWidth >= 992
+      ) {
+        document.body.classList.add("sidebar-collapsed");
+        document.getElementById("appSidebar")?.classList.add("is-collapsed");
       }
     </script>
 
@@ -120,13 +134,17 @@ const activePath = `/admin/${vistaActual}`;
     </div>
 
     <script>
-      const elFecha = document.getElementById('admin-fecha-hoy');
+      const elFecha = document.getElementById("admin-fecha-hoy");
       if (elFecha) {
         const ahora = new Date();
         elFecha.textContent =
-          '📅 ' +
+          "📅 " +
           ahora
-            .toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric' })
+            .toLocaleDateString("es-CO", {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+            })
             .toUpperCase();
       }
     </script>

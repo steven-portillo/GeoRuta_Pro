@@ -62,6 +62,27 @@ const token = Astro.cookies.get("token")?.value;
       >
     </div>
   </div>
+  <button
+    slot="sobre-mapa"
+    type="button"
+    id="btnCentrar"
+    class="mapa-centrar"
+    aria-label="Centrar el mapa en mi ubicación"
+    title="Centrar en mi ubicación"
+  >
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="3.5"></circle><circle cx="12" cy="12" r="7.5"
+      ></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path>
+    </svg>
+    <span>Mi ubicación</span>
+  </button>
 </MapaLayout>
 <script>
   import L from "leaflet";
@@ -139,6 +160,49 @@ const token = Astro.cookies.get("token")?.value;
 
   const marcadores = new Map<number, L.Marker>();
 
+
+    // ---------- Centrar / seguir mi ubicación ----------
+  const btnCentrar = document.getElementById("btnCentrar") as HTMLButtonElement | null;
+  let siguiendo = false;
+
+  function setSiguiendo(v: boolean) {
+    siguiendo = v;
+    btnCentrar?.setAttribute("aria-pressed", String(v));
+    btnCentrar?.classList.toggle("is-activo", v);
+    const t = btnCentrar?.querySelector("span");
+    if (t) t.textContent = v ? "Siguiendo" : "Mi ubicación";
+  }
+
+  function flyAMi(lat: number, lng: number) {
+    map.flyTo([lat, lng], Math.max(map.getZoom(), 17), { duration: 0.8 });
+  }
+
+  btnCentrar?.addEventListener("click", () => {
+    if (siguiendo) { setSiguiendo(false); return; }
+
+    const yo = marcadores.get(MARCADOR_YO);
+    if (yo) {
+      const p = yo.getLatLng();
+      flyAMi(p.lat, p.lng);
+      setSiguiendo(true);
+      return;
+    }
+
+    // Aún no hay pin propio (ruta sin iniciar): centrar una sola vez, sin seguir
+    btnCentrar!.disabled = true;
+    navigator.geolocation?.getCurrentPosition(
+      (pos) => { flyAMi(pos.coords.latitude, pos.coords.longitude); btnCentrar!.disabled = false; },
+      () => { alert("No se pudo obtener tu ubicación. Revisa el permiso de ubicación."); btnCentrar!.disabled = false; },
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 8000 },
+    );
+  });
+
+  // Si el repartidor arrastra el mapa, deja de seguir
+  map.on("dragstart", () => { if (siguiendo) setSiguiendo(false); });
+
+
+
+
   function escapeHtml(s: string) {
     return String(s)
       .replaceAll("&", "&amp;")
@@ -177,6 +241,7 @@ const token = Astro.cookies.get("token")?.value;
   ) {
     const key = Number(id);
     const latLng = L.latLng(lat, lng);
+    if (key === MARCADOR_YO && siguiendo) map.panTo(latLng);
     const html = popupRepartidor(
       meta?.nombre ?? (key === MARCADOR_YO ? "Mi ubicación" : ""),
       meta?.empresa ?? "",
@@ -222,9 +287,12 @@ const token = Astro.cookies.get("token")?.value;
 
   async function cargarDestinos() {
     try {
-      const res = await fetch(`${API_DENO}/api/proveedor/mapa/destinos-en-ruta`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(
+        `${API_DENO}/api/proveedor/mapa/destinos-en-ruta`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       if (!res.ok) {
         console.error("Destinos HTTP", res.status, await res.text());
         return;
@@ -415,6 +483,7 @@ const token = Astro.cookies.get("token")?.value;
       if (msg.tipo === "ruta_terminada") {
         alert("Ruta terminada correctamente.");
         detenerGps();
+        setSiguiendo(false);
         setFaseRuta("idle");
         cargarDestinos(); // limpia pines y lista
         return;

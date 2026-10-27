@@ -133,9 +133,13 @@ const backendUrlPublico = (
           <label class="form-label">Precio (COP)</label>
           <input class="form-input" id="prod-precio" type="number" placeholder="0" min="0" />
         </div>
-        <div class="form-grupo">
-          <label class="form-label">Stock</label>
-          <input class="form-input" id="prod-stock" type="number" placeholder="0" min="0" />
+        <div class="form-grupo" id="prod-stock-disponible-grupo">
+          <label class="form-label">Stock disponible inicial</label>
+          <input class="form-input" id="prod-stock-disponible" type="number" placeholder="0" min="0" step="1" />
+        </div>
+        <div class="form-grupo" id="prod-stock-minimo-grupo" style="display:none">
+          <label class="form-label">Stock mínimo</label>
+          <input class="form-input" id="prod-stock-minimo" type="number" placeholder="0" min="0" step="1" />
         </div>
       </div>
 
@@ -293,10 +297,12 @@ const backendUrlPublico = (
 
   async function abrirModalCrear() {
     document.getElementById('modal-titulo-txt').textContent = 'Agregar producto';
-    ['prod-id', 'prod-nombre', 'prod-precio', 'prod-stock', 'prod-desc'].forEach((id) => {
+    ['prod-id', 'prod-nombre', 'prod-precio', 'prod-stock-disponible', 'prod-stock-minimo', 'prod-desc'].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
+    document.getElementById('prod-stock-disponible-grupo').style.display = '';
+    document.getElementById('prod-stock-minimo-grupo').style.display = '';
     document.getElementById('prod-imagen').value = '';
     limpiarPreview();
     await refrescarCategoriasSelect();
@@ -327,10 +333,12 @@ const backendUrlPublico = (
     }
 
     document.getElementById('modal-titulo-txt').textContent = 'Editar producto';
+    document.getElementById('prod-stock-disponible-grupo').style.display = 'none';
+    document.getElementById('prod-stock-minimo-grupo').style.display = '';
     document.getElementById('prod-id').value = String(p.id_producto);
     document.getElementById('prod-nombre').value = p.nombre;
     document.getElementById('prod-precio').value = String(p.precio);
-    document.getElementById('prod-stock').value = String(p.stock);
+    document.getElementById('prod-stock-minimo').value = String(detalle.data.stock_minimo);
     document.getElementById('prod-desc').value = p.descripcion ?? '';
     document.getElementById('prod-imagen').value = '';
 
@@ -525,7 +533,8 @@ const backendUrlPublico = (
     const nombre = document.getElementById('prod-nombre')?.value.trim() ?? '';
     const idCategoria = document.getElementById('prod-categoria')?.value ?? '';
     const precio = document.getElementById('prod-precio')?.value ?? '';
-    const stock = document.getElementById('prod-stock')?.value ?? '';
+    const stockDisponible = document.getElementById('prod-stock-disponible')?.value ?? '';
+    const stockMinimo = document.getElementById('prod-stock-minimo')?.value ?? '';
     const desc = document.getElementById('prod-desc')?.value.trim() ?? '';
     const idProd = document.getElementById('prod-id')?.value ?? '';
     const archivos = Array.from(document.getElementById('prod-imagen')?.files ?? []);
@@ -533,7 +542,13 @@ const backendUrlPublico = (
 
     if (!nombre) return mostrarMensaje('El nombre es obligatorio.', false);
     if (!precio || Number(precio) < 0) return mostrarMensaje('Ingresa un precio válido.', false);
-    if (!stock || Number(stock) < 0) return mostrarMensaje('Ingresa un stock válido.', false);
+    const stockActual = idProd ? stockMinimo : stockDisponible;
+    if (stockActual === '' || !Number.isSafeInteger(Number(stockActual)) || Number(stockActual) < 0) {
+      return mostrarMensaje(idProd ? 'Ingresa un stock mínimo válido.' : 'Ingresa un stock disponible válido.', false);
+    }
+    if (stockMinimo === '' || !Number.isSafeInteger(Number(stockMinimo)) || Number(stockMinimo) < 0) {
+      return mostrarMensaje('Ingresa un stock mínimo válido.', false);
+    }
     if (!idCategoria) return mostrarMensaje('Selecciona una categoría.', false);
 
     const textoOrig = btn.innerHTML;
@@ -545,7 +560,8 @@ const backendUrlPublico = (
       formData.append('nombre', nombre);
       formData.append('id_categoria', idCategoria);
       formData.append('precio', precio);
-      formData.append('stock_disponible', stock);
+      formData.append('stock_minimo', stockMinimo);
+      if (!idProd) formData.append('stock_disponible', stockDisponible);
       formData.append('descripcion', desc);
       for (const archivo of archivos) formData.append('imagenes', archivo);
 

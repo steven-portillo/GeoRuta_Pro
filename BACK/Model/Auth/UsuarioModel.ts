@@ -209,7 +209,7 @@ export class Usuario {
   ): Promise<void> {
     await conexion.execute(
       `DELETE rp FROM recuperacion_password rp
-       INNER JOIN usuarios u ON u.id_usuario = rp.id_usuario
+       INNER JOIN usuarios u ON u.id_usuario = rp.id_cliente
        WHERE u.email = ? AND rp.codigo = ? AND rp.usado = 0`,
       [email, codigo],
     );
@@ -224,7 +224,7 @@ export class Usuario {
       const [registro] = await conexion.query(
         `SELECT rp.id, rp.codigo, rp.expiracion > CURRENT_TIMESTAMP AS vigente
          FROM recuperacion_password rp
-         INNER JOIN usuarios u ON u.id_usuario = rp.id_usuario
+         INNER JOIN usuarios u ON u.id_usuario = rp.id_cliente
          WHERE u.email = ? AND u.activo = 1 AND rp.usado = 0
          ORDER BY rp.id DESC LIMIT 1 FOR UPDATE`,
         [email],
@@ -255,7 +255,7 @@ export class Usuario {
         `SELECT rp.id, u.id_usuario, rp.codigo,
                 rp.expiracion > CURRENT_TIMESTAMP AS vigente
          FROM recuperacion_password rp
-         INNER JOIN usuarios u ON u.id_usuario = rp.id_usuario
+         INNER JOIN usuarios u ON u.id_usuario = rp.id_cliente
          WHERE u.email = ? AND u.activo = 1 AND rp.usado = 0
          ORDER BY rp.id DESC LIMIT 1 FOR UPDATE`,
         [email],

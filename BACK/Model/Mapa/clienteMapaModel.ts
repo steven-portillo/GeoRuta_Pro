@@ -14,7 +14,7 @@ export interface RepartidorMapaCliente {
 export class ClienteMapaModel {
   public async pedidosEnTransitoCliente(idCliente: number): Promise<number[]> {
     const rows = await conexion.query(
-      `SELECT id_pedido FROM pedidos WHERE id_usuario = ? AND id_estado = 4`,
+      `SELECT id_pedido FROM pedidos WHERE id_cliente = ? AND id_estado = 4`,
       [idCliente],
     );
     return ((rows ?? []) as { id_pedido: number }[]).map((r) =>
@@ -35,7 +35,7 @@ export class ClienteMapaModel {
       `
       SELECT id_pedido
       FROM pedidos
-      WHERE id_usuario = ?
+      WHERE id_cliente = ?
         AND id_estado = 4
         AND id_pedido IN (${placeholders})
       `,
@@ -75,7 +75,7 @@ export class ClienteMapaModel {
       INNER JOIN usuarios prov ON prov.id_usuario = a.id_proveedor
       INNER JOIN empresas e ON e.id_empresa = prov.id_empresa
       LEFT JOIN ubicacion_proveedor up ON up.id_proveedor = prov.id_usuario
-      WHERE p.id_usuario = ?
+      WHERE p.id_cliente = ?
         AND p.id_estado = 4
         ${filtroEmpresa}
       ORDER BY p.id_pedido DESC
@@ -108,11 +108,11 @@ export class ClienteMapaModel {
               CONCAT(prov.nombre, ' ', prov.apellido) AS repartidor
        FROM pedidos p
        INNER JOIN direcciones d ON d.id_direccion = p.id_direccion
-       INNER JOIN usuarios cli ON cli.id_usuario = p.id_usuario
+       INNER JOIN usuarios cli ON cli.id_usuario = p.id_cliente
        LEFT JOIN asignacion_pedido a ON a.id_pedido = p.id_pedido
        LEFT JOIN usuarios prov ON prov.id_usuario = a.id_proveedor
        LEFT JOIN empresas e ON e.id_empresa = prov.id_empresa
-       WHERE p.id_pedido = ? AND p.id_usuario = ?`,
+       WHERE p.id_pedido = ? AND p.id_cliente = ?`,
       [idPedido, idCliente],
     );
     if (!rows?.length) return null;

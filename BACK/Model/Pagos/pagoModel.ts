@@ -10,7 +10,7 @@ export class PagoModel {
               pg.fecha_pago AS fecha
        FROM pagos pg
        INNER JOIN pedidos p ON p.id_pedido = pg.id_pedido
-       INNER JOIN usuarios u ON u.id_usuario = p.id_usuario
+       INNER JOIN usuarios u ON u.id_usuario = p.id_cliente
        WHERE p.id_empresa = ? AND p.metodo_pago = 'online'
        ORDER BY COALESCE(pg.fecha_pago, p.fecha_pedido) DESC
        LIMIT 100`,
@@ -52,7 +52,7 @@ export class PagoModel {
               pg.estado_pago
        FROM pedidos p
        INNER JOIN pagos pg ON pg.id_pedido = p.id_pedido
-       WHERE p.id_pedido = ? AND p.id_usuario = ?`,
+       WHERE p.id_pedido = ? AND p.id_cliente = ?`,
       [id_pedido, id_cliente],
     );
     return pago ?? null;
@@ -67,7 +67,7 @@ export class PagoModel {
       `UPDATE pagos pg
        INNER JOIN pedidos p ON p.id_pedido = pg.id_pedido
        SET pg.pasarela = 'wompi', pg.referencia_ext = ?
-       WHERE pg.id_pedido = ? AND p.id_usuario = ?
+       WHERE pg.id_pedido = ? AND p.id_cliente = ?
          AND p.metodo_pago = 'online' AND pg.estado_pago = 'pendiente'`,
       [referencia, id_pedido, id_cliente],
     );
@@ -90,7 +90,7 @@ export class PagoModel {
          FROM pagos pg
          INNER JOIN pedidos p ON p.id_pedido = pg.id_pedido
          INNER JOIN estados_pedido ep ON ep.id_estado = p.id_estado
-         WHERE pg.id_pedido = ? AND p.id_usuario = ?
+         WHERE pg.id_pedido = ? AND p.id_cliente = ?
            AND p.metodo_pago = 'online'
          FOR UPDATE`,
         [data.id_pedido, data.id_cliente],

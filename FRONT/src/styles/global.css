@@ -55,6 +55,29 @@
     --color-danger-rgb: 239, 68, 68;
     --color-success-rgb: 16, 185, 129;
     --overlay-rgb: 255, 255, 255;
+
+    --color-text-primary: var(--secondary-900);
+    --color-text-secondary: var(--secondary-600);
+    --color-text-muted: var(--secondary-400);
+    --color-text-on-primary: var(--white);     /* texto sobre botones/superficies de color primary sólido */
+
+    /* ---------------------------------------------------------------
+        BORDES
+     --------------------------------------------------------------- */
+    --color-border: var(--secondary-700);
+    --color-border-strong: var(--secondary-300);
+    --color-border-glow: rgba(var(--primary-600-rgb), 0.8);
+
+    /* ---------------------------------------------------------------
+        OVERLAY / SOMBRA 
+     --------------------------------------------------------------- */
+    --color-overlay-rgb: rgb(var(--secondary-900-rgb)); 
+    --color-shadow-rgb: 0, 0, 0; 
+
+
+    --color-input-bg: var(--white);
+    --color-input-border: var(--secondary-200);
+    --color-input-border-focus: var(--primary-600);
 }
 
 
