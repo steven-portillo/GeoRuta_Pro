@@ -83,6 +83,93 @@ const token = Astro.cookies.get("token")?.value;
     </svg>
     <span>Mi ubicación</span>
   </button>
+  <div
+    slot="modal"
+    id="modalPedidoRepartidor"
+    class="mapa-modal mapa-modal-detalle"
+    hidden
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="modalPedidoRepartidorTitulo"
+    aria-busy="false"
+  >
+    <div class="mapa-modal-caja mapa-modal-detalle-caja">
+      <div class="mapa-modal-cab">
+        <h2 id="modalPedidoRepartidorTitulo">
+          Detalle del pedido <span id="modalPedidoRepartidorNumero"></span>
+        </h2>
+        <button
+          type="button"
+          class="mapa-modal-x"
+          data-cerrar-pedido
+          aria-label="Cerrar detalle del pedido">×</button
+        >
+      </div>
+
+      <div class="mapa-pedido-resumen">
+        <div>
+          <span class="mapa-pedido-etiqueta">Estado</span>
+          <strong id="modalPedidoRepartidorEstado">Cargando…</strong>
+        </div>
+        <div>
+          <span class="mapa-pedido-etiqueta">Fecha</span>
+          <strong id="modalPedidoRepartidorFecha">Cargando…</strong>
+        </div>
+      </div>
+
+      <section class="mapa-pedido-seccion">
+        <h3>Datos de entrega</h3>
+        <dl class="mapa-pedido-datos">
+          <div>
+            <dt>Cliente</dt>
+            <dd id="modalPedidoRepartidorCliente">Cargando…</dd>
+          </div>
+          <div>
+            <dt>Teléfono</dt>
+            <dd id="modalPedidoRepartidorTelefono">Cargando…</dd>
+          </div>
+          <div>
+            <dt>Correo</dt>
+            <dd id="modalPedidoRepartidorCorreo">Cargando…</dd>
+          </div>
+          <div>
+            <dt>Dirección</dt>
+            <dd id="modalPedidoRepartidorDireccion">Cargando…</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="mapa-pedido-seccion">
+        <h3>Productos del pedido</h3>
+        <div class="mapa-pedido-tabla-scroll">
+          <table class="mapa-factura mapa-pedido-factura">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Cant.</th>
+                <th>Precio unitario</th>
+                <th>Subtotal</th>
+              </tr>
+            </thead>
+            <tbody id="modalPedidoRepartidorItems">
+              <tr><td colspan="4">Cargando productos…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="mapa-pedido-total">
+          <span>Total del pedido</span>
+          <strong id="modalPedidoRepartidorTotal">Cargando…</strong>
+        </div>
+      </section>
+
+      <p
+        id="modalPedidoRepartidorError"
+        class="mapa-pedido-error"
+        role="alert"
+        hidden
+      ></p>
+    </div>
+  </div>
 </MapaLayout>
 <script>
   import L from "leaflet";
@@ -222,14 +309,14 @@ const token = Astro.cookies.get("token")?.value;
     nombre: string,
     direccion: string,
     idPedido: number,
-    urlDetalle?: string,
   ) {
-    const href = urlDetalle || `/repartidor/detalle/${idPedido}/confirmar`;
     return `
     <div class="mapa-popup-destino">
       <strong>${escapeHtml(nombre || "Destino")}</strong>
       <small>${escapeHtml(direccion || "")}</small>
-      <a href="${escapeHtml(href)}">Ver detalle / Confirmar entrega</a>
+      <button type="button" class="mapa-btn-pedido mapa-btn-detalle" data-pedido="${idPedido}">
+        Obtener detalle
+      </button>
     </div>`;
   }
 
@@ -319,7 +406,6 @@ const token = Astro.cookies.get("token")?.value;
             d.nombre_cliente ?? "Cliente",
             d.direccion_texto ?? "",
             idPedido,
-            d.url_detalle,
           ),
         );
         pin.on("click", () => marcarSeleccion(idPedido));
@@ -344,6 +430,203 @@ const token = Astro.cookies.get("token")?.value;
     const m = li && marcadoresDestino.get(Number(li.dataset.id));
     if (m) setTimeout(() => m.openPopup(), 700); // espera a que termine el flyTo
   });
+
+  interface PedidoDetalle {
+    id_pedido: number;
+    id_estado: number;
+    fecha_creacion: string;
+    total: number | null;
+    nombre_cliente: string;
+    telefono_cliente: string | null;
+    email_cliente: string | null;
+    direccion_texto: string;
+    items: {
+      producto: string;
+      cantidad: number;
+      precio_unitario: number;
+      subtotal: number;
+    }[];
+  }
+
+  const modalPedido = document.getElementById(
+    "modalPedidoRepartidor",
+  ) as HTMLDivElement;
+  const formatoCOP = new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    maximumFractionDigits: 0,
+  });
+  let pedidoActivo = 0;
+  let elementoQueAbrioModal: HTMLElement | null = null;
+
+  function textoModal(id: string, texto: string) {
+    const elemento = document.getElementById(id);
+    if (elemento) elemento.textContent = texto;
+  }
+
+  function mostrarProductosPedido(items: PedidoDetalle["items"]) {
+    const cuerpo = document.getElementById("modalPedidoRepartidorItems");
+    if (!cuerpo) return;
+    cuerpo.replaceChildren();
+
+    if (!items.length) {
+      const fila = cuerpo.insertRow();
+      const celda = fila.insertCell();
+      celda.colSpan = 4;
+      celda.textContent = "Este pedido no tiene productos registrados.";
+      return;
+    }
+
+    for (const item of items) {
+      const fila = cuerpo.insertRow();
+      const producto = fila.insertCell();
+      producto.textContent = item.producto || "Producto";
+      const cantidad = fila.insertCell();
+      cantidad.textContent = String(item.cantidad);
+      const precio = fila.insertCell();
+      precio.textContent = formatoCOP.format(item.precio_unitario);
+      const subtotal = fila.insertCell();
+      subtotal.textContent = formatoCOP.format(item.subtotal);
+    }
+  }
+
+  function mostrarEstadoProductos(mensaje: string) {
+    const cuerpo = document.getElementById("modalPedidoRepartidorItems");
+    if (!cuerpo) return;
+    cuerpo.replaceChildren();
+    const fila = cuerpo.insertRow();
+    const celda = fila.insertCell();
+    celda.colSpan = 4;
+    celda.textContent = mensaje;
+  }
+
+  function cerrarModalPedido() {
+    if (modalPedido.hidden) return;
+    modalPedido.hidden = true;
+    modalPedido.setAttribute("aria-busy", "false");
+    pedidoActivo = 0;
+    elementoQueAbrioModal?.focus();
+    elementoQueAbrioModal = null;
+  }
+
+  async function abrirModalPedido(idPedido: number, boton: HTMLElement) {
+    if (!Number.isSafeInteger(idPedido) || idPedido <= 0) return;
+
+    pedidoActivo = idPedido;
+    elementoQueAbrioModal = boton;
+    modalPedido.hidden = false;
+    modalPedido.setAttribute("aria-busy", "true");
+    textoModal("modalPedidoRepartidorNumero", `#${idPedido}`);
+    textoModal("modalPedidoRepartidorEstado", "Cargando…");
+    textoModal("modalPedidoRepartidorFecha", "Cargando…");
+    textoModal("modalPedidoRepartidorCliente", "Cargando…");
+    textoModal("modalPedidoRepartidorTelefono", "Cargando…");
+    textoModal("modalPedidoRepartidorCorreo", "Cargando…");
+    textoModal("modalPedidoRepartidorDireccion", "Cargando…");
+    textoModal("modalPedidoRepartidorTotal", "Cargando…");
+    const error = document.getElementById("modalPedidoRepartidorError");
+    if (error) {
+      error.hidden = true;
+      error.textContent = "";
+    }
+    mostrarEstadoProductos("Cargando productos…");
+    modalPedido.querySelector<HTMLElement>("[data-cerrar-pedido]")?.focus();
+
+    try {
+      const respuesta = await fetch(
+        `${API_DENO}/api/proveedor/mapa/pedido-detalle/${idPedido}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const resultado: {
+        success?: boolean;
+        message?: string;
+        data?: PedidoDetalle;
+      } = await respuesta.json();
+      if (pedidoActivo !== idPedido) return;
+      if (!respuesta.ok || !resultado.success || !resultado.data) {
+        throw new Error(
+          resultado.message || "No se pudo obtener el detalle del pedido.",
+        );
+      }
+
+      const pedido = resultado.data;
+      textoModal("modalPedidoRepartidorEstado", "En tránsito");
+      const fecha = new Date(pedido.fecha_creacion);
+      textoModal(
+        "modalPedidoRepartidorFecha",
+        Number.isNaN(fecha.getTime())
+          ? pedido.fecha_creacion || "No disponible"
+          : fecha.toLocaleString("es-CO"),
+      );
+      textoModal(
+        "modalPedidoRepartidorCliente",
+        pedido.nombre_cliente || "No disponible",
+      );
+      textoModal(
+        "modalPedidoRepartidorTelefono",
+        pedido.telefono_cliente || "No registrado",
+      );
+      textoModal(
+        "modalPedidoRepartidorCorreo",
+        pedido.email_cliente || "No registrado",
+      );
+      textoModal(
+        "modalPedidoRepartidorDireccion",
+        pedido.direccion_texto || "No disponible",
+      );
+      textoModal(
+        "modalPedidoRepartidorTotal",
+        formatoCOP.format(Number(pedido.total ?? 0)),
+      );
+      mostrarProductosPedido(Array.isArray(pedido.items) ? pedido.items : []);
+    } catch (error) {
+      console.error("Error al obtener detalle del pedido:", error);
+      if (pedidoActivo !== idPedido) return;
+      const mensaje = error instanceof Error
+        ? error.message
+        : "No se pudo obtener el detalle del pedido.";
+      const elementoError = document.getElementById(
+        "modalPedidoRepartidorError",
+      );
+      if (elementoError) {
+        elementoError.textContent = mensaje;
+        elementoError.hidden = false;
+      }
+      textoModal("modalPedidoRepartidorEstado", "No disponible");
+      textoModal("modalPedidoRepartidorFecha", "No disponible");
+      textoModal("modalPedidoRepartidorCliente", "No disponible");
+      textoModal("modalPedidoRepartidorTelefono", "No disponible");
+      textoModal("modalPedidoRepartidorCorreo", "No disponible");
+      textoModal("modalPedidoRepartidorDireccion", "No disponible");
+      textoModal("modalPedidoRepartidorTotal", "No disponible");
+      mostrarEstadoProductos("No se pudieron cargar los productos.");
+    } finally {
+      if (pedidoActivo === idPedido) {
+        modalPedido.setAttribute("aria-busy", "false");
+      }
+    }
+  }
+
+  document.addEventListener("click", (evento) => {
+    const destino = evento.target as HTMLElement;
+    const boton = destino.closest<HTMLElement>(".mapa-btn-detalle");
+    if (boton) {
+      evento.preventDefault();
+      void abrirModalPedido(Number(boton.dataset.pedido), boton);
+      return;
+    }
+    if (
+      destino === modalPedido ||
+      destino.closest("[data-cerrar-pedido]")
+    ) {
+      cerrarModalPedido();
+    }
+  });
+
+  document.addEventListener("keydown", (evento) => {
+    if (evento.key === "Escape") cerrarModalPedido();
+  });
+
   //        GPS
   let watchId: number | null = null;
 

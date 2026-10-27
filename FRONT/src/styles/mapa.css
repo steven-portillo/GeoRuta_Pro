@@ -435,6 +435,99 @@
   letter-spacing:.1em
 }
 
+/* Detalle del pedido para el repartidor */
+.mapa-modal-detalle .mapa-modal-detalle-caja{
+  width:min(680px,100%);
+}
+.mapa-pedido-resumen{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:.75rem;
+  margin-bottom:1rem;
+}
+.mapa-pedido-resumen>div{
+  display:flex;
+  flex-direction:column;
+  gap:.25rem;
+  padding:.75rem;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:var(--soft);
+}
+.mapa-pedido-etiqueta,
+.mapa-pedido-datos dt{
+  color:var(--muted);
+  font-size:.75rem;
+  font-weight:600;
+}
+.mapa-pedido-resumen strong{
+  color:var(--ink);
+  font-size:.9rem;
+}
+.mapa-pedido-resumen>div:first-child strong{
+  color:#0369a1;
+}
+.mapa-pedido-seccion{
+  margin-top:1rem;
+}
+.mapa-pedido-seccion h3{
+  margin:0 0 .55rem;
+  font-size:.95rem;
+}
+.mapa-pedido-datos{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:.75rem;
+  margin:0;
+}
+.mapa-pedido-datos>div{
+  min-width:0;
+  padding:.65rem .75rem;
+  border:1px solid var(--line);
+  border-radius:10px;
+}
+.mapa-pedido-datos dt{
+  margin-bottom:.2rem;
+}
+.mapa-pedido-datos dd{
+  margin:0;
+  color:var(--ink);
+  font-size:.88rem;
+  overflow-wrap:anywhere;
+}
+.mapa-pedido-tabla-scroll{
+  overflow-x:auto;
+}
+.mapa-pedido-factura{
+  min-width:540px;
+  margin:.25rem 0 0;
+}
+.mapa-pedido-factura th,
+.mapa-pedido-factura td{
+  padding:.55rem .35rem;
+}
+.mapa-pedido-factura th:not(:first-child),
+.mapa-pedido-factura td:not(:first-child){
+  text-align:right;
+  white-space:nowrap;
+}
+.mapa-pedido-total{
+  display:flex;
+  justify-content:space-between;
+  gap:1rem;
+  padding:.75rem .35rem 0;
+  border-top:1px solid var(--line);
+  font-weight:700;
+}
+.mapa-pedido-error{
+  margin:1rem 0 0;
+  padding:.75rem;
+  border-radius:10px;
+  background:#fee2e2;
+  color:#b91c1c;
+  font-size:.88rem;
+}
+
 /* Móvil: el panel se despliega sobre el mapa (hoja inferior) */
 @media (max-width:900px){
   .mapa-body{grid-template-columns:1fr}
@@ -457,7 +550,6 @@
     font-weight:600;
     cursor:pointer
   }
-
   .mapa-toggle svg{width:18px;height:18px}
   .mapa-panel{
     position:fixed;
@@ -486,6 +578,12 @@
     cursor:pointer
   }
   [data-rol="repartidor"] .mapa-canvas{height:62vh}
+}
+@media (max-width:560px){
+  .mapa-pedido-resumen,
+  .mapa-pedido-datos{
+    grid-template-columns:1fr;
+  }
 }
 @media (max-width:900px) and (prefers-reduced-motion:reduce){.mapa-panel{transition:none}}
 @media (prefers-reduced-motion:reduce){.mapa-burbuja{transition:none}}
