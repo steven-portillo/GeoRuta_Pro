@@ -1,5 +1,6 @@
 import { Context, RouterContext } from "../../Dependencies/dependencias.ts";
 import { Pedido } from "../../Model/Admin/PedidoModel.ts";
+import { notificarClienteCambioPedido } from "../../Helpers/pedidoEmails.ts";
 
 /** GET /api/admin/pedidos */
 export const listarPedidos = async (ctx: Context) => {
@@ -131,6 +132,11 @@ export const aprobarPedido = async (
       return;
     }
     const resultado = await Pedido.Aprobar(id_pedido, usuario.id_empresa);
+    if (resultado.success) {
+      notificarClienteCambioPedido(id_pedido, "confirmado").catch((err) =>
+        console.error("Error al notificar cliente sobre aprobación:", err)
+      );
+    }
     ctx.response.status = resultado.success ? 200 : 400;
     ctx.response.body = resultado;
   } catch (error) {
@@ -159,6 +165,11 @@ export const entregarPedido = async (
       usuario.id_empresa,
       Number(usuario.sub),
     );
+    if (resultado.success) {
+      notificarClienteCambioPedido(id_pedido, "Entregado").catch((err) =>
+        console.error("Error al notificar cliente sobre entrega:", err)
+      );
+    }
     ctx.response.status = resultado.success ? 200 : 409;
     ctx.response.body = resultado;
   } catch (error) {
@@ -204,6 +215,11 @@ export const asignarProveedor = async (
       id_proveedor,
       notas,
     );
+    if (resultado.success) {
+      notificarClienteCambioPedido(id_pedido, "asignado").catch((err) =>
+        console.error("Error al notificar cliente sobre asignación:", err)
+      );
+    }
     ctx.response.status = resultado.success ? 200 : 400;
     ctx.response.body = resultado;
   } catch (error) {
@@ -249,6 +265,11 @@ export const cancelarPedido = async (
       id_usuario,
       motivo,
     );
+    if (resultado.success) {
+      notificarClienteCambioPedido(id_pedido, "cancelado", motivo).catch(
+        (err) => console.error("Error al notificar cliente sobre cancelación:", err)
+      );
+    }
     ctx.response.status = resultado.success ? 200 : 400;
     ctx.response.body = resultado;
   } catch (error) {

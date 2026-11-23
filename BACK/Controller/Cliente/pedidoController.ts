@@ -1,5 +1,6 @@
 import { Context, RouterContext } from "../../Dependencies/dependencias.ts";
 import { PedidoCliente } from "../../Model/Cliente/PedidoClienteModel.ts";
+import { notificarClienteCambioPedido } from "../../Helpers/pedidoEmails.ts";
 
 function idCliente(ctx: Context): number {
   return Number((ctx.state.user as { sub?: string }).sub);
@@ -210,6 +211,11 @@ export const crearPedidoCliente = async (ctx: Context) => {
       metodo_pago,
       observaciones || undefined,
     );
+    if (resultado.success && resultado.id_pedido) {
+      notificarClienteCambioPedido(resultado.id_pedido, "confirmado").catch(
+        (err) => console.error("Error al notificar cliente sobre pedido confirmado:", err)
+      );
+    }
     ctx.response.status = resultado.success ? 201 : 400;
     ctx.response.body = resultado.success
       ? {
@@ -253,6 +259,11 @@ export const cancelarPedidoCliente = async (
       id_pedido,
       motivo || undefined,
     );
+    if (resultado.success) {
+      notificarClienteCambioPedido(id_pedido, "cancelado", motivo).catch(
+        (err) => console.error("Error al notificar cliente sobre cancelación:", err)
+      );
+    }
     ctx.response.status = resultado.success ? 200 : 400;
     ctx.response.body = resultado;
   } catch (error) {

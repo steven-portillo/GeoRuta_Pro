@@ -103,6 +103,61 @@ const fechaFormateada = perfil.fechaCreacion
   </div>
 </div>
 
+<!-- ── beneficios y caracteristicas GeoRuta ── -->
+<div class="seccion-perks">
+  <div class="perk-card">
+    <div class="perk-icono perk-icono-lime">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"></path>
+        <circle cx="12" cy="10" r="3"></circle>
+      </svg>
+    </div>
+    <div class="perk-info">
+      <div class="perk-titulo">Rastreo Satelital en Vivo</div>
+      <div class="perk-desc">Sigue el trayecto exacto de tu domiciliario segundo a segundo en mapa interactivo.</div>
+    </div>
+  </div>
+
+  <div class="perk-card">
+    <div class="perk-icono perk-icono-purple">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+      </svg>
+    </div>
+    <div class="perk-info">
+      <div class="perk-titulo">Código OTP de 6 Dígitos</div>
+      <div class="perk-desc">Máxima seguridad: solo tú autorizas la entrega compartiendo el código secreto al recibir.</div>
+    </div>
+  </div>
+
+  <div class="perk-card">
+    <div class="perk-icono perk-icono-blue">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+        <line x1="1" y1="10" x2="23" y2="10"></line>
+      </svg>
+    </div>
+    <div class="perk-info">
+      <div class="perk-titulo">Pagos 100% Flexibles</div>
+      <div class="perk-desc">Paga en efectivo al repartidor contra entrega o con tarjeta/PSE de forma segura vía Wompi.</div>
+    </div>
+  </div>
+
+  <div class="perk-card">
+    <div class="perk-icono perk-icono-green">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"></path>
+        <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"></path>
+      </svg>
+    </div>
+    <div class="perk-info">
+      <div class="perk-titulo">Logística Sostenible</div>
+      <div class="perk-desc">Rutas eficientes calculadas algorítmicamente para reducir emisiones de CO₂.</div>
+    </div>
+  </div>
+</div>
+
 <!-- ── carrusel de proveedores ── -->
 {slides.length > 0 && (
   <div class="seccion-carrusel">
@@ -153,7 +208,7 @@ const fechaFormateada = perfil.fechaCreacion
                   <div class="slide-tag">Empresa destacada</div>
                   <h2 class="slide-nombre">{slide.nombre}</h2>
                   <p class="slide-desc">{slide.descripcion || 'Proveedor de GeoRuta'}</p>
-                  <a class="slide-btn" href="/cliente/catalogo">
+                  <a class="slide-btn" href={`/cliente/catalogo?empresa=${slide.id}`}>
                     Ver productos <span aria-hidden="true">→</span>
                   </a>
                 </div>
@@ -330,13 +385,83 @@ const fechaFormateada = perfil.fechaCreacion
 
   /* ── banner de saludo ── */
   .saludo-banner {
-    background: linear-gradient(135deg, var(--primary-900) 0%, var(--primary-700) 100%);
-    border-radius: 14px;
-    padding: 1.5rem 1.75rem;
+    background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
+    border-radius: 20px;
+    padding: 1.8rem 2.2rem;
     color: white;
     position: relative;
     overflow: hidden;
-    margin-bottom: 1.25rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.08);
+  }
+
+  /* ── seccion perks ── */
+  .seccion-perks {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+  }
+  .perk-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 1.25rem;
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+  }
+  .perk-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.08);
+    border-color: #cbd5e1;
+  }
+  .perk-icono {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .perk-icono svg {
+    width: 22px;
+    height: 22px;
+  }
+  .perk-icono-lime {
+    background: #f7fee7;
+    color: #65a30d;
+    border: 1px solid #d9f99d;
+  }
+  .perk-icono-purple {
+    background: #faf5ff;
+    color: #7c3aed;
+    border: 1px solid #e9d5ff;
+  }
+  .perk-icono-blue {
+    background: #eff6ff;
+    color: #2563eb;
+    border: 1px solid #bfdbfe;
+  }
+  .perk-icono-green {
+    background: #f0fdf4;
+    color: #16a34a;
+    border: 1px solid #bbf7d0;
+  }
+  .perk-titulo {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 4px;
+  }
+  .perk-desc {
+    font-size: 0.8rem;
+    color: #64748b;
+    line-height: 1.45;
   }
 
   .saludo-contenido {
@@ -775,7 +900,7 @@ const fechaFormateada = perfil.fechaCreacion
     text-transform: uppercase;
   }
 
-  .saludo-punto { width: 8px; height: 8px; border-radius: 50%; background: #fbbf24; box-shadow: 0 0 0 5px rgba(251, 191, 36, 0.15); }
+  .saludo-punto { width: 8px; height: 8px; border-radius: 50%; background: #bef264; box-shadow: 0 0 0 5px rgba(190, 242, 100, 0.2); }
 
   .inicio-dashboard .saludo-nombre {
     margin-bottom: 0.6rem;
@@ -784,7 +909,7 @@ const fechaFormateada = perfil.fechaCreacion
     line-height: 1.05;
   }
 
-  .inicio-dashboard .saludo-nombre span { color: #fbbf24; }
+  .inicio-dashboard .saludo-nombre span { color: #bef264; }
   .inicio-dashboard .saludo-sub { max-width: 480px; color: rgba(255, 255, 255, 0.76); font-size: 0.98rem; }
   .saludo-acciones { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.4rem; }
 
@@ -793,19 +918,19 @@ const fechaFormateada = perfil.fechaCreacion
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    padding: 0.8rem 1.2rem;
-    border: 1px solid #fbbf24;
+    padding: 0.8rem 1.4rem;
+    border: 1px solid #bef264;
     border-radius: 999px;
-    background: #fbbf24;
-    color: #172554;
-    font-size: 0.87rem;
+    background: #bef264;
+    color: #111827;
+    font-size: 0.88rem;
     font-weight: 700;
     text-decoration: none;
     transition: transform 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
   }
 
   .btn-explorar svg { width: 18px; height: 18px; transition: transform 180ms ease; }
-  .btn-explorar:hover { background: #fcd34d; box-shadow: 0 8px 22px rgba(251, 191, 36, 0.24); transform: translateY(-2px); }
+  .btn-explorar:hover { background: #d9f99d; box-shadow: 0 8px 22px rgba(190, 242, 100, 0.35); transform: translateY(-2px); }
   .btn-explorar:hover svg { transform: translateX(3px); }
   .inicio-dashboard .btn-contactanos { min-height: 44px; justify-content: center; padding: 0.7rem 1.1rem; border-radius: 999px; background: rgba(255, 255, 255, 0.08); }
   .inicio-dashboard .btn-contactanos:hover { background: rgba(255, 255, 255, 0.16); }

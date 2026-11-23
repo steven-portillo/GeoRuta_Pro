@@ -1,0 +1,43 @@
+---
+// src/pages/superadmin/clientes.astro
+import SuperAdminLayout from '../../layouts/SuperAdminLayout.astro';
+import ClientesSuperAdmin from '../../components/superadmin/ClientesSuperAdmin.astro';
+import type { ClienteSuperAdmin } from '../../components/superadmin/ClientesSuperAdmin.astro';
+import { llamarBackend, obtenerToken, resolverUrlBackend } from '../../lib/Backend';
+
+const token = obtenerToken(Astro.cookies);
+
+const respuesta = await llamarBackend<{
+  success: boolean;
+  data?: ClienteSuperAdmin[];
+  message?: string;
+}>('/api/admin/superadmin/clientes', { token });
+
+if (respuesta.status === 401) {
+  Astro.cookies.delete('token', { path: '/' });
+  return Astro.redirect('/login?error=sesion_expirada');
+}
+
+if (respuesta.status === 403) {
+  return Astro.redirect('/login?error=sin_permisos');
+}
+
+if (
+  respuesta.status < 200 || respuesta.status >= 300 ||
+  !respuesta.datos.success || !Array.isArray(respuesta.datos.data)
+) {
+  console.error('No se pudieron cargar los clientes:', respuesta.datos.message);
+  Astro.response.status = 502;
+  throw new Error(respuesta.datos.message ?? 'No se pudieron cargar los clientes');
+}
+
+const clientes: ClienteSuperAdmin[] = respuesta.datos.data.map((cliente) => ({
+  ...cliente,
+  activo: Boolean(Number(cliente.activo)),
+  imagen_url: resolverUrlBackend(cliente.imagen_url) ?? null,
+}));
+---
+
+<SuperAdminLayout titulo="Clientes" vistaActual="clientes">
+  <ClientesSuperAdmin clientes={clientes} />
+</SuperAdminLayout>

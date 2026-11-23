@@ -65,6 +65,9 @@ const datosJson = JSON.stringify({ pedidos: pedidosIniciales, error: error ?? nu
         <option value="En transito">En tránsito</option>
         <option value="Entregado">Entregado</option>
       </select>
+      <button type="button" class="rep-btn-p" id="btn-iniciar-todas" style="display:none">
+        🚚 Iniciar todas las entregas
+      </button>
     </div>
   </div>
   <div class="rep-pedidos-grid" id="grilla-pedidos-rep"></div>
@@ -298,6 +301,7 @@ const datosJson = JSON.stringify({ pedidos: pedidosIniciales, error: error ?? nu
       }
 
       pedidos = datos.data ?? [];
+      actualizarBotonLote();
       filtrarPedidos();
       sincronizarRastreo();
 
@@ -362,6 +366,59 @@ const datosJson = JSON.stringify({ pedidos: pedidosIniciales, error: error ?? nu
     if (nuevoEstado === 'En transito') await activarRastreo(id);
   }
 
+
+  // ══════════════════════════════════════════════════════════
+  // iniciar todas las entregas (boton opcional, no reemplaza el cambio pedido por pedido)
+  // ══════════════════════════════════════════════════════════
+  // el controller muestra "Asignado"/"Aprobado" como "En preparacion"; son los que el backend deja salir
+  function listoParaSalir(p: Pedido): boolean {
+    return clave(p.estado) === 'En preparacion';
+  }
+
+  function actualizarBotonLote() {
+    const boton = obtener<HTMLButtonElement>('btn-iniciar-todas');
+    if (!boton) return;
+    const cuantos = pedidos.filter(listoParaSalir).length;
+    boton.style.display = cuantos > 0 ? 'inline-flex' : 'none';
+    boton.disabled = false;
+    boton.textContent = `🚚 Iniciar todas las entregas (${cuantos})`;
+  }
+
+  async function llamarIniciarEntregas(): Promise<{ success: boolean; message?: string }> {
+    try {
+      const respuesta = await fetch('/api/auth/proveedor/pedidos/iniciar-entregas', {
+        method: 'POST',
+      });
+      const datos = await respuesta.json();
+      return { success: Boolean(datos.success), message: datos.message };
+    } catch {
+      return { success: false, message: 'No hay conexión con el servidor.' };
+    }
+  }
+
+  async function iniciarTodasLasEntregas() {
+    const cuantos = pedidos.filter(listoParaSalir).length;
+    if (cuantos === 0) return;
+    if (!confirm(`¿Iniciar la entrega de ${cuantos} pedido(s)? Todos pasarán a "En tránsito".`)) return;
+
+    const boton = obtener<HTMLButtonElement>('btn-iniciar-todas');
+    if (boton) {
+      boton.disabled = true;
+      boton.textContent = 'Iniciando...';
+    }
+
+    const resultado = await llamarIniciarEntregas();
+    if (!resultado.success) {
+      alert(resultado.message || 'No fue posible iniciar las entregas.');
+      await cargarPedidos(); // la lista pudo haber cambiado (p. ej. el admin reasigno un pedido)
+      return;
+    }
+
+    await cargarPedidos();
+    // igual que "Iniciar entrega" de una tarjeta: si no se esta compartiendo ubicacion, se arranca
+    const primero = pedidos.find(esTransito);
+    if (primero && idRastreo === null) await activarRastreo(primero.id);
+  }
   // ══════════════════════════════════════════════════════════
   // modal de detalle con mapa
   // ══════════════════════════════════════════════════════════
@@ -830,6 +887,7 @@ const datosJson = JSON.stringify({ pedidos: pedidosIniciales, error: error ?? nu
     if (boton.dataset.accion === 'avanzar') accionRapida(id, boton.dataset.estado ?? '');
   });
 
+  obtener('btn-iniciar-todas')?.addEventListener('click', iniciarTodasLasEntregas);
   // los botones del banner se crean dinamicamente, por eso se delega en document
   document.addEventListener('click', (e) => {
     const boton = (e.target as HTMLElement).closest<HTMLElement>('[data-rastreo]');
@@ -872,6 +930,7 @@ const datosJson = JSON.stringify({ pedidos: pedidosIniciales, error: error ?? nu
     if (grilla) grilla.innerHTML = `<p class="rep-vacio error">Error: ${esc(datosIniciales.error)}</p>`;
   } else {
     renderPedidos(pedidos);
+    actualizarBotonLote();
     sincronizarRastreo();
   }
 </script>

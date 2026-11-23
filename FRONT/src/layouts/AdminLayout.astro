@@ -7,7 +7,15 @@ import { resolverUrlBackend } from '../lib/Backend';
 
 interface Props {
   titulo: string;
-  vistaActual: 'inicio' | 'categorias' | 'productos' | 'pedidos' | 'pagos' | 'repartidores' | 'perfil' | "mapa";
+  vistaActual:     | "inicio"
+    | "categorias"
+    | "productos"
+    | "inventario"
+    | "pedidos"
+    | "pagos"
+    | "repartidores"
+    | "perfil"
+    | "mapa";
   nombreAdmin?: string;
   inicialesAdmin?: string;
   imagenUrl?: string | null;
@@ -62,6 +70,7 @@ const links: SidebarLink[] = [
   { href: '/admin/inicio', label: 'Inicio', icon: 'bi-house-door' },
   { href: '/admin/categorias', label: 'Categorías', icon: 'bi-tags' },
   { href: '/admin/productos', label: 'Productos', icon: 'bi-box-seam' },
+  { href: "/admin/inventario", label: "Inventario", icon: "bi-clipboard-data" },
   { href: '/admin/pedidos', label: 'Pedidos', icon: 'bi-cart3' },
   { href: '/admin/pagos', label: 'Pagos', icon: 'bi-credit-card' },
   { href: '/admin/repartidores', label: 'Repartidores', icon: 'bi-truck' },

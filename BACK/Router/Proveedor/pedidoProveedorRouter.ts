@@ -5,6 +5,7 @@ import {
   marcarNotificacionesProveedorLeidas,
   listarPedidosProveedor,
   obtenerDatosInicioProveedor,
+  iniciarEntregasProveedor,
 } from "../../Controller/Proveedor/pedidoProveedorController.ts";
 import { soloProveedor } from "../../Middlewares/roles.ts";
 import { authMiddleware } from "../../Middlewares/validarJWT.ts";
@@ -29,6 +30,10 @@ pedidoProveedorRouter.post(
 pedidoProveedorRouter.post(
   "/api/proveedor/pedidos/cambiar-estado",
   cambiarEstadoPedidoProveedor,
+);
+pedidoProveedorRouter.post(
+  "/api/proveedor/pedidos/iniciar-entregas",
+  iniciarEntregasProveedor,
 );
 
 export { pedidoProveedorRouter };

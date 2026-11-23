@@ -1,0 +1,346 @@
+---
+// src/components/superadmin/ClientesSuperAdmin.astro
+// gestion global de clientes: lista con busqueda y filtro por estado, activar/desactivar y editar.
+// las filas llegan renderizadas por ssr; el js filtra, cambia estado y edita (recarga al guardar)
+
+export interface ClienteSuperAdmin {
+  id_usuario: number;
+  nombre: string;
+  apellido: string;
+  email: string;
+  imagen_url: string | null;
+  activo: boolean;
+  fecha_creacion: string | null;
+}
+
+interface Props {
+  clientes: ClienteSuperAdmin[];
+}
+
+const { clientes } = Astro.props;
+
+function formatearFecha(valor: string | null): string {
+  if (!valor) return '—';
+  const fecha = new Date(valor);
+  if (Number.isNaN(fecha.getTime())) return '—';
+  return fecha.toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+const activos = clientes.filter((c) => c.activo).length;
+---
+
+<div class="encabezado-sec">
+  <div>
+    <span class="titulo-sec">Clientes registrados</span>
+    <p class="cli-resumen">
+      <span id="contador-visibles">{clientes.length}</span> de {clientes.length} ·
+      <span id="contador-activos">{activos}</span> activos
+    </p>
+  </div>
+</div>
+
+<div class="barra-filtros">
+  <input
+    class="input-busqueda"
+    type="text"
+    id="buscar-cliente"
+    placeholder="Buscar por nombre o email..."
+    style="width:300px"
+  />
+  <select class="input-busqueda" id="filtro-estado" style="width:170px">
+    <option value="">Todos los estados</option>
+    <option value="1">Activos</option>
+    <option value="0">Inactivos</option>
+  </select>
+</div>
+
+<div class="panel-card">
+  <table class="tabla-admin">
+    <thead>
+      <tr>
+        <th>Cliente</th>
+        <th>Email</th>
+        <th>Registro</th>
+        <th>Estado</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody id="tbody-clientes">
+      {
+        clientes.map((c) => (
+          <tr
+            class="fila-cliente"
+            data-id={c.id_usuario}
+            data-nombre={c.nombre}
+            data-apellido={c.apellido}
+            data-email={c.email}
+            data-estado={c.activo ? '1' : '0'}
+            data-texto={`${c.nombre} ${c.apellido} ${c.email}`.toLowerCase()}
+          >
+            <td>
+              <div class="cli-celda">
+                <div class="cli-avatar">
+                  {c.imagen_url ? (
+                    <img src={c.imagen_url} alt={`${c.nombre} ${c.apellido}`} />
+                  ) : (
+                    `${c.nombre.charAt(0)}${c.apellido.charAt(0)}`.toUpperCase()
+                  )}
+                </div>
+                <div class="cli-nombre">{c.nombre} {c.apellido}</div>
+              </div>
+            </td>
+            <td>{c.email}</td>
+            <td>{formatearFecha(c.fecha_creacion)}</td>
+            <td>
+              <span class={`badge estado-badge ${c.activo ? 'badge-verde' : 'badge-amber'}`}>
+                {c.activo ? 'Activo' : 'Inactivo'}
+              </span>
+            </td>
+            <td>
+              <div style="display:flex;gap:6px">
+                <button class="btn-editar-cliente btn-secundario" type="button">Editar</button>
+                <button class={`btn-toggle-cliente ${c.activo ? 'btn-peligro' : 'btn-primario'}`} type="button">
+                  {c.activo ? 'Desactivar' : 'Activar'}
+                </button>
+              </div>
+            </td>
+          </tr>
+        ))
+      }
+      <tr id="fila-vacia" style={clientes.length ? 'display:none' : ''}>
+        <td colspan="5" style="text-align:center;color:#94a3b8;padding:2rem">
+          {clientes.length ? 'No se encontraron clientes con ese filtro.' : 'Aún no hay clientes registrados.'}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- modal editar -->
+<div class="modal-overlay" id="modal-cliente" style="display:none">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-header">
+      <h2 class="modal-titulo">Editar cliente</h2>
+      <button class="modal-cerrar" id="btn-cerrar-modal-cliente" type="button">
+        <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" /></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cli-id" value="" />
+      <div class="form-fila">
+        <div class="form-grupo">
+          <label class="form-label" for="cli-nombre">Nombre</label>
+          <input class="form-input" id="cli-nombre" />
+        </div>
+        <div class="form-grupo">
+          <label class="form-label" for="cli-apellido">Apellido</label>
+          <input class="form-input" id="cli-apellido" />
+        </div>
+      </div>
+      <div class="form-grupo">
+        <label class="form-label" for="cli-email">Email</label>
+        <input class="form-input" id="cli-email" type="email" />
+      </div>
+      <div class="form-grupo">
+        <label class="form-label" for="cli-foto">Foto (opcional)</label>
+        <input class="form-input" id="cli-foto" type="file" accept="image/jpeg,image/png,image/webp" />
+        <span style="font-size:0.72rem;color:#94a3b8">JPG, PNG o WEBP · máx. 3MB. Si no eliges una, se conserva la actual.</span>
+      </div>
+      <div id="msg-cliente" style="display:none"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secundario" id="btn-cancelar-cliente" type="button">Cancelar</button>
+      <button class="btn-primario" id="btn-guardar-cliente" type="button">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const cuerpo = document.getElementById('tbody-clientes');
+  const buscador = document.getElementById('buscar-cliente') as HTMLInputElement | null;
+  const filtroEstado = document.getElementById('filtro-estado') as HTMLSelectElement | null;
+  const filaVacia = document.getElementById('fila-vacia');
+  const contadorVisibles = document.getElementById('contador-visibles');
+  const contadorActivos = document.getElementById('contador-activos');
+  const modal = document.getElementById('modal-cliente');
+
+  const filas = () => Array.from(document.querySelectorAll<HTMLTableRowElement>('.fila-cliente'));
+  const campo = (id: string) => document.getElementById(id) as HTMLInputElement;
+
+  // ---------- filtros ----------
+  function aplicarFiltros() {
+    const texto = buscador?.value.toLowerCase().trim() ?? '';
+    const estado = filtroEstado?.value ?? '';
+    let visibles = 0;
+
+    for (const fila of filas()) {
+      const coincide =
+        (!texto || (fila.dataset.texto ?? '').includes(texto)) && (!estado || fila.dataset.estado === estado);
+      fila.style.display = coincide ? '' : 'none';
+      if (coincide) visibles++;
+    }
+
+    if (contadorVisibles) contadorVisibles.textContent = String(visibles);
+    if (filaVacia && filas().length) filaVacia.style.display = visibles === 0 ? '' : 'none';
+  }
+
+  function contarActivos() {
+    if (contadorActivos) {
+      contadorActivos.textContent = String(filas().filter((f) => f.dataset.estado === '1').length);
+    }
+  }
+
+  function pintarEstado(fila: HTMLTableRowElement, activo: boolean) {
+    fila.dataset.estado = activo ? '1' : '0';
+
+    const badge = fila.querySelector('.estado-badge');
+    if (badge) {
+      badge.textContent = activo ? 'Activo' : 'Inactivo';
+      badge.className = `badge estado-badge ${activo ? 'badge-verde' : 'badge-amber'}`;
+    }
+
+    const boton = fila.querySelector<HTMLButtonElement>('.btn-toggle-cliente');
+    if (boton) {
+      boton.textContent = activo ? 'Desactivar' : 'Activar';
+      boton.className = `btn-toggle-cliente ${activo ? 'btn-peligro' : 'btn-primario'}`;
+    }
+  }
+
+  // ---------- modal editar ----------
+  function mostrarMensaje(texto: string, ok: boolean) {
+    const el = document.getElementById('msg-cliente');
+    if (!el) return;
+    el.textContent = texto;
+    el.className = ok ? 'admin-msg-ok' : 'admin-msg-err';
+    el.style.display = 'block';
+  }
+
+  function abrirModal(fila: HTMLTableRowElement) {
+    campo('cli-id').value = fila.dataset.id ?? '';
+    campo('cli-nombre').value = fila.dataset.nombre ?? '';
+    campo('cli-apellido').value = fila.dataset.apellido ?? '';
+    campo('cli-email').value = fila.dataset.email ?? '';
+    campo('cli-foto').value = '';
+    const msg = document.getElementById('msg-cliente');
+    if (msg) msg.style.display = 'none';
+    if (modal) modal.style.display = 'flex';
+  }
+
+  function cerrarModal() {
+    if (modal) modal.style.display = 'none';
+  }
+
+  async function guardarCliente() {
+    const id = Number(campo('cli-id').value);
+    const nombre = campo('cli-nombre').value.trim();
+    const apellido = campo('cli-apellido').value.trim();
+    const email = campo('cli-email').value.trim();
+    const foto = campo('cli-foto').files?.[0];
+    const btn = document.getElementById('btn-guardar-cliente') as HTMLButtonElement;
+
+    if (!id) return mostrarMensaje('Cliente inválido.', false);
+    if (!nombre || !apellido) return mostrarMensaje('Nombre y apellido son obligatorios.', false);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return mostrarMensaje('Ingresa un email válido.', false);
+    if (foto && foto.size > 3 * 1024 * 1024) return mostrarMensaje('La foto supera el límite de 3MB.', false);
+
+    const textoOriginal = btn.textContent;
+    btn.textContent = 'Guardando...';
+    btn.disabled = true;
+
+    try {
+      const formData = new FormData();
+      formData.append('nombre', nombre);
+      formData.append('apellido', apellido);
+      formData.append('email', email);
+      // solo se envia si hay archivo: el backend trata cualquier "foto" presente como una foto nueva
+      if (foto && foto.size > 0) formData.append('foto', foto);
+
+      const res = await fetch(`/api/auth/superadmin/clientes/${id}`, { method: 'PUT', body: formData });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        mostrarMensaje('✓ ' + data.message, true);
+        setTimeout(() => location.reload(), 700);
+      } else {
+        mostrarMensaje('✗ ' + (data.message ?? 'No se pudo actualizar.'), false);
+        btn.textContent = textoOriginal;
+        btn.disabled = false;
+      }
+    } catch {
+      mostrarMensaje('✗ Error de conexión.', false);
+      btn.textContent = textoOriginal;
+      btn.disabled = false;
+    }
+  }
+
+  // ---------- listeners ----------
+  cuerpo?.addEventListener('click', async (evento) => {
+    const objetivo = evento.target as HTMLElement;
+    const fila = objetivo.closest<HTMLTableRowElement>('.fila-cliente');
+    if (!fila) return;
+
+    if (objetivo.closest('.btn-editar-cliente')) {
+      abrirModal(fila);
+      return;
+    }
+
+    const boton = objetivo.closest<HTMLButtonElement>('.btn-toggle-cliente');
+    if (!boton) return;
+
+    const activar = fila.dataset.estado !== '1';
+    const nombre = `${fila.dataset.nombre ?? ''} ${fila.dataset.apellido ?? ''}`.trim() || 'este cliente';
+    const aviso = activar
+      ? `¿Activar a "${nombre}"?\n\nPodrá volver a iniciar sesión.`
+      : `¿Desactivar a "${nombre}"?\n\nNo podrá iniciar sesión.`;
+    if (!confirm(aviso)) return;
+
+    const textoOriginal = boton.textContent;
+    boton.disabled = true;
+    boton.textContent = 'Guardando...';
+
+    try {
+      const res = await fetch(`/api/auth/superadmin/clientes/${fila.dataset.id}/estado`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado: activar ? 1 : 0 }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        pintarEstado(fila, activar);
+        contarActivos();
+        aplicarFiltros();
+      } else {
+        alert(data.message ?? 'No fue posible cambiar el estado.');
+        boton.textContent = textoOriginal;
+      }
+    } catch {
+      alert('Error de conexión.');
+      boton.textContent = textoOriginal;
+    } finally {
+      boton.disabled = false;
+    }
+  });
+
+  buscador?.addEventListener('input', aplicarFiltros);
+  filtroEstado?.addEventListener('change', aplicarFiltros);
+  document.getElementById('btn-cerrar-modal-cliente')?.addEventListener('click', cerrarModal);
+  document.getElementById('btn-cancelar-cliente')?.addEventListener('click', cerrarModal);
+  document.getElementById('btn-guardar-cliente')?.addEventListener('click', guardarCliente);
+  modal?.addEventListener('click', (e) => {
+    if (e.target === modal) cerrarModal();
+  });
+</script>
+
+<style>
+  .cli-resumen { font-size: 0.78rem; color: var(--gris-500); margin-top: 2px; }
+  .cli-celda { display: flex; align-items: center; gap: 12px; }
+  .cli-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--azul-600), var(--violeta-600)); color: white; font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+  .cli-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .cli-nombre { font-weight: 700; color: var(--gris-800); }
+  .btn-toggle-cliente, .btn-editar-cliente { cursor: pointer; font-size: 0.78rem; }
+
+  #modal-cliente.modal-overlay { align-items: flex-start; overflow-y: auto; padding: 1rem; }
+  #modal-cliente .modal-box { display: flex; flex-direction: column; width: 100%; max-height: calc(100dvh - 2rem); margin: auto; }
+  #modal-cliente .modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+</style>

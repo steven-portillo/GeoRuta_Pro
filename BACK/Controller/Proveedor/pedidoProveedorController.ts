@@ -1,6 +1,7 @@
 import { Context } from "../../Dependencies/dependencias.ts";
 import { EsquemaConfirmarEntrega } from "../../Helpers/esquemaValidaciones.ts";
 import { PedidoProveedor } from "../../Model/Proveedor/PedidoProveedorModel.ts";
+import { notificarClienteCambioPedido } from "../../Helpers/pedidoEmails.ts";
 
 function obtenerIdProveedor(ctx: Context): number {
   const id = Number((ctx.state.user as { sub?: string }).sub);
@@ -150,6 +151,11 @@ export const cambiarEstadoPedidoProveedor = async (ctx: Context) => {
       estado,
       codigo,
     );
+    if (resultado.success) {
+      notificarClienteCambioPedido(id_pedido, estado).catch((err) =>
+        console.error("Error al notificar cliente sobre cambio de estado:", err)
+      );
+    }
     ctx.response.status = resultado.success ? 200 : 409;
     ctx.response.body = resultado;
   } catch (error) {
@@ -158,6 +164,33 @@ export const cambiarEstadoPedidoProveedor = async (ctx: Context) => {
     ctx.response.body = {
       success: false,
       message: "No fue posible actualizar el estado del pedido",
+    };
+  }
+};
+
+export const iniciarEntregasProveedor = async (ctx: Context) => {
+  try {
+    const resultado = await PedidoProveedor.IniciarEntregas(
+      obtenerIdProveedor(ctx),
+    );
+    if (resultado.success && Array.isArray(resultado.pedidos)) {
+      for (const pId of resultado.pedidos) {
+        notificarClienteCambioPedido(pId, "En transito").catch((err) =>
+          console.error(
+            `Error al notificar cliente sobre inicio de tránsito para pedido #${pId}:`,
+            err,
+          )
+        );
+      }
+    }
+    ctx.response.status = resultado.success ? 200 : 409;
+    ctx.response.body = resultado;
+  } catch (error) {
+    console.error("Error al iniciar entregas del repartidor:", error);
+    ctx.response.status = 500;
+    ctx.response.body = {
+      success: false,
+      message: "No fue posible iniciar las entregas",
     };
   }
 };

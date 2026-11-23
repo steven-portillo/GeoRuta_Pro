@@ -4,8 +4,11 @@ import {
   getWompiBaseUrl,
   getWompiPrivateKey,
   getWompiPublicKey,
+  verificarChecksumEvento,
 } from "../../Helpers/wompi.ts";
 import { PagoModel } from "../../Model/Pagos/pagoModel.ts";
+import { notificarClienteCambioPedido } from "../../Helpers/pedidoEmails.ts";
+import { conexion } from "../../Model/conexion.ts";
 
 function idCliente(ctx: Context): number {
   return Number((ctx.state.user as { sub?: string }).sub);
@@ -162,6 +165,11 @@ export const confirmarPago = async (
       monto: Number(pago.total),
       respuesta: JSON.stringify(resultadoWompi),
     });
+    if (confirmado.success) {
+      notificarClienteCambioPedido(id_pedido, "confirmado").catch((err) =>
+        console.error("Error al notificar cliente sobre pago confirmado:", err)
+      );
+    }
     ctx.response.status = confirmado.success ? 200 : 400;
     ctx.response.body = confirmado;
   } catch (error) {
@@ -209,6 +217,119 @@ export const listarPagosAdmin = async (ctx: Context) => {
     ctx.response.body = {
       success: false,
       message: "No fue posible cargar el resumen de pagos",
+    };
+  }
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export const recibirWebhookWompi = async (ctx: Context) => {
+  try {
+    const body: unknown = await ctx.request.body.json();
+    if (!isRecord(body)) {
+      ctx.response.status = 400;
+      ctx.response.body = { success: false, message: "Evento inválido" };
+      return;
+    }
+
+    const validChecksum = await verificarChecksumEvento(body);
+    const headerChecksum = ctx.request.headers.get("X-Event-Checksum");
+    const bodyChecksum = isRecord(body.signature) &&
+        typeof body.signature.checksum === "string"
+      ? body.signature.checksum
+      : undefined;
+
+    if (
+      !validChecksum ||
+      (headerChecksum &&
+        bodyChecksum?.toLowerCase() !== headerChecksum.toLowerCase())
+    ) {
+      ctx.response.status = 401;
+      ctx.response.body = {
+        success: false,
+        message: "Firma del evento Wompi inválida",
+      };
+      return;
+    }
+
+    if (body.event !== "transaction.updated") {
+      ctx.response.status = 200;
+      ctx.response.body = { received: true, ignored: true };
+      return;
+    }
+
+    const data = body.data;
+    if (!isRecord(data) || !isRecord(data.transaction)) {
+      ctx.response.status = 400;
+      ctx.response.body = {
+        success: false,
+        message: "Datos de transacción Wompi inválidos",
+      };
+      return;
+    }
+
+    const transaccion = data.transaction as {
+      id?: string;
+      reference?: string;
+      status?: string;
+      amount_in_cents?: number;
+      currency?: string;
+    };
+
+    const referencia = String(transaccion.reference ?? "");
+    const [pago] = await conexion.query(
+      `SELECT pg.id_pago, pg.id_pedido, pg.monto, p.id_usuario, pg.estado_pago
+       FROM pagos pg
+       INNER JOIN pedidos p ON p.id_pedido = pg.id_pedido
+       WHERE pg.referencia_ext = ?`,
+      [referencia],
+    );
+
+    if (!pago) {
+      console.warn(`Webhook Wompi recibido para referencia no encontrada: ${referencia}`);
+      ctx.response.status = 200;
+      ctx.response.body = { received: true, ignored: true };
+      return;
+    }
+
+    const id_pedido = Number(pago.id_pedido);
+    const id_usuario = Number(pago.id_usuario);
+
+    if (transaccion.status === "APPROVED") {
+      const confirmado = await PagoModel.ConfirmarPago({
+        id_pedido,
+        id_cliente: id_usuario,
+        referencia,
+        transaccion: String(transaccion.id ?? ""),
+        monto: Number(pago.monto),
+        respuesta: JSON.stringify(body),
+      });
+
+      if (confirmado.success) {
+        notificarClienteCambioPedido(id_pedido, "confirmado").catch((err) =>
+          console.error("Error al notificar cliente sobre pago en webhook:", err)
+        );
+      }
+    } else if (transaccion.status === "DECLINED" || transaccion.status === "ERROR") {
+      notificarClienteCambioPedido(
+        id_pedido,
+        "cancelado",
+        "El pago fue rechazado por la pasarela de pagos",
+      ).catch((err) =>
+        console.error("Error al notificar cliente sobre pago rechazado:", err)
+      );
+    }
+
+    ctx.response.status = 200;
+    ctx.response.body = { received: true };
+  } catch (error) {
+    console.error("Error procesando webhook Wompi:", error);
+    ctx.response.status = 500;
+    ctx.response.body = {
+      success: false,
+      message: "No se pudo procesar el evento",
     };
   }
 };

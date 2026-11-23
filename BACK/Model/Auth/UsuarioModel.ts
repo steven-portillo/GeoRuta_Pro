@@ -218,25 +218,83 @@ export class Usuario {
   public static async VerificarCodigoRecuperacion(
     email: string,
     codigo: string,
-  ): Promise<boolean> {
+  ): Promise<{ valido: boolean; message: string }> {
     await conexion.execute("START TRANSACTION");
     try {
-      const [registro] = await conexion.query(
-        `SELECT rp.id, rp.codigo, rp.expiracion > CURRENT_TIMESTAMP AS vigente
-         FROM recuperacion_password rp
-         INNER JOIN usuarios u ON u.id_usuario = rp.id_usuario
-         WHERE u.email = ? AND u.activo = 1 AND rp.usado = 0
-         ORDER BY rp.id DESC LIMIT 1 FOR UPDATE`,
-        [email],
-      );
+      let registro: any = null;
+      let tieneColumnasSeguridad = true;
+      try {
+        const [row] = await conexion.query(
+          `SELECT rp.id, rp.codigo, rp.expiracion > CURRENT_TIMESTAMP AS vigente,
+                  rp.intentos, rp.bloqueado
+           FROM recuperacion_password rp
+           INNER JOIN usuarios u ON u.id_usuario = rp.id_usuario
+           WHERE u.email = ? AND u.activo = 1 AND rp.usado = 0
+           ORDER BY rp.id DESC LIMIT 1 FOR UPDATE`,
+          [email],
+        );
+        registro = row;
+      } catch {
+        tieneColumnasSeguridad = false;
+        const [row] = await conexion.query(
+          `SELECT rp.id, rp.codigo, rp.expiracion > CURRENT_TIMESTAMP AS vigente
+           FROM recuperacion_password rp
+           INNER JOIN usuarios u ON u.id_usuario = rp.id_usuario
+           WHERE u.email = ? AND u.activo = 1 AND rp.usado = 0
+           ORDER BY rp.id DESC LIMIT 1 FOR UPDATE`,
+          [email],
+        );
+        registro = row;
+      }
 
       if (!registro || !Number(registro.vigente)) {
         await conexion.execute("COMMIT");
-        return false;
+        return {
+          valido: false,
+          message: "El código venció o es inválido. Solicita uno nuevo.",
+        };
+      }
+
+      if (tieneColumnasSeguridad && Number(registro.bloqueado) === 1) {
+        await conexion.execute("COMMIT");
+        return {
+          valido: false,
+          message: "Código bloqueado por demasiados intentos fallidos. Solicita uno nuevo.",
+        };
+      }
+
+      if (registro.codigo !== codigo) {
+        if (tieneColumnasSeguridad) {
+          const nuevosIntentos = Number(registro.intentos || 0) + 1;
+          const bloquear = nuevosIntentos >= 5;
+          await conexion.execute(
+            `UPDATE recuperacion_password 
+             SET intentos = ?, bloqueado = ? 
+             WHERE id = ?`,
+            [nuevosIntentos, bloquear ? 1 : 0, registro.id],
+          );
+          await conexion.execute("COMMIT");
+          if (bloquear) {
+            return {
+              valido: false,
+              message: "Código bloqueado. Has alcanzado el límite de 5 intentos fallidos.",
+            };
+          }
+          return {
+            valido: false,
+            message: `Código incorrecto. Te quedan ${5 - nuevosIntentos} intento(s).`,
+          };
+        } else {
+          await conexion.execute("COMMIT");
+          return { valido: false, message: "El código es incorrecto o venció." };
+        }
       }
 
       await conexion.execute("COMMIT");
-      return registro.codigo === codigo;
+      return {
+        valido: true,
+        message: "Código verificado. Ya puedes definir una contraseña nueva.",
+      };
     } catch (error) {
       await conexion.execute("ROLLBACK");
       throw error;
@@ -247,27 +305,60 @@ export class Usuario {
     email: string,
     codigo: string,
     nuevaContrasena: string,
-  ): Promise<boolean> {
+  ): Promise<{ success: boolean; message: string }> {
     const passwordHash = await hash(nuevaContrasena);
     await conexion.execute("START TRANSACTION");
     try {
-      const [registro] = await conexion.query(
-        `SELECT rp.id, u.id_usuario, rp.codigo,
-                rp.expiracion > CURRENT_TIMESTAMP AS vigente
-         FROM recuperacion_password rp
-         INNER JOIN usuarios u ON u.id_usuario = rp.id_usuario
-         WHERE u.email = ? AND u.activo = 1 AND rp.usado = 0
-         ORDER BY rp.id DESC LIMIT 1 FOR UPDATE`,
-        [email],
-      );
+      let registro: any = null;
+      let tieneColumnasSeguridad = true;
+      try {
+        const [row] = await conexion.query(
+          `SELECT rp.id, u.id_usuario, rp.codigo,
+                  rp.expiracion > CURRENT_TIMESTAMP AS vigente,
+                  rp.bloqueado
+           FROM recuperacion_password rp
+           INNER JOIN usuarios u ON u.id_usuario = rp.id_usuario
+           WHERE u.email = ? AND u.activo = 1 AND rp.usado = 0
+           ORDER BY rp.id DESC LIMIT 1 FOR UPDATE`,
+          [email],
+        );
+        registro = row;
+      } catch {
+        tieneColumnasSeguridad = false;
+        const [row] = await conexion.query(
+          `SELECT rp.id, u.id_usuario, rp.codigo,
+                  rp.expiracion > CURRENT_TIMESTAMP AS vigente
+           FROM recuperacion_password rp
+           INNER JOIN usuarios u ON u.id_usuario = rp.id_usuario
+           WHERE u.email = ? AND u.activo = 1 AND rp.usado = 0
+           ORDER BY rp.id DESC LIMIT 1 FOR UPDATE`,
+          [email],
+        );
+        registro = row;
+      }
 
-      if (
-        !registro ||
-        registro.codigo !== codigo ||
-        !Number(registro.vigente)
-      ) {
+      if (!registro || !Number(registro.vigente)) {
         await conexion.execute("COMMIT");
-        return false;
+        return {
+          success: false,
+          message: "El código ya no es válido o expiró. Solicita uno nuevo.",
+        };
+      }
+
+      if (tieneColumnasSeguridad && Number(registro.bloqueado) === 1) {
+        await conexion.execute("COMMIT");
+        return {
+          success: false,
+          message: "Código bloqueado por demasiados intentos fallidos. Solicita uno nuevo.",
+        };
+      }
+
+      if (registro.codigo !== codigo) {
+        await conexion.execute("COMMIT");
+        return {
+          success: false,
+          message: "El código de verificación no coincide.",
+        };
       }
 
       const resultado = await conexion.execute(
@@ -276,7 +367,10 @@ export class Usuario {
       );
       if (Number(resultado.affectedRows) !== 1) {
         await conexion.execute("ROLLBACK");
-        return false;
+        return {
+          success: false,
+          message: "No se pudo actualizar la contraseña del usuario.",
+        };
       }
 
       await conexion.execute(
@@ -284,7 +378,10 @@ export class Usuario {
         [registro.id],
       );
       await conexion.execute("COMMIT");
-      return true;
+      return {
+        success: true,
+        message: "Tu contraseña fue actualizada. Ya puedes iniciar sesión.",
+      };
     } catch (error) {
       await conexion.execute("ROLLBACK");
       throw error;

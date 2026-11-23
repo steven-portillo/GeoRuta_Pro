@@ -5,6 +5,7 @@ import {
   confirmarPago,
   crearIntencionPago,
   listarPagosAdmin,
+  recibirWebhookWompi,
 } from "../../Controller/Pagos/pagoController.ts";
 import { soloAdmin } from "../../Middlewares/roles.ts";
 
@@ -27,6 +28,10 @@ pagoRouter.get(
   authMiddleware,
   soloAdmin,
   listarPagosAdmin,
+);
+pagoRouter.post(
+  "/api/pagos/wompi/webhook",
+  recibirWebhookWompi,
 );
 
 export { pagoRouter };

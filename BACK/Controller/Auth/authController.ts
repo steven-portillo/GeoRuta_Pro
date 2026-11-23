@@ -15,8 +15,10 @@ import {
   plantillaNuevaEmpresaSuperAdmin,
   plantillaCodigoRecuperacion,
 } from "../../Helpers/emailTemplates.ts";
+import { verificarGoogleIdToken } from "../../Helpers/googleIdentity.ts";
 
 const GOOGLE_CLIENT_ID =
+  Deno.env.get("GOOGLE_CLIENT_ID") ||
   "326172460152-tf164aeq7s3p3nqotj1ml221dgsrl6i0.apps.googleusercontent.com";
 
 /** POST /api/auth/login */
@@ -140,16 +142,14 @@ export const verificarCodigoRecuperacion = async (ctx: Context) => {
       return;
     }
 
-    const valido = await Usuario.VerificarCodigoRecuperacion(
+    const resultado = await Usuario.VerificarCodigoRecuperacion(
       email,
       codigo,
     );
-    response.status = valido ? 200 : 400;
+    response.status = resultado.valido ? 200 : 400;
     response.body = {
-      success: valido,
-      message: valido
-        ? "Código verificado. Ya puedes definir una contraseña nueva."
-        : "El código es incorrecto o venció.",
+      success: resultado.valido,
+      message: resultado.message,
     };
   } catch (error) {
     console.error("Error al verificar código de recuperación:", error);
@@ -177,18 +177,13 @@ export const restablecerContrasena = async (ctx: Context) => {
       return;
     }
 
-    const actualizado = await Usuario.RestablecerContrasena(
+    const resultado = await Usuario.RestablecerContrasena(
       email,
       codigo,
       nuevaContrasena,
     );
-    response.status = actualizado ? 200 : 400;
-    response.body = {
-      success: actualizado,
-      message: actualizado
-        ? "Tu contraseña fue actualizada. Ya puedes iniciar sesión."
-        : "El código ya no es válido. Solicita uno nuevo.",
-    };
+    response.status = resultado.success ? 200 : 400;
+    response.body = resultado;
   } catch (error) {
     console.error("Error al restablecer contraseña:", error);
     response.status = 500;
@@ -213,56 +208,74 @@ export const loginGoogle = async (ctx: Context) => {
       return;
     }
 
-    // Verificar el token con Google
-    const googleRes = await fetch(
-      `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`,
-    );
+    let email: string | undefined;
+    let givenName = "Usuario";
+    let familyName = "";
+    let picture: string | null = null;
 
-    if (!googleRes.ok) {
-      response.status = 401;
-      response.body = {
-        success: false,
-        message: "Token de Google inválido o expirado",
-      };
-      return;
-    }
+    // 1. Verificación criptográfica RS256 con claves JWKS de Google (rápida y segura)
+    const identidad = await verificarGoogleIdToken(credential, GOOGLE_CLIENT_ID);
+    if (identidad) {
+      email = identidad.email;
+      givenName = identidad.given_name;
+      familyName = identidad.family_name;
+      picture = identidad.picture ?? null;
+    } else {
+      // 2. Fallback a tokeninfo de Google si la verificación JWKS local no coincide
+      const googleRes = await fetch(
+        `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`,
+      );
 
-    const googleUser = await googleRes.json();
+      if (!googleRes.ok) {
+        response.status = 401;
+        response.body = {
+          success: false,
+          message: "Token de Google inválido o expirado",
+        };
+        return;
+      }
 
-    if (googleUser.aud !== GOOGLE_CLIENT_ID) {
-      response.status = 401;
-      response.body = {
-        success: false,
-        message: "Token no corresponde a esta aplicación",
-      };
-      return;
-    }
+      const googleUser = await googleRes.json();
 
-    const email = googleUser.email as string | undefined;
-    if (!email) {
-      response.status = 400;
-      response.body = {
-        success: false,
-        message: "No se pudo obtener el email de Google",
-      };
-      return;
-    }
+      if (googleUser.aud !== GOOGLE_CLIENT_ID) {
+        response.status = 401;
+        response.body = {
+          success: false,
+          message: "Token no corresponde a esta aplicación",
+        };
+        return;
+      }
 
-    // tokeninfo devuelve email_verified como string "true"
-    if (String(googleUser.email_verified) !== "true") {
-      response.status = 401;
-      response.body = {
-        success: false,
-        message: "El correo de Google no está verificado",
-      };
-      return;
+      email = googleUser.email as string | undefined;
+      if (!email) {
+        response.status = 400;
+        response.body = {
+          success: false,
+          message: "No se pudo obtener el email de Google",
+        };
+        return;
+      }
+
+      // tokeninfo devuelve email_verified como string "true"
+      if (String(googleUser.email_verified) !== "true") {
+        response.status = 401;
+        response.body = {
+          success: false,
+          message: "El correo de Google no está verificado",
+        };
+        return;
+      }
+
+      givenName = (googleUser.given_name || googleUser.name || "Usuario") as string;
+      familyName = (googleUser.family_name || "") as string;
+      picture = (googleUser.picture || null) as string | null;
     }
 
     const resultado = await GoogleAuth.LoginORegistrar({
       email,
-      nombre: (googleUser.given_name || googleUser.name || "Usuario") as string,
-      apellido: (googleUser.family_name || "") as string,
-      imagenUrl: (googleUser.picture || null) as string | null,
+      nombre: givenName,
+      apellido: familyName,
+      imagenUrl: picture,
     });
 
     if (!resultado.success) {

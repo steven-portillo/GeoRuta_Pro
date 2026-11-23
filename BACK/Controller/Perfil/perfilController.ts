@@ -106,11 +106,11 @@ export const cambiarPassword = async (ctx: Context) => {
     const body = await ctx.request.body.json();
     const { passwordActual, passwordNueva } = body;
 
-    if (!passwordActual || !passwordNueva) {
+    if (!passwordNueva) {
       ctx.response.status = 400;
       ctx.response.body = {
         success: false,
-        message: "Faltan campos obligatorios",
+        message: "La nueva contraseña es obligatoria",
       };
       return;
     }
@@ -124,8 +124,8 @@ export const cambiarPassword = async (ctx: Context) => {
     }
 
     const resultado = await Perfil.CambiarPassword(id_usuario, {
-      passwordActual,
-      passwordNueva,
+      passwordActual: passwordActual ? String(passwordActual) : undefined,
+      passwordNueva: String(passwordNueva),
     });
     ctx.response.status = resultado.success ? 200 : 400;
     ctx.response.body = resultado;

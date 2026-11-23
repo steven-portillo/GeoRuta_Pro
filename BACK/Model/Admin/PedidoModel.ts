@@ -1,4 +1,5 @@
 import { conexion } from "../conexion.ts";
+import { generarCodigoEntrega } from "../../Helpers/codigoEntrega.ts";
 
 export class Pedido {
   static async Listar(id_empresa: number) {
@@ -204,7 +205,7 @@ export class Pedido {
     notas?: string,
   ) {
     const [pedido] = await conexion.query(
-      `SELECT p.id_pedido, es.nombre_estado,
+      `SELECT p.id_pedido, p.metodo_pago, es.nombre_estado,
             (SELECT COUNT(*) FROM asignacion_pedido WHERE id_pedido = p.id_pedido) AS yaAsignado
      FROM pedidos p INNER JOIN estados_pedido es ON es.id_estado = p.id_estado
      WHERE p.id_pedido = ? AND p.id_empresa = ?`,
@@ -241,9 +242,16 @@ export class Pedido {
       await conexion.execute("START TRANSACTION");
 
       await conexion.execute(
-        `INSERT INTO asignacion_pedido (id_pedido, id_proveedor, fecha_asignacion, notas)
-       VALUES (?, ?, CURRENT_TIMESTAMP, ?)`,
-        [id_pedido, id_proveedor, notas ?? null],
+        `INSERT INTO asignacion_pedido
+           (id_pedido, id_proveedor, fecha_asignacion, notas,
+            codigo_entrega, intentos_codigo)
+         VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?, 0)`,
+        [
+          id_pedido,
+          id_proveedor,
+          notas ?? null,
+          pedido.metodo_pago === "contra_entrega" ? generarCodigoEntrega() : null,
+        ],
       );
 
       await conexion.execute(

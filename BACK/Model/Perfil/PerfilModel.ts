@@ -10,7 +10,7 @@ interface EditarPerfilData {
 }
 
 interface CambiarPasswordData {
-  passwordActual: string;
+  passwordActual?: string;
   passwordNueva: string;
 }
 
@@ -19,14 +19,15 @@ export class Perfil {
     const [usuario] = await conexion.query(
       `SELECT u.id_usuario, u.nombre, u.apellido, u.email,
               u.imagen_url AS imagenUrl, r.nombre_rol AS rol,
-              e.nombre AS empresaNombre
+              e.nombre AS empresaNombre,
+              (u.password_hash = 'GOOGLE_AUTH' OR u.password_hash IS NULL) AS esGoogle
        FROM usuarios u
        INNER JOIN roles r ON r.id_rol = u.id_rol
        LEFT JOIN empresas e ON e.id_empresa = u.id_empresa
        WHERE u.id_usuario = ?`,
       [id_usuario],
     );
-    return usuario ?? null;
+    return usuario ? { ...usuario, esGoogle: Boolean(usuario.esGoogle) } : null;
   }
 
   static async Editar(
@@ -129,12 +130,18 @@ export class Perfil {
       return { success: false, message: "Usuario no encontrado" };
     }
 
-    const passwordValido = await compare(
-      datos.passwordActual,
-      usuario.password_hash,
-    );
-    if (!passwordValido) {
-      return { success: false, message: "La contraseña actual es incorrecta" };
+    const esGoogle = usuario.password_hash === "GOOGLE_AUTH" || !usuario.password_hash;
+    if (!esGoogle) {
+      if (!datos.passwordActual) {
+        return { success: false, message: "Debes ingresar tu contraseña actual" };
+      }
+      const passwordValido = await compare(
+        datos.passwordActual,
+        usuario.password_hash,
+      );
+      if (!passwordValido) {
+        return { success: false, message: "La contraseña actual es incorrecta" };
+      }
     }
 
     const nuevoHash = await hash(datos.passwordNueva);

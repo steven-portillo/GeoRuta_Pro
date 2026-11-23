@@ -1,4 +1,4 @@
----
+﻿---
 // src/components/cliente/MisPedidosCliente.astro
 
 interface Metricas {
@@ -233,80 +233,111 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 0.6rem;
+    margin-bottom: 0.75rem;
   }
 
   .titulo-seccion {
-    font-size: 0.88rem;
+    font-size: 0.95rem;
     font-weight: 700;
-    color: var(--secondary-800);
+    color: #111827;
+    letter-spacing: -0.01em;
   }
 
-  /* ── metricas ── */
+  /* ── grilla de metricas ── */
   .grilla-metricas {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
-    gap: 12px;
-    margin-bottom: 1.5rem;
+    gap: 14px;
+    margin-bottom: 1.75rem;
   }
 
   .metrica-card {
-    background: white;
-    border: 1px solid var(--secondary-200);
-    border-radius: 10px;
-    padding: 0.85rem 1rem;
+    background: #ffffff;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 1.25rem 1.5rem;
     text-align: center;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
+  }
+
+  .metrica-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+    border-color: #d1d5db;
+  }
+
+  .metrica-icono {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #f7fee7;
+    color: #84cc16;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 0.6rem;
+    font-size: 1.1rem;
   }
 
   .metrica-valor {
-    font-family: var(--font-display);
-    font-size: 1.4rem;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 2rem;
     font-weight: 800;
-    color: var(--secondary-900);
+    color: #111827;
+    letter-spacing: -0.03em;
+    line-height: 1;
   }
 
   .metrica-label {
-    font-size: 0.7rem;
-    color: var(--secondary-500);
+    font-size: 0.72rem;
+    color: #64748b;
     font-weight: 600;
-    margin-top: 2px;
+    margin-top: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
 
   /* ── badge de estado (compartido: pedido activo, tarjetas, modal) ── */
   .badge-estado {
     display: inline-flex;
     align-items: center;
-    padding: 4px 10px;
-    border-radius: 20px;
+    padding: 4px 12px;
+    border-radius: 9999px;
     font-size: 0.72rem;
     font-weight: 700;
     white-space: nowrap;
+    letter-spacing: 0.02em;
   }
 
   .badge-estado.grande {
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     padding: 6px 14px;
   }
 
-  /* ── pedido activo ── */
+  /* ── pedido activo destacado ── */
   .seccion-activo {
     margin-bottom: 2rem;
   }
 
   .tarjeta-activo {
-    display: block;            
-    text-decoration: none;     
-    color: inherit;            
-    background: white;
-    border: 1px solid var(--secondary-200);
-    border-radius: 14px;
-    padding: 1.25rem 1.5rem;
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    background: #fafff0;
+    border: 1.5px solid #e5e7eb;
+    border-left: 4px solid #bef264;
+    border-radius: 16px;
+    padding: 1.5rem 1.75rem;
     cursor: pointer;
-    transition: box-shadow 0.15s;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
   }
 
   .tarjeta-activo:hover {
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-color: #bef264;
+    transform: translateY(-2px);
   }
 
   .activo-encabezado {
@@ -318,15 +349,15 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
   }
 
   .activo-empresa {
-    font-family: var(--font-display);
-    font-size: 1.15rem;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 1.25rem;
     font-weight: 700;
-    color: var(--secondary-900);
+    color: #111827;
   }
 
   .activo-productos {
     font-size: 0.8rem;
-    color: var(--secondary-500);
+    color: #64748b;
     margin-top: 2px;
     max-width: 480px;
   }
@@ -363,42 +394,43 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
     left: 50%;
     width: 100%;
     height: 2px;
-    background: var(--secondary-200);
+    background: #e5e7eb;
     z-index: 0;
   }
 
   .paso-tracking.completado:not(:last-child)::after {
-    background: var(--primary-500);
+    background: #bef264;
   }
 
   .paso-punto {
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background: var(--secondary-200);
-    border: 2px solid white;
-    box-shadow: 0 0 0 2px var(--secondary-200);
+    background: #e5e7eb;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 0 2px #e5e7eb;
     z-index: 1;
     margin-bottom: 6px;
   }
 
   .paso-tracking.completado .paso-punto {
-    background: var(--primary-600);
-    box-shadow: 0 0 0 2px var(--primary-600);
+    background: #84cc16;
+    box-shadow: 0 0 0 2px #84cc16;
   }
 
   .paso-tracking.actual .paso-punto {
-    box-shadow: 0 0 0 4px var(--primary-100), 0 0 0 2px var(--primary-600);
+    background: #84cc16;
+    box-shadow: 0 0 0 4px #f7fee7, 0 0 0 2px #84cc16;
   }
 
   .paso-label {
     font-size: 0.7rem;
-    color: var(--secondary-400);
+    color: #64748b;
     font-weight: 600;
   }
 
   .paso-tracking.completado .paso-label {
-    color: var(--secondary-800);
+    color: #111827;
   }
 
   .activo-pie {
@@ -406,38 +438,54 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
     align-items: center;
     justify-content: space-between;
     padding-top: 1rem;
-    border-top: 1px solid var(--secondary-100);
+    border-top: 1px solid #e5e7eb;
   }
 
   .activo-direccion {
     font-size: 0.8rem;
-    color: var(--secondary-500);
+    color: #64748b;
   }
 
   .activo-total {
-    font-family: var(--font-display);
+    font-family: 'Plus Jakarta Sans', sans-serif;
     font-size: 1.2rem;
     font-weight: 800;
-    color: var(--primary-700);
+    color: #111827;
   }
 
-  /* ── historial ── */
+  /* ── historial de pedidos ── */
+  .seccion-historial {
+    /* contenedor del historial */
+  }
+
   .historial-vacio {
-    background: white;
-    border: 1px dashed var(--secondary-200);
-    border-radius: 14px;
+    background: #ffffff;
+    border: 1.5px dashed #e5e7eb;
+    border-radius: 16px;
     padding: 3rem;
     text-align: center;
-    color: var(--secondary-400);
+    color: #64748b;
+  }
+
+  .historial-vacio p {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #64748b;
+    margin-bottom: 0.5rem;
   }
 
   .enlace-catalogo {
     display: inline-block;
     margin-top: 8px;
-    color: var(--primary-600);
-    font-weight: 600;
-    font-size: 0.85rem;
+    color: #84cc16;
+    font-weight: 700;
+    font-size: 0.88rem;
     text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .enlace-catalogo:hover {
+    color: #65a30d;
   }
 
   .grilla-pedidos {
@@ -447,22 +495,23 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
   }
 
   .tarjeta-pedido {
-    display: block;            
-    text-decoration: none;     
-    color: inherit;            
-    background: white;
-    border: 1px solid var(--secondary-200);
-    border-radius: 14px;
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    background: #ffffff;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 16px;
     min-width: 0;
-    padding: 1.1rem 1.2rem;
+    padding: 1.25rem 1.35rem;
     cursor: pointer;
-    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.035);
-    transition: box-shadow 0.15s, transform 0.15s;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
   }
 
   .tarjeta-pedido:hover {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-color: #d1d5db;
+    transform: translateY(-3px);
   }
 
   .pedido-encabezado {
@@ -474,20 +523,21 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
 
   .pedido-logo,
   .pedido-logo-placeholder {
-    width: 38px;
-    height: 38px;
-    border-radius: 9px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
     flex-shrink: 0;
-    object-fit: contain;
+    object-fit: cover;
   }
 
   .pedido-logo-placeholder {
-    background: var(--primary-900);
-    color: white;
+    background: #111827;
+    color: #bef264;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 700;
+    font-weight: 800;
+    font-size: 1rem;
   }
 
   .pedido-info-top {
@@ -497,8 +547,8 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
 
   .pedido-empresa {
     font-weight: 700;
-    font-size: 0.88rem;
-    color: var(--secondary-800);
+    font-size: 0.9rem;
+    color: #111827;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -506,12 +556,13 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
 
   .pedido-fecha {
     font-size: 0.72rem;
-    color: var(--secondary-400);
+    color: #64748b;
+    margin-top: 2px;
   }
 
   .pedido-direccion {
     font-size: 0.78rem;
-    color: var(--secondary-500);
+    color: #64748b;
     margin-bottom: 0.75rem;
     white-space: nowrap;
     overflow: hidden;
@@ -525,34 +576,51 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
     flex-wrap: wrap;
     gap: 0.6rem;
     padding-top: 0.75rem;
-    border-top: 1px solid var(--secondary-100);
+    border-top: 1px solid #f3f4f6;
   }
 
   .pedido-items {
     font-size: 0.72rem;
-    color: var(--secondary-400);
+    color: #64748b;
   }
 
   .pago-ok {
     font-size: 0.72rem;
-    color: #16a34a;
-    font-weight: 600;
+    color: #10b981;
+    font-weight: 700;
   }
 
   .pago-pendiente {
     font-size: 0.72rem;
     color: #d97706;
-    font-weight: 600;
+    font-weight: 700;
   }
 
   .pedido-total {
-    font-family: var(--font-display);
-    font-weight: 800;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 700;
     font-size: 0.95rem;
-    color: var(--secondary-900);
+    color: #111827;
   }
 
+  /* ── estados vacios ── */
+  .metricas-vacio {
+    background: #ffffff;
+    border: 1.5px dashed #e5e7eb;
+    border-radius: 16px;
+    padding: 2rem;
+    text-align: center;
+    color: #64748b;
+    margin-bottom: 1.75rem;
+  }
 
+  .metricas-vacio .vacio-icono {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+
+  /* ── responsive ── */
   @media (max-width: 900px) {
     :global(.zona-contenido:has(.mis-pedidos)) {
       padding: 1.25rem 1.25rem 2rem;
@@ -574,7 +642,7 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
     }
 
     .metrica-valor {
-      font-size: 1.2rem;
+      font-size: 1.4rem;
     }
 
     .activo-encabezado {
@@ -612,4 +680,5 @@ const pedidoActivoCancelado = pedidoActivo ? normalizar(pedidoActivo.estado) ===
       margin-left: auto;
     }
   }
+
 </style>

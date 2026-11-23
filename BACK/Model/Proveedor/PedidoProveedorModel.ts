@@ -1,5 +1,9 @@
 import { conexion } from "../conexion.ts";
 import { MAX_INTENTOS_CODIGO } from "../../Helpers/codigoEntrega.ts";
+// misma regla que CambiarEstado: de estos estados se puede pasar a "En transito"
+const ESTADOS_PARA_SALIR = ["asignado", "aprobado", "en preparacion"];
+const normalizarEstado = (e: unknown) =>
+  String(e).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 export class PedidoProveedor {
   static async ObtenerNotificaciones(id_proveedor: number) {
@@ -73,8 +77,8 @@ export class PedidoProveedor {
     try {
       await conexion.execute("START TRANSACTION");
       const [pedido] = await conexion.query(
-        `SELECT ep.nombre_estado AS estado, p.metodo_pago, p.codigo_entrega,
-                p.intentos_codigo
+        `SELECT ep.nombre_estado AS estado, p.metodo_pago, ap.codigo_entrega,
+                ap.intentos_codigo
          FROM asignacion_pedido ap
          INNER JOIN pedidos p ON p.id_pedido = ap.id_pedido
          INNER JOIN estados_pedido ep ON ep.id_estado = p.id_estado
@@ -121,9 +125,10 @@ export class PedidoProveedor {
         }
         if (pedido.codigo_entrega !== codigo) {
           await conexion.execute(
-            `UPDATE pedidos SET intentos_codigo = intentos_codigo + 1
-             WHERE id_pedido = ?`,
-            [id_pedido],
+            `UPDATE asignacion_pedido
+             SET intentos_codigo = intentos_codigo + 1
+             WHERE id_pedido = ? AND id_proveedor = ?`,
+            [id_pedido, id_proveedor],
           );
           await conexion.execute("COMMIT");
           const restantes = MAX_INTENTOS_CODIGO - (intentos + 1);
@@ -201,24 +206,22 @@ export class PedidoProveedor {
            pago_confirmado = IF(
              ? = 'Entregado' AND metodo_pago = 'contra_entrega',
              1, pago_confirmado
-           ),
-           codigo_entrega = IF(
-             ? = 'Entregado' AND metodo_pago = 'contra_entrega',
-             NULL, codigo_entrega
-           ),
-           intentos_codigo = IF(
-             ? = 'Entregado' AND metodo_pago = 'contra_entrega',
-             0, intentos_codigo
            )
          WHERE id_pedido = ?`,
         [
           estadoDestino[0].id_estado,
           nuevoEstado,
-          nuevoEstado,
-          nuevoEstado,
           id_pedido,
         ],
       );
+      if (nuevoEstado === "Entregado" && pedido.metodo_pago === "contra_entrega") {
+        await conexion.execute(
+          `UPDATE asignacion_pedido
+           SET codigo_entrega = NULL, intentos_codigo = 0
+           WHERE id_pedido = ? AND id_proveedor = ?`,
+          [id_pedido, id_proveedor],
+        );
+      }
       if (nuevoEstado === "Entregado") {
         await conexion.execute(
           `UPDATE pagos pg
@@ -234,6 +237,70 @@ export class PedidoProveedor {
     } catch (error) {
       await conexion.execute("ROLLBACK");
       console.error("Error al cambiar el estado del pedido del repartidor:", error);
+      throw error;
+    }
+  }
+
+    /** Pasa a "En transito" todos los pedidos del repartidor que están listos para salir. */
+  static async IniciarEntregas(
+    id_proveedor: number,
+  ): Promise<{ success: boolean; message: string; pedidos: number[] }> {
+    try {
+      await conexion.execute("START TRANSACTION");
+
+      // 1) lee y bloquea los pedidos de este repartidor
+      const filas = await conexion.query(
+        `SELECT p.id_pedido, ep.nombre_estado AS estado
+         FROM asignacion_pedido ap
+         INNER JOIN pedidos p ON p.id_pedido = ap.id_pedido
+         INNER JOIN estados_pedido ep ON ep.id_estado = p.id_estado
+         WHERE ap.id_proveedor = ?
+         FOR UPDATE`,
+        [id_proveedor],
+      );
+
+      // 2) se queda solo con los que permiten la transición
+      const ids = (filas as Record<string, unknown>[])
+        .filter((f) => ESTADOS_PARA_SALIR.includes(normalizarEstado(f.estado)))
+        .map((f) => Number(f.id_pedido));
+
+      if (ids.length === 0) {
+        await conexion.execute("ROLLBACK");
+        return {
+          success: false,
+          message: "No tienes pedidos listos para iniciar entrega",
+          pedidos: [],
+        };
+      }
+
+      // 3) id del estado destino (misma consulta que CambiarEstado)
+      const estadoDestino = await conexion.query(
+        `SELECT id_estado FROM estados_pedido
+         WHERE REPLACE(LOWER(nombre_estado), 'á', 'a') = LOWER(?)`,
+        ["En transito"],
+      );
+      if (!estadoDestino[0]) {
+        throw new Error("No existe el estado de pedido En transito");
+      }
+
+      // 4) un solo UPDATE para todos
+      const marcadores = ids.map(() => "?").join(", ");
+      await conexion.execute(
+        `UPDATE pedidos
+         SET id_estado = ?, fecha_inicio_transito = CURRENT_TIMESTAMP
+         WHERE id_pedido IN (${marcadores})`,
+        [estadoDestino[0].id_estado, ...ids],
+      );
+
+      await conexion.execute("COMMIT");
+      return {
+        success: true,
+        message: `${ids.length} pedido(s) en tránsito`,
+        pedidos: ids,
+      };
+    } catch (error) {
+      await conexion.execute("ROLLBACK");
+      console.error("Error al iniciar las entregas del repartidor:", error);
       throw error;
     }
   }
