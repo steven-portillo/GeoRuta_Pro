@@ -1,4 +1,4 @@
-# Autenticación con Google y recuperación de contraseña
+   # Autenticación con Google y recuperación de contraseña
 
 ## Inicio y registro con Google
 
